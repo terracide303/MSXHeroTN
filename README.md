@@ -364,12 +364,13 @@ Files go in the root of the SD card, or in subdirectories.
 |---|---|
 | `.rom` | cartridge, into the megaram, with mapper auto-detection |
 | `.dsk` | disk image, through Nextor disk emulation |
-| `.col` | ColecoVision — also needs `COLECO.ROM` on the card |
-| `.sg` | Sega SG-1000 |
 
-Only these extensions are recognised. The boot menu matches the three extension bytes
-literally, so a `.mx2` file — a common format for MSX2 cartridge dumps, and byte-identical to
-a `.rom` — is **invisible** until renamed.
+**Only those two.** Upstream v1.9 removed ColecoVision and Sega SG-1000 support — the RTL,
+the SN76489 core and the menu's `.COL`/`.SG` handling all went — so this fork does not have
+them either. If you want them back, see the note below.
+
+The boot menu matches the three extension bytes literally, so a `.mx2` file — a common format
+for MSX2 cartridge dumps, and byte-identical to a `.rom` — is **invisible** until renamed.
 
 The file browser starts before the OS. Arrows and RETURN navigate and launch, BS goes back,
 `R`/`D`/`A` filter by type, TAB switches partition, `S` opens settings, `W` opens WiFi, and
@@ -382,7 +383,28 @@ firmware and never reaches the MSX.
 
 Everything not listed above comes from MSXnano unchanged: the Z80, the V9958 VDP with HDMI
 output, dual PSG, SCC and SCC+ with an optional second SCC+, OPLL, SD card with Nextor 2.1.4,
-ColecoVision and SG-1000 emulation, the ESP-01S WiFi option, and the SD file browser.
+the ESP-01S WiFi option, and the SD file browser.
+
+### Console emulation was removed upstream
+
+MSXnano up to v1.8 could also run **ColecoVision** and **Sega SG-1000** games. Upstream's v1.9
+(`ce46ef9`, "MSX-only cleanup") deleted all of it: `console_mode` came out of `top.v`, the
+console memory map came out of `megaram.v`, `sn76489.v` was deleted and dropped from
+`build.tcl`, and the menu lost `.SG`/`.COL` detection, launching, `COLECO.ROM` and its
+strings. This fork inherits that state.
+
+It is recoverable rather than lost — the code is one commit back in history, so restoring it
+means reverting a known change rather than writing anything new:
+
+```sh
+git show ce46ef9 --stat        # what was removed
+git checkout ce46ef9^ -- fpga/src/sn76489.v
+```
+
+That matters for more than nostalgia. The SN76489 and the TMS9918-compatible modes of the
+V9958 are exactly what the wider **Z80 + TMS9918 + SN76489** family of machines needs — Sord
+M5, Memotech MTX, Sega SC-3000 — so bringing the console path back is also the groundwork for
+anything else in that family.
 
 For the feature history and per-version release notes, see
 [upstream's README](https://github.com/Papipapito/MSXnano) — that history is not duplicated
