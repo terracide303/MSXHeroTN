@@ -194,7 +194,36 @@ Reference implementation to work from: openMSX's
 [`MSXYamahaSFG.cc`](https://github.com/openMSX/openMSX/blob/master/src/sound/MSXYamahaSFG.cc)
 and [`YM2148.cc`](https://github.com/openMSX/openMSX/blob/master/src/serial/YM2148.cc).
 
-**3. Translate the Spanish comments and docs to English** — not started.
+**3. Translate the on-screen menu to English** — not started, and the most user-visible item
+on this list.
+
+The entire boot menu UI is in Spanish — the status bar, the help screen, every prompt and
+error message:
+
+```
+"R/D/A=Filtro  ESC=Boot  S=Set  W=WiFi  TAB=Part  H=Ayuda"
+"Arriba/Abajo          : mover (Izq/Der = pagina)"
+"Cargando ROM en megaram..."
+"DSK fragmentado: copialo de nuevo. Pulsa tecla"
+```
+
+There are **99 string literals** in `fpga/src/msxnano_menu/src/menu_main.asm`. This is not a
+plain find-and-replace, because many are **width-locked**:
+
+- Some are padded to a fixed column count, and come in same-length pairs that must stay
+  matched — `"RETURN=LANZA M=MAPPER S=SRAM ESC"` and `"RETURN=LANZA M=MAPPER ESC       "`
+  are both exactly 32 characters.
+- The help screen is column-aligned, with the `:` of every line in the same column.
+- The status bar is 57 characters and has to keep fitting the screen width.
+
+So each translated string has to fit its original footprint, or the layout has to be adjusted
+deliberately along with it. English is usually shorter than Spanish, which helps, but
+"Ajustes" → "Settings" is longer, so it cannot be assumed.
+
+This is worth doing early: it is the part of the fork every user sees, and it is independent
+of the DB9 and MIDI work.
+
+**4. Translate the Spanish comments and docs to English** — not started.
 
 Upstream is written in Spanish throughout its comments and design documents. This fork is
 worked on in English, and mixed-language sources are a genuine hazard when the comments are
@@ -218,7 +247,7 @@ Two rules for this work, because it is the kind of change that silently breaks t
 - Do it in **separate commits from functional changes**, so a translation pass never hides a
   behavioural edit in a large diff.
 
-**4. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+**5. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
 
 Note that translation and rebasing pull against each other: the more of upstream's comments
