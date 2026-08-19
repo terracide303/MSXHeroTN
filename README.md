@@ -94,10 +94,18 @@ USB gamepad, so either input can drive the game.
 
 The lines are active low — a switch to ground, with internal pull-ups — which is already
 what MSX PSG Port A expects, so they AND straight into the existing joystick path with no
-level conversion.
+level conversion. The shield level-shifts them through six `2N7002` FETs in the usual
+bidirectional (non-inverting) arrangement, so the polarity survives to the FPGA.
 
 This pin group matches MiSTeryNano's `spare[]` set (its second DB9 port) except for fire-2,
 which this shield puts on pin 75 where MiSTeryNano uses 52.
+
+The signal order above is corroborated twice over: it is what MiSTeryNano's `db9_1`
+expression in `misterynano.sv` implies, and it is what the shield's own PCB netlist shows —
+J1 uses the standard Atari/MSX DE9 pinout (1=Up, 2=Down, 3=Left, 4=Right, 6=Fire1, 9=Fire2)
+and the Tang header carries those on consecutive pads in the order Fire1, Down, Up, Right,
+Left, Fire2. That is good evidence, but it is still not a substitute for plugging a stick in
+and pushing it in four directions.
 
 ---
 
@@ -107,14 +115,60 @@ which this shield puts on pin 75 where MiSTeryNano uses 52.
 Verify directions and both fire buttons, and confirm autofire on the USB pad still behaves
 now that the DB9 is AND-ed into the same lines.
 
-**2. MIDI in/out** — not started. The shield has DIN-5 IN and OUT sockets on pins **71 and
-72**, both unused by the core, so the pins are free. The wiring is the easy part; MIDI is
-just serial at 31250 baud and the core already contains a UART.
+**2. MIDI in/out, as a Yamaha SFG-05** — not started.
 
-The real work is that MSX software does not talk to "a UART" — it talks to a specific
-interface, such as MSX-MIDI, the Philips NMS-1205 Music Module, or a MIDI-PAC, each with its
-own I/O port map and in some cases its own ROM. Deciding which one to emulate is the first
-task, not writing the serial code.
+The shield's MIDI hardware is complete and conventional: an `H11L1S` Schmitt opto-isolator
+on IN, a `74LVC2G14` buffer on OUT, landing on FPGA pins **71 (out) and 72 (in)**, both
+unused by the core. From the FPGA's side MIDI is ordinary asynchronous serial at 31250 baud,
+so no extra hardware and no external adapter are needed.
+
+The question is what the MSX thinks it is talking to, and the answer chosen here is the
+**Yamaha SFG-05**, the FM Sound Synthesizer Unit from the Yamaha CX5M II.
+
+Why the SFG-05 rather than the alternatives:
+
+- **MSX-MIDI** (8251 USART + 8253 timer, ports E0H/E1H or E8H/E9H) **requires an MSX turbo R
+  or later**. This is an MSX2+, so it is out.
+- **Philips NMS-1205** works on MSX2, but is an 8251 design and drags in the Y8950.
+- The **SFG-01** is MIDI **out only** — it cannot receive external MIDI notes. The SFG-05 is
+  the version that added MIDI IN.
+
+The SFG is memory-mapped in a cartridge slot rather than sitting on I/O ports, and the MIDI
+half is only two registers:
+
+| Address | Function |
+|---|---|
+| `0x3FF0` | OPM address register |
+| `0x3FF1` | OPM data (write) / OPM status (read) |
+| `0x3FF2` | ST0–ST7 output latch / SD0–SD7 input buffer |
+| `0x3FF3` | MIDI IRQ vector address |
+| `0x3FF4` | External IRQ vector address |
+| `0x3FF5` | **MIDI UART data buffer** (read/write) |
+| `0x3FF6` | **MIDI UART command (write) / status (read)** |
+
+Addresses are masked with `0x3FFF` inside the 16K page. The YM2148 "MKS" handles MIDI and
+the Yamaha keyboard port; from the Z80 it is a data register and a status/command register.
+That is considerably less work than an 8251 with a separate baud-rate generator.
+
+Three things make up the actual job:
+
+1. **A cartridge slot.** Being memory-mapped, the SFG needs one, and this core's slot layout
+   is fixed by design (megaram in slot 2, SD in 3-2). Freeing or sharing a slot is the first
+   problem to solve, before any MIDI code.
+2. **The SFG ROM**, which holds the driver and BASIC extensions. It is copyrighted, so it has
+   to come from your own dump, exactly like the MSX BIOS in the BIOS pack.
+3. **The OPM.** Software expects the FM chip, not just a MIDI port — the SFG-05 uses a YM2164
+   (a YM2151 variant with shifted registers). This core already vendors **jtopl** from
+   jotego, who also maintains **JT51** for the YM2151, so an OPM core is available from a
+   source already present in the tree.
+
+A narrower first step is possible: implement only the YM2148 registers at `0x3FF5`/`0x3FF6`
+and leave the OPM out. Software doing plain MIDI output could work, but anything using the
+SFG ROM's BASIC extensions will expect the synth to exist.
+
+Reference implementation to work from: openMSX's
+[`MSXYamahaSFG.cc`](https://github.com/openMSX/openMSX/blob/master/src/sound/MSXYamahaSFG.cc)
+and [`YM2148.cc`](https://github.com/openMSX/openMSX/blob/master/src/serial/YM2148.cc).
 
 **3. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
