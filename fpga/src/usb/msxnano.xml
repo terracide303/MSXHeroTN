@@ -118,14 +118,17 @@
       <toggle label="Stereo:" id="E" default="0"/>
       <!-- second SCC+ in the free primary slot, for dual-SCC trackers -->
       <toggle label="Second SCC+:" id="C" default="0"/>
-      <!-- named steps rather than a bar: FPGA-Companion renders <range> as a
-           number, and a graphical bar would mean patching its firmware -->
+      <!-- A drawn bar would need a new widget in FPGA-Companion's menu.c, so
+           the bar is built out of ASCII in the labels instead. The OSD font is
+           proportional over 128px, so bar plus percentage fits alongside the
+           label with room to spare. Block glyphs are not in the font's range,
+           hence # and - rather than the Unicode block elements. -->
       <list label="Volume:" id="V" default="4">
-        <listentry label="Mute" value="0"/>
-        <listentry label="25%" value="1"/>
-        <listentry label="50%" value="2"/>
-        <listentry label="75%" value="3"/>
-        <listentry label="100%" value="4"/>
+        <listentry label="[----] Mute" value="0"/>
+        <listentry label="[#---] 25%" value="1"/>
+        <listentry label="[##--] 50%" value="2"/>
+        <listentry label="[###-] 75%" value="3"/>
+        <listentry label="[####] 100%" value="4"/>
       </list>
     </menu>
 
