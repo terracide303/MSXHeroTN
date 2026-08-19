@@ -125,8 +125,22 @@ cannot drift out of step with the core it configures. Regenerate it with
 `osd_u8g2.v` is vendored unchanged from MiSTeryNano (GPLv3), which is the reference
 implementation of this protocol.
 
-Not yet wired: the decoded values do not reach `config1_ff`/`config2_ff`, which the `S` menu
-drives through I/O ports.
+The menu carries System (turbo, boot turbo, video standard, keyboard layout, cold boot),
+Input (DB9 port, autofire), Video (scanlines, aspect) and Audio (stereo, second SCC+, volume).
+
+**Volume** is named steps rather than a bar: FPGA-Companion renders `<range>` as a number,
+and a real bar would mean patching its firmware — the fork we are avoiding. It is implemented
+as a shift attenuator on the mixer output, which is exact because the mix is 0-based unsigned
+(silence is 0, not mid-scale), so attenuating cannot shift a DC offset and click.
+
+**DB9 port** selects whether the shield's stick answers on MSX joystick port 1 or 2, by
+swapping the two ports — games differ on which they read.
+
+Wired so far: **volume** and **DB9 port**. The rest — turbo, boot turbo, scanlines, aspect,
+stereo, second SCC+, video standard, keyboard layout, autofire rate — are decoded and
+available in `top.v` but not yet merged with `config1_ff`/`config2_ff`, which the `S` menu
+drives through I/O ports. Those two were done first because they touch only the audio mixer
+and the joystick mux, not the boot config path.
 
 ---
 

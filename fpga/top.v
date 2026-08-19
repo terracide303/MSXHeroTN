@@ -547,8 +547,14 @@ wire [7:0] joy0_msx = {2'b11, ~af_fb0 & db9[5],       // TrigB <- Fire2
                               ~joystick0[2] & db9[1], // Down
                               ~joystick0[3] & db9[2]};// Up
 wire [7:0] joy1_msx = {2'b11, ~af_fb1, ~af_fa1, ~joystick1[0], ~joystick1[1], ~joystick1[2], ~joystick1[3]};
-wire [7:0] psg_joy_data = (!psg_reg15_joy_sel[0]) ? joy0_msx :
-                          (!psg_reg15_joy_sel[1]) ? joy1_msx :
+// OSD "J": which MSX joystick port the shield's DB9 answers on. The DB9 is
+// mixed into joy0_msx above; when port 2 is selected the two ports are simply
+// swapped, so the stick appears on port 2 and the USB pad on port 1.
+wire [7:0] port1_msx = system_db9_port ? joy1_msx : joy0_msx;
+wire [7:0] port2_msx = system_db9_port ? joy0_msx : joy1_msx;
+
+wire [7:0] psg_joy_data = (!psg_reg15_joy_sel[0]) ? port1_msx :
+                          (!psg_reg15_joy_sel[1]) ? port2_msx :
                           8'hFF;
 
 // ===== STANDALONE MERGE: USB keyboard (PPI port B 0xA9 read / port C 0xAA latch) =====
@@ -1889,16 +1895,39 @@ memory_ctrl mem1 (
 
     // (modo consola SG-1000/ColecoVision eliminado en v1.9 -- solo MSX)
 
+    // OSD volume ("V"): mute(0), 25/50/75/100%(1..4). The mixer output is
+    // 0-based unsigned -- silence is 0, not mid-scale -- so a right shift
+    // attenuates cleanly without shifting a DC offset and clicking.
+    // 25% and 75% are approximated as 1/4 and 3/4 to stay shift-only.
+    function [15:0] apply_volume;
+        input [15:0] s;
+        input [2:0]  vol;
+        begin
+            case (vol)
+                3'd0: apply_volume = 16'd0;                    // mute
+                3'd1: apply_volume = s >> 2;                   // 25%
+                3'd2: apply_volume = s >> 1;                   // 50%
+                3'd3: apply_volume = (s >> 1) + (s >> 2);      // 75%
+                default: apply_volume = s;                     // 100%
+            endcase
+        end
+    endfunction
+
+    reg [15:0] mix_l;
+    reg [15:0] mix_r;
+
     always @ (posedge clk_27m) begin
         if (clk_enable_3m6_27 == 1 ) begin
             if (config_enable_stereo == 1) begin
-                audio_sample   <= { 2'b0 , psgSound3 , 6'b000000 } + scc_term + jt2413_wav;
-                audio_sample_r <= { 2'b0 , psg2Sound3 , 6'b000000 } + { scc2x_wav, 1'b0 } + jt2413_wav;
+                mix_l <= { 2'b0 , psgSound3 , 6'b000000 } + scc_term + jt2413_wav;
+                mix_r <= { 2'b0 , psg2Sound3 , 6'b000000 } + { scc2x_wav, 1'b0 } + jt2413_wav;
             end
             else begin
-                audio_sample   <= { 2'b0 , psgSound3 , 6'b000000 } + { 2'b0 , psg2Sound3 , 6'b000000 } + scc_term + { scc2x_wav, 1'b0 } + jt2413_wav;
-                audio_sample_r <= { 2'b0 , psgSound3 , 6'b000000 } + { 2'b0 , psg2Sound3 , 6'b000000 } + scc_term + { scc2x_wav, 1'b0 } + jt2413_wav;
+                mix_l <= { 2'b0 , psgSound3 , 6'b000000 } + { 2'b0 , psg2Sound3 , 6'b000000 } + scc_term + { scc2x_wav, 1'b0 } + jt2413_wav;
+                mix_r <= { 2'b0 , psgSound3 , 6'b000000 } + { 2'b0 , psg2Sound3 , 6'b000000 } + scc_term + { scc2x_wav, 1'b0 } + jt2413_wav;
             end
+            audio_sample   <= apply_volume(mix_l, system_volume);
+            audio_sample_r <= apply_volume(mix_r, system_volume);
         end
     end
 
@@ -2783,6 +2812,22 @@ memory_ctrl mem1 (
     wire osd_strobe;
     wire osd_start;
     wire [7:0] osd_data;
+
+    // settings the user changed in the OSD. Only volume and the DB9 port
+    // assignment are acted on so far -- the rest still need merging with
+    // config1_ff/config2_ff, which the S menu drives through I/O ports.
+    wire [1:0] system_reset;
+    wire       system_turbo;
+    wire       system_turbo_boot;
+    wire       system_scanlines;
+    wire       system_wide_screen;
+    wire       system_stereo;
+    wire       system_second_scc;
+    wire [2:0] system_volume;
+    wire       system_pal;
+    wire [1:0] system_keyboard_sel;
+    wire       system_db9_port;
+    wire [1:0] system_autofire;
     fpga_companion fpga_companion_inst
     (
         .clk (clk_27m),
@@ -2804,7 +2849,20 @@ memory_ctrl mem1 (
 
         .osd_strobe (osd_strobe),
         .osd_start  (osd_start),
-        .osd_data   (osd_data)
+        .osd_data   (osd_data),
+
+        .system_reset       (system_reset),
+        .system_turbo       (system_turbo),
+        .system_turbo_boot  (system_turbo_boot),
+        .system_scanlines   (system_scanlines),
+        .system_wide_screen (system_wide_screen),
+        .system_stereo      (system_stereo),
+        .system_second_scc  (system_second_scc),
+        .system_volume      (system_volume),
+        .system_pal         (system_pal),
+        .system_keyboard    (system_keyboard_sel),
+        .system_db9_port    (system_db9_port),
+        .system_autofire    (system_autofire)
     );
 
     usb_keyboard_msx usb_keyboard_msx

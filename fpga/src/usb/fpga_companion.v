@@ -22,7 +22,22 @@ module fpga_companion (
     // osd_u8g2 keeps the framebuffer and composites it onto the picture
     output       osd_strobe,
     output       osd_start,
-    output [7:0] osd_data
+    output [7:0] osd_data,
+
+    // values set by the user in the OSD (sysctrl CMD 4). Ids and meanings
+    // are documented in msxnano.xml -- keep the two in step.
+    output [1:0] system_reset,
+    output       system_turbo,
+    output       system_turbo_boot,
+    output       system_scanlines,
+    output       system_wide_screen,
+    output       system_stereo,
+    output       system_second_scc,
+    output [2:0] system_volume,
+    output       system_pal,
+    output [1:0] system_keyboard,
+    output       system_db9_port,
+    output [1:0] system_autofire
 );
 
 wire mcu_hid_strobe;
@@ -143,7 +158,20 @@ sysctrl sysctrl (
 
         .buttons( {1'b0, 1'b0} ),
         .leds(system_leds),
-        .color(ws2812_color)
+        .color(ws2812_color),
+
+        .system_reset(system_reset),
+        .system_turbo(system_turbo),
+        .system_turbo_boot(system_turbo_boot),
+        .system_scanlines(system_scanlines),
+        .system_wide_screen(system_wide_screen),
+        .system_stereo(system_stereo),
+        .system_second_scc(system_second_scc),
+        .system_volume(system_volume),
+        .system_pal(system_pal),
+        .system_keyboard(system_keyboard),
+        .system_db9_port(system_db9_port),
+        .system_autofire(system_autofire)
          );   
 
 endmodule

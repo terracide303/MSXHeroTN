@@ -43,7 +43,12 @@ module sysctrl (
   output reg	    system_scanlines,    // "S" scanlines off(0) or on(1)
   output reg	    system_wide_screen,  // "A" 4:3(0) or 16:9(1)
   output reg	    system_stereo,       // "E" mono(0) or stereo(1)
-  output reg	    system_second_scc    // "C" second SCC+ in the free slot
+  output reg	    system_second_scc,   // "C" second SCC+ in the free slot
+  output reg [2:0]  system_volume,       // "V" mute(0), 25/50/75/100%(1..4)
+  output reg	    system_pal,          // "P" 60Hz NTSC(0) or 50Hz PAL(1)
+  output reg [1:0]  system_keyboard,     // "K" int(0), japanese(1), spanish(2)
+  output reg	    system_db9_port,     // "J" DB9 on MSX port 1(0) or 2(1)
+  output reg [1:0]  system_autofire      // "F" off(0), 5Hz(1), 10Hz(2), 20Hz(3)
 );
 
 reg [3:0] state;
@@ -110,6 +115,11 @@ always @(posedge clk) begin
       system_wide_screen <= 1'b0;   // 4:3
       system_stereo <= 1'b0;        // mono
       system_second_scc <= 1'b0;    // no second SCC+
+      system_volume <= 3'd4;        // full volume
+      system_pal <= 1'b0;           // 60 Hz
+      system_keyboard <= 2'd0;      // international
+      system_db9_port <= 1'b0;      // DB9 on port 1
+      system_autofire <= 2'd1;      // 5 Hz, matching the XML default
    end else begin // if (reset)
       //  bring button state into local clock domain
       buttonsD <= buttons;
@@ -194,6 +204,16 @@ always @(posedge clk) begin
                     if(id == "E") system_stereo <= data_in[0];
                     // Value "C": second SCC+ disabled(0) or enabled(1)
                     if(id == "C") system_second_scc <= data_in[0];
+                    // Value "V": volume mute(0), 25/50/75/100%(1..4)
+                    if(id == "V") system_volume <= data_in[2:0];
+                    // Value "P": 60Hz NTSC(0) or 50Hz PAL(1)
+                    if(id == "P") system_pal <= data_in[0];
+                    // Value "K": keyboard international(0), japanese(1), spanish(2)
+                    if(id == "K") system_keyboard <= data_in[1:0];
+                    // Value "J": DB9 answers on MSX joystick port 1(0) or 2(1)
+                    if(id == "J") system_db9_port <= data_in[0];
+                    // Value "F": autofire off(0), 5Hz(1), 10Hz(2), 20Hz(3)
+                    if(id == "F") system_autofire <= data_in[1:0];
                 end
             end
 

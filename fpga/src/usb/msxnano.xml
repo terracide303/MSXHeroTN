@@ -76,7 +76,32 @@
       </list>
       <!-- persisted; only takes effect on the next cold boot -->
       <toggle label="Boot in turbo:" id="B" default="0"/>
+      <!-- 50Hz for European software, 60Hz for Japanese/US -->
+      <list label="Video std:" id="P" default="0">
+        <listentry label="60Hz NTSC" value="0"/>
+        <listentry label="50Hz PAL" value="1"/>
+      </list>
+      <list label="Keyboard:" id="K" default="0">
+        <listentry label="International" value="0"/>
+        <listentry label="Japanese" value="1"/>
+        <listentry label="Spanish" value="2"/>
+      </list>
       <button label="Cold Boot" action="cold_reset_hide"/>
+    </menu>
+
+    <menu label="Input">
+      <!-- which MSX joystick port the shield's DB9 answers on -->
+      <list label="DB9 port:" id="J" default="0">
+        <listentry label="Port 1" value="0"/>
+        <listentry label="Port 2" value="1"/>
+      </list>
+      <!-- autofire on pad buttons 3 and 4 -->
+      <list label="Autofire:" id="F" default="1">
+        <listentry label="Off" value="0"/>
+        <listentry label="5 Hz" value="1"/>
+        <listentry label="10 Hz" value="2"/>
+        <listentry label="20 Hz" value="3"/>
+      </list>
     </menu>
 
     <menu label="Video">
@@ -93,6 +118,15 @@
       <toggle label="Stereo:" id="E" default="0"/>
       <!-- second SCC+ in the free primary slot, for dual-SCC trackers -->
       <toggle label="Second SCC+:" id="C" default="0"/>
+      <!-- named steps rather than a bar: FPGA-Companion renders <range> as a
+           number, and a graphical bar would mean patching its firmware -->
+      <list label="Volume:" id="V" default="4">
+        <listentry label="Mute" value="0"/>
+        <listentry label="25%" value="1"/>
+        <listentry label="50%" value="2"/>
+        <listentry label="75%" value="3"/>
+        <listentry label="100%" value="4"/>
+      </list>
     </menu>
 
     <button label="Save settings" action="save"/>
