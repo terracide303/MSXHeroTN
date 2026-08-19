@@ -229,11 +229,38 @@ just stopping, which is the part that makes the current behaviour confusing.
 Until this is fixed, the workaround is subdirectories: the cap is per directory, so folders of
 under 115 files each keep everything reachable.
 
-**4. Render the companion OSD overlay** — not started.
+**4. Render the companion OSD overlay** — code written, untested.
 
 FPGA-Companion draws its own on-screen display — the overlay other MiSTle cores use for
 settings, opened with F12 — and ships it to the FPGA as a 128×64 monochrome framebuffer over
-SPI. **This core receives it and throws it away.**
+SPI. Upstream received it and threw it away. This fork now wires it up:
+
+- `osd_u8g2.v` vendored from MiSTeryNano (GPLv3, the reference implementation of this
+  protocol) into `fpga/src/usb/`.
+- `fpga_companion.v` exports the OSD byte stream (`osd_strobe`/`osd_start`/`osd_data`)
+  instead of leaving `mcu_osd_strobe` dangling.
+- The compositor is instantiated **inside `v9958_top`**, because RGB never surfaces at the
+  top level — it sits between the VDP's `VideoR/G/B` and the `dvi_*` signals feeding the HDMI
+  encoder, ahead of the scanline stage so the OSD dims with the picture rather than floating
+  over it. `VideoHS_n`/`VideoVS_n` go in unmodified — `osd_u8g2` takes **active-low** sync
+  despite its port names, which is how MiSTeryNano and NanoMig both wire it.
+
+Still to verify on hardware: that F12 actually produces a centred overlay, and that adding a
+module to the pixel-clock domain does not upset timing closure on a device that is already
+fairly full.
+
+The menu **content** path is now built too: `sysctrl` implements **CMD 8**, streaming the
+gzipped `msxnano.xml` out of a 1 KB ROM in the bitstream, so the menu travels with the core
+and needs no file on the SD card. `make_menu_rom.sh` regenerates it (444 bytes gzipped, 580
+spare). **CMD 4** decodes the ids the menu sets — turbo, boot turbo, scanlines, aspect,
+stereo, second SCC+, reset — replacing the vestigial Atari ST ids upstream left behind.
+
+What is **still missing** is the last hop: those `system_*` values are decoded but not yet
+connected to the core's own config registers. Today `config1_ff`/`config2_ff` are driven by
+the `S` menu writing I/O ports, and merging two sources of truth needs a policy decision
+rather than more wiring — so the OSD will show its menu and accept input before it changes
+anything. That is deliberately left as a separate change, since it touches the boot config
+path.
 
 The plumbing is half-built. `mcu_spi_new.v` already decodes the OSD channel:
 

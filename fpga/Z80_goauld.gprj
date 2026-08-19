@@ -71,6 +71,7 @@
         <File path="src/usb/fpga_companion.v" type="file.verilog" enable="1"/>
         <File path="src/usb/hid.v" type="file.verilog" enable="1"/>
         <File path="src/usb/mcu_spi_new.v" type="file.verilog" enable="1"/>
+        <File path="src/usb/osd_u8g2.v" type="file.verilog" enable="1"/>
         <File path="src/usb/sys_ctrl.v" type="file.verilog" enable="1"/>
         <File path="src/usb/usb_keyboard_msx.vhd" type="file.vhdl" enable="1"/>
         <File path="G80A/T80s.vhd" type="file.vhdl" enable="1"/>

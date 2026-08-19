@@ -27,6 +27,12 @@ module v9958_top(
     input [15:0] audio_sample_r,    // right
     input aspect_16_9,              // AVI InfoFrame: 0 = 4:3, 1 = 16:9
 
+    // FPGA-Companion OSD channel. The framebuffer and compositor live here
+    // because this is where RGB exists -- it never surfaces at the top level.
+    input   osd_strobe,
+    input   osd_start,
+    input   [7:0] osd_data,
+
     output  adc_clk,
     output  adc_cs,
     output  adc_mosi,
@@ -344,9 +350,39 @@ module v9958_top(
     wire [7:0] dvi_g;
     wire [7:0] dvi_b;
 
-    assign dvi_r = (scanlin && cy[0]) ? { 1'b0, VideoR,   1'b0 } : {VideoR,   2'b0 };
-    assign dvi_g = (scanlin && cy[0]) ? { 1'b0, VideoG,   1'b0 } : {VideoG,   2'b0 };
-    assign dvi_b = (scanlin && cy[0]) ? { 1'b0, VideoB,   1'b0 } : {VideoB,   2'b0 };
+    // ---- FPGA-Companion OSD overlay -------------------------------------
+    // Composited before the scanline stage so the OSD is dimmed along with
+    // the picture rather than floating above it.
+    //
+    // osd_u8g2 takes ACTIVE-LOW sync despite its port names: it treats a
+    // rising edge on hs as the *end* of hsync and a falling edge on vs as the
+    // *start* of vsync. MiSTeryNano (src/tang/nano20k/video.v) and NanoMig
+    // (src/tang/nano20k/top.sv) both feed it hs_n/vs_n unmodified, so
+    // VideoHS_n/VideoVS_n go straight in.
+    wire [5:0] osd_r, osd_g, osd_b;
+
+    osd_u8g2 osd_inst (
+        .clk            ( clk_w         ),   // pixel clock
+        .reset          ( reset_w       ),
+
+        .data_in_strobe ( osd_strobe    ),
+        .data_in_start  ( osd_start     ),
+        .data_in        ( osd_data      ),
+
+        .hs             ( VideoHS_n     ),
+        .vs             ( VideoVS_n     ),
+        .r_in           ( VideoR        ),
+        .g_in           ( VideoG        ),
+        .b_in           ( VideoB        ),
+
+        .r_out          ( osd_r         ),
+        .g_out          ( osd_g         ),
+        .b_out          ( osd_b         )
+    );
+
+    assign dvi_r = (scanlin && cy[0]) ? { 1'b0, osd_r,   1'b0 } : {osd_r,   2'b0 };
+    assign dvi_g = (scanlin && cy[0]) ? { 1'b0, osd_g,   1'b0 } : {osd_g,   2'b0 };
+    assign dvi_b = (scanlin && cy[0]) ? { 1'b0, osd_b,   1'b0 } : {osd_b,   2'b0 };
 
 
 ///////////

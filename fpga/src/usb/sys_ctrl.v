@@ -35,23 +35,33 @@ module sysctrl (
   output reg	    port_in_strobe,
   output reg [7:0]  port_in_data,
 		
-  // values that can be configured by the user
-  output reg [1:0]  system_chipset,
-  output reg	    system_memory,
-  output reg	    system_video,
-  output reg [1:0]  system_reset,
-  output reg [1:0]  system_scanlines,
-  output reg [1:0]  system_volume,
-  output reg	    system_wide_screen,
-  output reg [1:0]  system_floppy_wprot,
-  output reg	    system_cubase_en,
-  output reg [1:0]  system_port_mouse,
-  output reg	    system_tos_slot
+  // values that can be configured by the user via the OSD.
+  // ids match fpga/src/usb/msxnano.xml -- keep the two in step.
+  output reg [1:0]  system_reset,        // "R" run(0), reset(1), coldboot(3)
+  output reg	    system_turbo,        // "T" 3.58MHz(0) or 5.37MHz(1)
+  output reg	    system_turbo_boot,   // "B" start cold boots in turbo
+  output reg	    system_scanlines,    // "S" scanlines off(0) or on(1)
+  output reg	    system_wide_screen,  // "A" 4:3(0) or 16:9(1)
+  output reg	    system_stereo,       // "E" mono(0) or stereo(1)
+  output reg	    system_second_scc    // "C" second SCC+ in the free slot
 );
 
 reg [3:0] state;
 reg [7:0] command;
 reg [7:0] id;
+
+// menu rom: the gzipped msxnano.xml, streamed to the MCU on CMD 8 so the
+// OSD menu travels with the bitstream and needs no file on the SD card.
+// Regenerate with fpga/src/usb/make_menu_rom.sh after editing msxnano.xml.
+reg [9:0] menu_rom_addr;
+reg [7:0] menu_rom_data;
+reg [7:0] msxnano_xml[1024];
+// Path is relative to the synthesis working directory, which is fpga/ for
+// build.tcl. If the Gowin IDE resolves it differently, adjust here.
+initial $readmemh("src/usb/msxnano_xml.hex", msxnano_xml);
+
+always @(posedge clk)
+  menu_rom_data <= msxnano_xml[menu_rom_addr];
    
 // reverse data byte for rgb   
 wire [7:0] data_in_rev = { data_in[0], data_in[1], data_in[2], data_in[3], 
@@ -91,16 +101,15 @@ always @(posedge clk) begin
       
       // OSD value defaults. These should be sane defaults, but the MCU
       // will very likely override these early
-      system_chipset <= 2'd0;       // regular ST
-      system_memory <= 1'b0;        // 4 MB
-      system_video <= 1'b0;         // color
-      system_scanlines <= 2'b00;    // no scanlines
-      system_volume <= 2'b00;       // mute
-      system_wide_screen <= 1'b0;   // normal video 
-      system_floppy_wprot <= 2'b00; // floppy not write protected
-      system_cubase_en <= 1'b0;     // no cubase dongle
-      system_port_mouse <= 2'b00;   // mouse on usb -> db9 joystick
-      system_tos_slot <= 1'b0;      // primary tos slot
+      // 00 = run. MiSTeryNano leaves this undriven at reset; make it explicit
+      // here so the machine boots even if no companion ever talks to us.
+      system_reset <= 2'b00;
+      system_turbo <= 1'b0;         // 3.58 MHz
+      system_turbo_boot <= 1'b0;    // do not cold boot in turbo
+      system_scanlines <= 1'b0;     // no scanlines
+      system_wide_screen <= 1'b0;   // 4:3
+      system_stereo <= 1'b0;        // mono
+      system_second_scc <= 1'b0;    // no second SCC+
    end else begin // if (reset)
       //  bring button state into local clock domain
       buttonsD <= buttons;
@@ -132,6 +141,7 @@ always @(posedge clk) begin
         if(data_in_start) begin
            state <= 4'd0;
            command <= data_in;
+           menu_rom_addr <= 10'd0;
 	   data_out <= 8'h00;
         end else begin
             if(state != 4'd15) state <= state + 4'd1;
@@ -170,28 +180,20 @@ always @(posedge clk) begin
                 if(state == 4'd0) id <= data_in;
 
                 if(state == 4'd1) begin
-                    // Value "C": chipset ST(0), MegaST(1) or STE(2)
-                    if(id == "C") system_chipset <= data_in[1:0];
-                    // Value "M": 4MB(0) or 8MB(1)
-                    if(id == "M") system_memory <= data_in[0];
-                    // Value "V": color(0) or monochrome(1)
-                    if(id == "V") system_video <= data_in[0];
                     // Value "R": coldboot(3), reset(1) or run(0)
                     if(id == "R") system_reset <= data_in[1:0];
-                    // Value "S": scanlines none(0), 25%(1), 50%(2) or 75%(3)
-                    if(id == "S") system_scanlines <= data_in[1:0];
-                    // Value "A": volume mute(0), 33%(1), 66%(2) or 100%(3)
-                    if(id == "A") system_volume <= data_in[1:0];
-                    // Value "W": normal 4:3 screen (0), wide 16:9 screen (1)
-                    if(id == "W") system_wide_screen <= data_in[0];
-                    // Value "P": floppy write protecion None(0), A(1), B(2) both(3)
-                    if(id == "P") system_floppy_wprot <= data_in[1:0];
-                    // Value "Q": enable (1) or disable (0) Cubase dongle(s)
-                    if(id == "Q") system_cubase_en <= data_in[0];
-                    // Value "J": USB Mouse(0), DB9/Atari ST(1) or DB9/Amiga(2)
-                    if(id == "J") system_port_mouse <= data_in[1:0];
-                    // Value "T": Primary(0) TOS slot or Secondary(1)
-                    if(id == "T") system_tos_slot <= data_in[0];
+                    // Value "T": turbo 3.58MHz(0) or 5.37MHz(1)
+                    if(id == "T") system_turbo <= data_in[0];
+                    // Value "B": start cold boots in turbo (persisted by the core)
+                    if(id == "B") system_turbo_boot <= data_in[0];
+                    // Value "S": scanlines off(0) or on(1)
+                    if(id == "S") system_scanlines <= data_in[0];
+                    // Value "A": aspect 4:3(0) or 16:9(1)
+                    if(id == "A") system_wide_screen <= data_in[0];
+                    // Value "E": sound mono(0) or stereo(1)
+                    if(id == "E") system_stereo <= data_in[0];
+                    // Value "C": second SCC+ disabled(0) or enabled(1)
+                    if(id == "C") system_second_scc <= data_in[0];
                 end
             end
 
@@ -266,9 +268,12 @@ always @(posedge clk) begin
 	       end
             end // if (command == 8'd7)
 	   
-            // CMD 8: read (menu) config
+            // CMD 8: read (menu) config -- stream the gzipped menu XML to
+            // the MCU, one byte per read, from the address reset at command start
             if(command == 8'd8) begin
-	    end
+               data_out <= menu_rom_data;
+               menu_rom_addr <= menu_rom_addr + 10'd1;
+            end
 	   
 	end
       end // if (data_in_strobe)
