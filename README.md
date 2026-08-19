@@ -223,7 +223,39 @@ deliberately along with it. English is usually shorter than Spanish, which helps
 This is worth doing early: it is the part of the fork every user sees, and it is independent
 of the DB9 and MIDI work.
 
-**4. Translate the Spanish comments and docs to English** — not started.
+**4. Replace the boot logo** — not started.
+
+The boot screen shows the **MSX Barcelona** user-group logo. This fork has no affiliation
+with that group, so shipping their identity mark is not appropriate regardless of taste —
+it needs replacing with something of this project's own.
+
+The pipeline is self-contained:
+
+```
+fpga/src/rom/logo_site.webp   ->   make_logo16k.py   ->   logo16k.bin
+```
+
+`logo16k.bin` is a 16 KB image for slot 0-3 page 1, laid out as
+`[magic 'LG'][Z80 routine @4002][32-byte palette][image, 2 px/byte]`, which the menu invokes
+with `CALLF 0x8C:4002` once it has verified the magic. `build.bat` then concatenates it into
+the BIOS pack.
+
+```sh
+python make_logo16k.py my_logo.png [background_hex]
+```
+
+Constraints on a replacement image:
+
+- Output is **MSX SCREEN 5** — 256 pixels wide, 16 colours, 2 pixels per byte.
+- The whole thing must fit 16 KB including the routine and palette, which caps the image at
+  roughly **256×126**. The source is 512×512 and gets scaled.
+- The background colour is passed as a hex argument and is used for the border too.
+
+One dependency worth knowing: changing the logo means **rebuilding the BIOS pack**, and
+`build.bat` assembles it from MSX system ROMs that are not in this repository. So this needs
+your own ROM dumps, not just a new image.
+
+**5. Translate the Spanish comments and docs to English** — not started.
 
 Upstream is written in Spanish throughout its comments and design documents. This fork is
 worked on in English, and mixed-language sources are a genuine hazard when the comments are
@@ -247,7 +279,7 @@ Two rules for this work, because it is the kind of change that silently breaks t
 - Do it in **separate commits from functional changes**, so a translation pass never hides a
   behavioural edit in a large diff.
 
-**5. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+**6. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
 
 Note that translation and rebasing pull against each other: the more of upstream's comments
