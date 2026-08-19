@@ -192,6 +192,15 @@ here, because this fork has not changed any of it.
 
 **GPLv3**, inherited from upstream.
 
+Fork maintained by [terracide303](https://github.com/terracide303).
+
+Development on this fork is done with AI assistance — **Claude** (Anthropic), via
+[Claude Code](https://claude.com/claude-code). The retargeting work, the RTL changes and
+this documentation were written with Claude's help and reviewed before committing; commits
+produced that way carry a `Co-Authored-By: Claude` trailer, so `git log` shows exactly which
+ones. Treat it as it is described above: **unverified on hardware** until someone has run it
+on a real board.
+
 - [Papipapito/MSXnano](https://github.com/Papipapito/MSXnano) — the core this forks
 - [jabadiagm/MSXgoauldSD_tn20k](https://github.com/jabadiagm/MSXgoauldSD_tn20k) — MSXnano's own basis
 - [MiSTle-Dev/FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion) — HID companion firmware
