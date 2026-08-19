@@ -26,12 +26,19 @@ module top
 
     // interface to external FPGA companion - USB KEYBOARD and gamepads (BL616)
     inout wire [4:0] m0s,
-    // SPI to on-board BL616 (FPGA Companion)
+    // SPI to on-board BL616 (FPGA Companion).
+    // spi_dir is NOT brought out on this build: the MiSTeryShield20k routes its
+    // DB9 fire-2 line to pin 75, which is where spi_dir used to sit. The shield
+    // always supplies its own companion (RP2040) over m0s[], so the on-board
+    // BL616 path is unusable here anyway.
     input  wire spi_sclk,
     input  wire spi_csn,
-    output wire spi_dir,
     input  wire spi_dat,
     output wire spi_irqn,
+
+    // DB9 joystick on the MiSTeryShield20k (active low, switches to GND)
+    // db9[0]=Fire1 db9[1]=Down db9[2]=Up db9[3]=Right db9[4]=Left db9[5]=Fire2
+    input  wire [5:0] db9,
 
     // discrete status LEDs (active low)
     output wire [5:0] led,
@@ -529,7 +536,16 @@ wire af_fb1 = joystick1[5] | (joystick1[7] & af_phase);   // joy1 TrigB
 
 // Companion joy byte (active-high): bit0=Right, bit1=Left, bit2=Down, bit3=Up, bit4=A, bit5=B
 // MSX PSG Port A (active-low):      bit0=Up,    bit1=Down,  bit2=Left, bit3=Right, bit4=TrigA, bit5=TrigB
-wire [7:0] joy0_msx = {2'b11, ~af_fb0, ~af_fa0, ~joystick0[0], ~joystick0[1], ~joystick0[2], ~joystick0[3]};
+// The DB9 stick on the MiSTeryShield20k is already active low (switch to GND,
+// pin has PULL_MODE=UP), which is exactly what PSG Port A wants -- so it just
+// gets AND-ed in: either the USB pad or the DB9 stick can pull a line low.
+// Port 0 only; the shield has a single DB9 and port 1 stays USB-only.
+wire [7:0] joy0_msx = {2'b11, ~af_fb0 & db9[5],       // TrigB <- Fire2
+                              ~af_fa0 & db9[0],       // TrigA <- Fire1
+                              ~joystick0[0] & db9[3], // Right
+                              ~joystick0[1] & db9[4], // Left
+                              ~joystick0[2] & db9[1], // Down
+                              ~joystick0[3] & db9[2]};// Up
 wire [7:0] joy1_msx = {2'b11, ~af_fb1, ~af_fa1, ~joystick1[0], ~joystick1[1], ~joystick1[2], ~joystick1[3]};
 wire [7:0] psg_joy_data = (!psg_reg15_joy_sel[0]) ? joy0_msx :
                           (!psg_reg15_joy_sel[1]) ? joy1_msx :
@@ -2767,7 +2783,7 @@ memory_ctrl mem1 (
 
         .spi_sclk (spi_sclk),
         .spi_csn (spi_csn),
-        .spi_dir (spi_dir),
+        .spi_dir (),            // pin 75 reassigned to DB9 fire-2 (see port list)
         .spi_dat (spi_dat),
         .spi_irqn (spi_irqn),
 

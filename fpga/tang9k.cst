@@ -16,8 +16,7 @@ IO_LOC  "spi_csn" 86;
 IO_PORT "spi_csn" PULL_MODE=UP IO_TYPE=LVCMOS33;
 IO_LOC  "spi_dat" 76;
 IO_PORT "spi_dat" PULL_MODE=UP IO_TYPE=LVCMOS33;
-IO_LOC  "spi_dir" 75;
-IO_PORT "spi_dir" PULL_MODE=NONE DRIVE=8 IO_TYPE=LVCMOS33;
+// spi_dir removed: pin 75 is the DB9 fire-2 line on the MiSTeryShield20k (below)
 IO_LOC  "spi_irqn" 48;
 IO_PORT "spi_irqn" PULL_MODE=NONE DRIVE=8 IO_TYPE=LVCMOS33;
 
@@ -94,3 +93,20 @@ IO_LOC "uart_rx" 28;
 IO_PORT "uart_rx" PULL_MODE=UP IO_TYPE=LVCMOS33;
 IO_LOC "uart_tx" 27;
 IO_PORT "uart_tx"  IO_TYPE=LVCMOS33;
+
+// DB9 joystick on the MiSTeryShield20k RPi Pico USB shield.
+// Pin set matches MiSTeryNano's "spare[]" 2nd-DB9 group, except that this
+// shield uses pin 75 where MiSTeryNano uses 52. All lines are active low
+// (switch to GND), so they carry internal pull-ups.
+IO_LOC  "db9[0]" 73;
+IO_PORT "db9[0]" PULL_MODE=UP IO_TYPE=LVCMOS33;
+IO_LOC  "db9[1]" 74;
+IO_PORT "db9[1]" PULL_MODE=UP IO_TYPE=LVCMOS33;
+IO_LOC  "db9[2]" 77;
+IO_PORT "db9[2]" PULL_MODE=UP IO_TYPE=LVCMOS33;
+IO_LOC  "db9[3]" 31;
+IO_PORT "db9[3]" PULL_MODE=UP IO_TYPE=LVCMOS33;
+IO_LOC  "db9[4]" 49;
+IO_PORT "db9[4]" PULL_MODE=UP IO_TYPE=LVCMOS33;
+IO_LOC  "db9[5]" 75;
+IO_PORT "db9[5]" PULL_MODE=UP IO_TYPE=LVCMOS33;
