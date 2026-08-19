@@ -128,8 +128,14 @@ implementation of this protocol.
 The menu carries System (turbo, boot turbo, video standard, keyboard layout, cold boot),
 Input (DB9 port, autofire), Video (scanlines, aspect) and Audio (stereo, second SCC+, volume).
 
-**Volume** is named steps rather than a bar: FPGA-Companion renders `<range>` as a number,
-and a real bar would mean patching its firmware — the fork we are avoiding. It is implemented
+**Volume** shows an ASCII bar built out of the entry labels (`[####] 100%`), because
+FPGA-Companion renders `<range>` as a number and has no bar widget. A *drawn* bar is possible
+but needs a font swap and a firmware rebuild — see
+[`pf2bdf.py`](fpga/src/usb/pf2bdf.py), which converts MiSTer `.pf` fonts to BDF for `bdfconv`.
+Those fonts are fixed 8×8, which matches the OSD's native 16×8 character grid, and they carry
+a solid block at ASCII `0x7F` — a single byte, legal in XML, so it needs no UTF-8 handling.
+No font is committed here: Fonts_MiSTer has no licence and its files are traced from arcade
+character ROMs, so supply your own as with the BIOS pack. It is implemented
 as a shift attenuator on the mixer output, which is exact because the mix is 0-based unsigned
 (silence is 0, not mid-scale), so attenuating cannot shift a DC offset and click.
 
