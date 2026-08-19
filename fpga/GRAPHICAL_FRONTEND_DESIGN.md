@@ -1,5 +1,14 @@
 # Frontend gráfico "no-MSX" para MSXnano — Documento de diseño
 
+> **Inherited from upstream — not part of this fork's plan.**
+> This document belongs to [Papipapito/MSXnano](https://github.com/Papipapito/MSXnano) and
+> is kept for reference only. It targets the Tang Console 60K and/or assumes the on-board
+> BL616 companion, neither of which applies to MSXnano-MiSTle: this fork targets the Tang
+> Nano 20K on a MiSTeryShield20k and has dropped the on-board BL616 path entirely. Nothing
+> here describes work planned in this repository. See the [main README](../README.md) for the actual
+> roadmap.
+
+
 **Estado: FASE DE DISEÑO / investigación (2026-07-06).** Pregunta del usuario: sustituir el
 menú MSX por un frontend gráfico bonito estilo EmuELEC/Batocera (con carátulas), NO limitado
 al VDP MSX, que al elegir un juego lance el core MSX con el ROM/DSK. Investigado con panel

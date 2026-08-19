@@ -1,5 +1,14 @@
 # SRAM persistente (Console 60K) — Documento de diseño
 
+> **Inherited from upstream — not part of this fork's plan.**
+> This document belongs to [Papipapito/MSXnano](https://github.com/Papipapito/MSXnano) and
+> is kept for reference only. It targets the Tang Console 60K and/or assumes the on-board
+> BL616 companion, neither of which applies to MSXnano-MiSTle: this fork targets the Tang
+> Nano 20K on a MiSTeryShield20k and has dropped the on-board BL616 path entirely. Nothing
+> here describes work planned in this repository. See the [main README](../../../README.md) for the actual
+> roadmap.
+
+
 **Estado: FASE DE DISEÑO, no implementación.** Target: **Tang Console 60K (GW5AT-60)**, no
 el TN20K actual. Escrito a partir del RTL real del core MSXnano (`megaram.v`,
 `flash_rw.v`, `top.v`) y de la investigación de persistencia previa. Ligado a

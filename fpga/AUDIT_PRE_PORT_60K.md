@@ -1,5 +1,14 @@
 # Auditoría pre-port MSXnano → Tang Console 60K — Informe final
 
+> **Inherited from upstream — not part of this fork's plan.**
+> This document belongs to [Papipapito/MSXnano](https://github.com/Papipapito/MSXnano) and
+> is kept for reference only. It targets the Tang Console 60K and/or assumes the on-board
+> BL616 companion, neither of which applies to MSXnano-MiSTle: this fork targets the Tang
+> Nano 20K on a MiSTeryShield20k and has dropped the on-board BL616 path entirely. Nothing
+> here describes work planned in this repository. See the [main README](../README.md) for the actual
+> roadmap.
+
+
 Repo: `C:\Users\alber\proyectosAI\msx\MSXnano` · Base: v1.8 en producción / v1.9 validada en HW · Evidencia: código real + `gowin_syn_warnings.txt` (297 líneas del build real) · ~45 findings de 6 áreas, deduplicados y con veredicto de escéptico sobre los 10 bugs candidatos.
 
 ---
