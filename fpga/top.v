@@ -1343,6 +1343,12 @@ assign keyboard_addr = ppi_port_c[3:0];
         .audio_sample_r (audio_sample_r),
         .aspect_16_9    (config_enable_16_9),
 
+        // FPGA-Companion OSD channel (framebuffer + compositor live in the VDP,
+        // because that is where RGB exists)
+        .osd_strobe     (osd_strobe),
+        .osd_start      (osd_start),
+        .osd_data       (osd_data),
+
         .adc_clk  (),
         .adc_cs   (),
         .adc_mosi (),
@@ -2774,6 +2780,9 @@ memory_ctrl mem1 (
 
     // ===== STANDALONE MERGE: USB host (BL616 FPGA Companion) — from MSXnano =====
     wire [127:0] keyboard;
+    wire osd_strobe;
+    wire osd_start;
+    wire [7:0] osd_data;
     fpga_companion fpga_companion_inst
     (
         .clk (clk_27m),
@@ -2791,7 +2800,11 @@ memory_ctrl mem1 (
         .joystick0 (joystick0),
         .joystick0_console (),
         .joystick1 (joystick1),
-        .ws2812_color ()    // LEDs are discrete; WS2812 not used
+        .ws2812_color (),   // LEDs are discrete; WS2812 not used
+
+        .osd_strobe (osd_strobe),
+        .osd_start  (osd_start),
+        .osd_data   (osd_data)
     );
 
     usb_keyboard_msx usb_keyboard_msx

@@ -16,7 +16,13 @@ module fpga_companion (
     output [7:0] joystick0,
     output [7:0] joystick0_console,
     output [7:0] joystick1,
-    output [23:0] ws2812_color
+    output [23:0] ws2812_color,
+
+    // OSD channel (SPI target 2) forwarded to the video path, where
+    // osd_u8g2 keeps the framebuffer and composites it onto the picture
+    output       osd_strobe,
+    output       osd_start,
+    output [7:0] osd_data
 );
 
 wire mcu_hid_strobe;
@@ -27,6 +33,12 @@ wire mcu_sdc_strobe;
 wire mcu_start;
 wire spi_intn;
 wire [7:0] mcu_data_out;
+
+// hand the OSD byte stream out to the video path. mcu_osd_din stays 0:
+// the OSD is write-only from the MCU, nothing is ever read back from it.
+assign osd_strobe = mcu_osd_strobe;
+assign osd_start  = mcu_start;
+assign osd_data   = mcu_data_out;
 wire [7:0] sys_data_out;
 wire [7:0] hid_data_out;
 

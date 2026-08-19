@@ -229,11 +229,27 @@ just stopping, which is the part that makes the current behaviour confusing.
 Until this is fixed, the workaround is subdirectories: the cap is per directory, so folders of
 under 115 files each keep everything reachable.
 
-**4. Render the companion OSD overlay** — not started.
+**4. Render the companion OSD overlay** — code written, untested.
 
 FPGA-Companion draws its own on-screen display — the overlay other MiSTle cores use for
 settings, opened with F12 — and ships it to the FPGA as a 128×64 monochrome framebuffer over
-SPI. **This core receives it and throws it away.**
+SPI. Upstream received it and threw it away. This fork now wires it up:
+
+- `osd_u8g2.v` vendored from MiSTeryNano (GPLv3, the reference implementation of this
+  protocol) into `fpga/src/usb/`.
+- `fpga_companion.v` exports the OSD byte stream (`osd_strobe`/`osd_start`/`osd_data`)
+  instead of leaving `mcu_osd_strobe` dangling.
+- The compositor is instantiated **inside `v9958_top`**, because RGB never surfaces at the
+  top level — it sits between the VDP's `VideoR/G/B` and the `dvi_*` signals feeding the HDMI
+  encoder, ahead of the scanline stage so the OSD dims with the picture rather than floating
+  over it. Sync is inverted on the way in, since `osd_u8g2` wants active-high and the VDP
+  emits active-low.
+
+Still to verify on hardware: that F12 actually produces a centred overlay, that the sync
+polarity assumption holds, and that adding a module to the pixel-clock domain does not upset
+timing closure on a device that is already fairly full.
+
+What remains unbuilt is the menu *content* path — see below.
 
 The plumbing is half-built. `mcu_spi_new.v` already decodes the OSD channel:
 

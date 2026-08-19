@@ -71,6 +71,7 @@ add_file top.v
 add_file src/usb/fpga_companion.v
 add_file src/usb/hid.v
 add_file src/usb/mcu_spi_new.v
+add_file src/usb/osd_u8g2.v
 add_file src/usb/sys_ctrl.v
 add_file src/usb/usb_keyboard_msx.vhd
 
