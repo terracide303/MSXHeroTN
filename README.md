@@ -32,6 +32,11 @@ Nothing here should be flashed to a board you care about until this section says
 
 ---
 
+Every hardware fact, protocol detail and upstream error established while building this is
+recorded in **[docs/FINDINGS.md](docs/FINDINGS.md)**, with the evidence for each.
+
+---
+
 ## Why this fork exists
 
 Upstream MSXnano targets a bare Tang Nano 20K and drives its USB keyboard through the
