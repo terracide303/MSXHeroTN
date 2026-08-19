@@ -520,9 +520,23 @@ There is none: the boot menu matches only `ROM` and `DSK`, and nothing in the co
 tape. A large part of the MSX1 library exists only as `.cas`, so this widens what the machine
 can actually run rather than adding hardware it does not have.
 
-Two routes to weigh: emulate the cassette interface at the BIOS tape hooks, which is simpler
-and much faster than real tape, or generate the audio and let the BIOS decode it, which is
-slower but far more faithful for loaders that bypass the hooks.
+**There is a reference implementation to work from:**
+[`MSX1_MiSTer/rtl/tape.sv`](https://github.com/MiSTer-devel/MSX1_MiSTer/blob/master/rtl/tape.sv)
+by molekula — 191 lines, **GPL v2 or later**, so compatible with this project.
+
+It takes the faithful route rather than hooking the BIOS: it streams the `.CAS` out of RAM
+and **generates the cassette bitstream itself**, presenting a single `cas_out` bit to the
+MSX's cassette input so the real BIOS does the decoding. Loaders that bypass the tape hooks
+therefore still work. Its state machine is `INIT → SEARCH → PLAY_SILENT → PLAY_SYNC →
+PLAY_DATA`, it recognises the CAS block marker, frames each byte as `{2'b11, data, 1'b0}`,
+and encodes bits as the usual 1200/2400 Hz pair from a baud divider.
+
+Porting it needs three things beyond the module itself: somewhere to hold the `.CAS` (the
+megaram, or streamed from SD), the `cas_out` bit wired to the MSX's cassette input, and
+`.CAS` added to the browser's extension matching — which today accepts only `ROM` and `DSK`.
+
+Its `play` and `rewind` inputs are a natural fit for **OSD buttons**, which is one of the few
+places the overlay can do something the core's own menu cannot do as neatly.
 
 **12. Persist SRAM saves** — not started.
 

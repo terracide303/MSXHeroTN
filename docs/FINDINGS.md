@@ -317,6 +317,14 @@ in the top 32 KB of the megaram, gated by port `#43`. Persisting it means reusin
 harmless once saves depend on it.
 
 **Absent entirely:** `.cas` cassette support. The boot menu matches only `ROM` and `DSK`.
+A reusable implementation exists in `MSX1_MiSTer/rtl/tape.sv` (molekula, GPL v2+): it streams
+the CAS from RAM and generates the cassette bitstream, so the real BIOS decodes it and
+hook-bypassing loaders still work.
+
+Also worth knowing that **OPL4 and V9990 do fit on a GW2AR-18** — `antxiko/mangOPL4` and
+`herraa1/tnCartWonder` run them on a Tang Nano 20K. But those implement a *cartridge* for a
+real MSX, not a whole machine, which is why there is room. It does not follow that they fit
+alongside a complete MSX2+.
 
 ---
 
