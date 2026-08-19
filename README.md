@@ -1,405 +1,198 @@
-# MSXnano — MSX2+ FPGA Core for Tang Nano 20K
+# MSXnano-MiSTle
 
-**MSXnano** is an open-source MSX2+ FPGA implementation for the Tang Nano 20K (Gowin GW2AR-18). It runs a complete MSX2+ system — Z80 CPU, V9958 VDP with HDMI output, SCC/OPLL sound, SD card with Nextor, and optional WiFi — entirely on the FPGA, with no original MSX hardware required. Tang Nano 60K and 138K support in progress.
+An MSX2+ core for the **Tang Nano 20K** running on the **MiSTeryShield20k RPi Pico USB** shield.
 
-> 📖 Project page, install guides and community: **[msx.barcelona](https://msx.barcelona)**
-
-## Features
-
-MSXnano implements a complete MSX2+ retro-computing machine on the Tang Nano 20K FPGA — Z80 CPU, V9958 VDP and SCC/OPLL sound in real hardware — running original MSX2+ software with no PC and no software emulator:
-
-* Z80
-* V9958 with hdmi output
-* MSX2+ BIOS
-* SD Card support + Nextor 2.1.4
-* 4MB mapper
-* 2MB megaram SCC
-* RTC
-* PSG
-* OPLL
-* FPGA Companion used as HID (keyboard, gamepads) interface
-* WiFi via ESP-01S (MSX UNAPI) — WiFi BIOS ROM integrated into the BIOS pack
-* Authentic MSX timing: per-M1 wait-state (~100% of real MSX speed), with a **Turbo mode** toggled by **F11** (full speed, ~116% / 4.13 MHz)
-* **ColecoVision & Sega SG-1000** emulation — drop a `.col` / `.sg` ROM on the SD card and launch it straight from the boot menu (SN76489 sound chip; ColecoVision needs `COLECO.ROM` on the SD)
+A fork of [Papipapito/MSXnano](https://github.com/Papipapito/MSXnano), retargeted from the
+bare Tang Nano to the MiSTle shield so that the shield's own hardware — its DB9 joystick
+port and MIDI sockets — actually works, instead of sitting unconnected.
 
 ---
 
-## ⚠️ Keyboard on new Tang Nano 20K boards (2024+, marked `3921`)
+## Status: not working yet. Do not use this.
 
-On Tang Nano 20K boards manufactured since **~February 2024** (marked **`3921`** on the
-board), the **onboard BL616 secure-boot is in a different state** and often **cannot run
-the FPGA-Companion firmware**, so the **USB keyboard does not work** — even though HDMI
-video and the boot menu **do** (that is the FPGA, not the BL616). This is a **Sipeed
-hardware change, not an MSXnano bug**.
+**This fork has never been synthesized, never been loaded onto a board, and is not usable.**
+It exists as a work in progress. If you want a working MSX2+ on a Tang Nano 20K today, use
+[upstream MSXnano](https://github.com/Papipapito/MSXnano) — it is complete and tested, and
+this fork has nothing to offer you yet.
 
-**Quick test:** flash the onboard firmware ([`fpga/bl616/flash_nano20k.ini`](fpga/bl616/));
-if the keyboard works after a power-cycle, your board is compatible. If it does **not**,
-you need an **external M0S Dock** (a separate BL616 module): the core switches to it
-automatically when you plug it into the `m0s` header. Firmware and full guide in
-**[`fpga/bl616/`](fpga/bl616/)**.
+Specifically, at this point:
 
-| Your board | Onboard BL616 | Solution |
+- No bitstream has been built from this tree. It may not even synthesize.
+- The DB9 code is written but **untested on hardware**. The pin-to-direction mapping is
+  derived from MiSTeryNano's RTL rather than measured, so the stick may well move in the
+  wrong directions on first try.
+- Removing the on-board BL616 path (see below) is a breaking change that has not been
+  validated on real hardware.
+
+Nothing here should be flashed to a board you care about until this section says otherwise.
+
+---
+
+## Why this fork exists
+
+Upstream MSXnano targets a bare Tang Nano 20K and drives its USB keyboard through the
+board's **on-board BL616** microcontroller. That works, but on a Tang Nano 20K it forces an
+awkward arrangement: the board has a single USB-C connector, so a keyboard has to go through
+an OTG adapter and a powered hub, which competes with powering the board.
+
+The MiSTeryShield20k solves that in hardware — it carries its own RP2040 companion with a
+proper USB host port, plus a DB9 joystick port and MIDI in/out. Upstream constrains **no
+pins** for the DB9 or MIDI connectors, so on that shield they are inert.
+
+This fork assumes the shield is present and wires the shield's hardware into the core.
+
+---
+
+## Target hardware
+
+| Part | Notes |
+|---|---|
+| Sipeed Tang Nano 20K | Gowin GW2AR-18. Developed against a board silkscreened `3923` |
+| MiSTeryShield20k RPi Pico USB | Provides the RP2040 companion, USB host, DB9 and MIDI |
+| Raspberry Pi Pico | Runs [FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion) as the HID host |
+| microSD card | FAT16 or FAT32, holding `.rom` and `.dsk` files |
+| HDMI display | Video and audio |
+
+The RP2040 talks to the FPGA over the five `m0s[]` SPI lines. The core switches to it
+automatically when CS pulls `m0s[2]` low.
+
+---
+
+## What is different from upstream
+
+### The on-board BL616 path is gone
+
+The shield routes its **DB9 fire-2 line to pin 75**, which upstream uses for `spi_dir`, the
+direction line of the on-board BL616 SPI link. Since the shield always brings its own RP2040
+companion, that BL616 path is unusable here regardless — so pin 75 is reassigned and
+`spi_dir` is dropped.
+
+Consequences, and they are real:
+
+- **This core will not take a USB keyboard from the Tang's own USB-C connector.** HID comes
+  from the RP2040 on the shield, or not at all.
+- Flashing `fpga_partner` / `fpga_companion` firmware to the Tang's on-board BL616 does
+  nothing useful for this core. That whole step is removed from the instructions below.
+- On a bare Tang Nano 20K without the shield, this core will boot and show a picture but
+  will have **no keyboard**, and is therefore not much use.
+
+If you want the on-board BL616 back, use upstream.
+
+### DB9 joystick (implemented, untested)
+
+The shield's DE9 port is read directly by the FPGA and mixed into PSG port 0 alongside the
+USB gamepad, so either input can drive the game.
+
+| `db9[]` | Tang pin | Signal |
 |---|---|---|
-| Old (pre-2024) | Usually works | Onboard firmware `fpga/bl616/flash_nano20k.ini` |
-| New (`3921`, 2024+) | Often **does not** | **External M0S Dock** (`fpga/bl616/flash_m0sdock_cfg.ini`) |
+| 0 | 73 | Fire 1 → TrigA |
+| 1 | 74 | Down |
+| 2 | 77 | Up |
+| 3 | 31 | Right |
+| 4 | 49 | Left |
+| 5 | 75 | Fire 2 → TrigB |
+
+The lines are active low — a switch to ground, with internal pull-ups — which is already
+what MSX PSG Port A expects, so they AND straight into the existing joystick path with no
+level conversion.
+
+This pin group matches MiSTeryNano's `spare[]` set (its second DB9 port) except for fire-2,
+which this shield puts on pin 75 where MiSTeryNano uses 52.
 
 ---
 
-## What's new in v1.8
+## Plan
 
-### 🐞 Metal Gear 2 — Solid Snake glitch FIXED (the v1.7.1 known limitation)
-The graphics glitch when gameplay starts in **Metal Gear 2: Solid Snake** — the loading
-screen not clearing and the stage drawing on top of it — is **fixed**.
+**1. DB9 joystick** — code written, awaiting a synthesis run and a bench test.
+Verify directions and both fire buttons, and confirm autofire on the USB pad still behaves
+now that the DB9 is AND-ed into the same lines.
 
-**Root cause:** the boot menu highlights the selected entry using the VDP **blink register
-(R#13)**. On the V9938/V9958, R#13 *also* drives the blink **page-flip** feature, and the
-menu's value (steady blink) **forces display page 0 permanently**, ignoring the page
-register (R#2). That value leaked into the launched game. MG2 performs its loading→stage
-transition by **flipping the display page (0→1)**, so with page 0 forced the flip did
-nothing and the loading screen stayed on screen. Launching the same ROM from MSX-DOS /
-SofaRun was clean because **DOS leaves R#13 = 0** — which is exactly why one path worked
-and the other didn't.
+**2. MIDI in/out** — not started. The shield has DIN-5 IN and OUT sockets on pins **71 and
+72**, both unused by the core, so the pins are free. The wiring is the easy part; MIDI is
+just serial at 31250 baud and the core already contains a UART.
 
-**Fix:** the launcher now resets **R#13/R#12 to 0** before calling the cartridge INIT
-(the clean state the BIOS provides), and issues a VDP command **STOP (R#46 = 0)** to clear
-any command-engine residue left by the boot splash. This also fixes **any page-flipping
-game** launched from the boot menu.
+The real work is that MSX software does not talk to "a UART" — it talks to a specific
+interface, such as MSX-MIDI, the Philips NMS-1205 Music Module, or a MIDI-PAC, each with its
+own I/O port map and in some cases its own ROM. Deciding which one to emulate is the first
+task, not writing the serial code.
 
-* The MG2 fix itself is **menu-only** (no RTL change). v1.8 still ships a freshly built
-  bitstream so the release is self-contained and consolidates console support (below).
-
-### 🕹️ ColecoVision & Sega SG-1000 emulation
-v1.8 brings **ColecoVision** and **Sega SG-1000** emulation to the boot menu: copy a
-`.col` or `.sg` ROM to the SD card and launch it straight from the menu — no MSX
-cartridge needed. The core provides the **SN76489** sound chip and maps the
-joystick/keypad; for ColecoVision, place its BIOS (`COLECO.ROM`) on the SD card.
-
-> ℹ️ The MSX side is the mature path; console mode is newer — the ColecoVision numeric
-> keypad mapping in particular may still receive tweaks.
-
-* **Flashing v1.8:** re-flash **both** the bitstream (`project.fs`) and the BIOS pack
-  (`goauld_rom_int.bin`). Coming from v1.7.2 you only need the pack for the MG2 fix, but
-  the bitstream is what enables ColecoVision/SG-1000.
-
-<details>
-<summary><strong>Older release notes — v1.7.1, v1.7, v1.6</strong> (click to expand)</summary>
-
-## What's new in v1.7.1
-
-### 🐞 Bug fixes over v1.7
-* **Two-stage Konami launch fixed for real (Metal Gear 2 / SD Snatcher boot).**
-  v1.7 left a bank register pointing at 0x8000 in the power-on (Konami4) mode, which
-  the BIOS RAM probe corrupts on every boot — so two-stage games came up to a blue
-  screen. The launcher now initialises the four bank registers in the stub before
-  jumping to the cartridge INIT, so these games boot.
-* **Mapper detection by ROM content (openMSX-style), not by filename.** Previously a
-  filename tag could mislead detection (e.g. the maker word "Konami" forced Konami4
-  onto SCC games). Detection now scans the ROM; the filename tag is only a fallback.
-* **.dsk mounting fixed** (the Nextor emulation record was being clobbered by the
-  menu's depack pass).
-* **Boot file list fixed**: files (not just folders) now show on the first listing.
-* **Nextor 2.1.4** WonderTANG driver in the BIOS pack.
-* **Cartridge SRAM (ASCII8/16)**, **MSX Barcelona boot splash**, and a VRAM-refresh
-  fix that removes a stray line of garbage in the Space Manbow intro.
-
-> ✅ **Resolved in v1.8:** the **Metal Gear 2 — Solid Snake** gameplay-start glitch
-> (the loading screen not fully clearing, mixing with the game) is fixed — see the
-> v1.8 notes above. Root cause was the menu's VDP blink register (R#13) leaking into
-> the launched game and forcing display page 0. Other Konami SCC games (Space Manbow,
-> Maze of Galious, ...) were unaffected.
-
-## What's new in v1.7
-
-### 🎮 Konami mapper (without SCC) — new compatibility
-Classic Konami games that use the plain Konami mapper (Nemesis 1, Penguin Adventure,
-The Maze of Galious, ...) now load and run from the boot menu: the megaram gained a
-true **Konami4 mode** (bank registers at 6000h/8000h/A000h, fixed bank 0, pure-ROM
-behaviour immune to Konami's anti-copy pokes).
-
-### 🕹️ Two-stage Konami boots fixed (Metal Gear 2, SD Snatcher)
-Games whose cartridge INIT hooks **H.STKE** and returns to the BIOS (expecting the
-boot to call them back) used to come up half-booted with garbled tiles. The launcher
-now CALLs the cartridge INIT the way the BIOS does and, if the game hooked H.STKE,
-invokes the hook itself. (See v1.7.1 above for the follow-up fixes this needed and
-the remaining Metal Gear 2 gameplay glitch.)
-
-### 🔎 Browser: search and manual mapper override
-* **`/` search**: type part of a name (case-insensitive), ENTER jumps to the next
-  match in the current folder; press `/` + ENTER again for the following one.
-* **`M` on the confirm screen** cycles the mapper (plain → Konami → KonamiSCC →
-  ASCII8 → ASCII16) for ROMs the auto-detection gets wrong — no file renaming needed.
-* **Mapper auto-detection aligned with openMSX** `guessRomType`: full credit table
-  (including the 77FFh ASCII16 register) and highest-score decision with openMSX
-  tie-breaking.
-
-### 🧹 Settings menu cleanup
-The slot selectors (Mapper/MegaRam/SD) are gone from the UI — the system layout is
-fixed by design (megaram in slot 2, SD in 3-2) and the saved values are preserved.
+**3. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+(13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
 
 ---
 
-## What's new in v1.6
+## Building
 
-### 🗂️ Boot menu: SD file browser
-The boot menu is now a full SD file browser (File-Hunter style) that starts before the OS:
-
-![MSXnano SD-card file browser boot menu on the Tang Nano 20K, listing ROM and DSK files](/pics/menu_browser.png)
-
-* **Launch `.ROM` games** straight into the megaram: mapper auto-detection (code scan)
-  plus GoodMSX filename tags (`[KonamiSCC]`, `[ASCII8]`, `[ASCII16]`, ...), progress bar
-  and confirm screen with size/mapper.
-* **Launch `.DSK` images** via Nextor disk emulation — fully automatic, with a
-  fragmentation check. The emulation helper sector is invisible (FAT32: a reserved
-  sector of the partition; FAT16: an auto-created hidden file).
-* **FAT16 + FAT32** support, auto-detected per partition from the BPB. Hybrid cards
-  (e.g. FAT16 + FAT32) work; switch partitions with **TAB**. Long filenames (LFN) with
-  marquee scrolling for long names, subdirectories (multi-cluster chains), filter tabs
-  **[R]OM / [D]SK / [A]LL**, and entry counter.
-* Keys: arrows + RETURN to navigate/launch, BS to go back, R/D/A filters, TAB partition,
-  S settings, W WiFi, ESC boots the system (Nextor/MSX-DOS).
-
-### ⚙️ Settings menu (S)
-Cleaned up and extended — the always-required goauld toggles (mapper/megaram/SD) are
-now forced on and removed from the UI:
-
-![MSXnano settings menu — Second SCC, scanlines, stereo sound and 16:9 aspect options](/pics/menu_settings.png)
-
-| Option | What it does |
-|--------|--------------|
-| **Second SCC** | Enables a second SCC+ sound chip in the free slot (for dual-SCC players/trackers) |
-| **Scanlines** | CRT-style scanlines on the HDMI output |
-| **Compatible Mode** | Extra wait-states for picky software |
-| **Stereo Sound** | HDMI stereo: PSG1+SCC1+OPLL left / PSG2+SCC2+OPLL right (off = mono on both) |
-| **16:9 Screen** | HDMI AVI InfoFrame aspect signalling: 4:3 (off) or 16:9 (on). The TV decides pillarbox vs stretch |
-| Slots | Mapper / MegaRam / SD slot selection (removed in v1.7 — fixed layout) |
-
-
-
-### 🔊 Sound: SCC+ done right (and doubled)
-* **Real SCC+ (SCC-I) mode**: B800h window, mode register at BFFEh, independent
-  channel-5 waveform — Snatcher-class software works. Wave-RAM read-back fixed
-  (software SCC detection used to read 0xFF).
-* **Second SCC+**: a sound-only SCC-I "cartridge" in the other free slot, so software
-  that drives two SCC cartridges finds both. Toggle in settings.
-* **Second PSG** at ports 10h/11h/12h (OCM 2nd-gen standard) with register read-back.
-* **HDMI stereo**: true L/R audio over HDMI (see settings table above).
-* `tools/scctest/SCCTEST.COM`: detection + sound test for SCC/SCC+ per slot, dual PSG
-  and FM, with stereo placement check.
-
-Dual-SCC demo (turn the sound on 🔉):
-
-https://github.com/user-attachments/assets/5fb49364-ebc3-4557-8cf1-1f48a0fafb3f
-
-
-### 🧰 Other
-* Critical timing closure improvements in the FPGA (54 MHz domain now closes with
-  positive slack; SD-companion CDC constraints documented in the SDC).
-* `build.bat` now bundles the new boot menu into the BIOS pack automatically.
-* Z80-level emulation test harness for the menu's FAT code
-  (`tools/scctest/opcheck/fat32_emu_test.py`).
-
-</details>
-
----
-
-## 🔌 Connection diagram
+Building the bitstream requires the **Gowin EDA IDE**, which has Windows and Linux builds
+only — there is no macOS version. `openFPGALoader` can flash a finished bitstream from a Mac,
+but it cannot synthesize one.
 
 ```
-                    ┌──────────────────────────────┐
-   HDMI display ────┤ HDMI                         │
-                    │                              │
-   microSD card ────┤ SD                 USB-C ────┼──── PC (Gowin Programmer)
-                    │                              │
-                    │          BL616   USB-A ──────┼──── USB keyboard
-                    │      (HID host)              ├──── USB gamepad
-                    │                              │
-                    │       [ S1: Reset ]          │
-                    │       [ S2: UPDATE (BL616 ISP mode) ]
-                    │                              │
-                    │   GPIO header:               │
-                    │      Pin 28 ─────────────────┼──── ESP-01S TX  ┐
-                    │      Pin 27 ─────────────────┼──── ESP-01S RX  │ WiFi
-                    │      3.3V  ─────────────────┼──── ESP-01S VCC │ (optional)
-                    │      GND   ─────────────────┼──── ESP-01S GND ┘
-                    └──────────────────────────────┘
+fpga/Z80_goauld.gprj    Gowin project
+fpga/tang9k.cst         pin constraints
+fpga/top.v              top level
 ```
 
 ---
-
-## 💾 What to flash and with what tool
-
-| Step | File | Address | Tool | Notes |
-|------|------|---------|------|-------|
-| 1 | `msxnano.fs` | `0x000000` | [Gowin Programmer](https://www.gowinsemi.com/en/support/download_eda/) | External Flash mode |
-| 2 |  `flash_nano20k.ini` | (BL616) | [BLFlashCube](https://dev.bouffalolab.com/download) | Hold UPDATE → plug USB-C → release |
-| 2a | `bl616_fpga_partner_nano20k.bin` | `0x000000` (BL616) | [BLFlashCube](https://dev.bouffalolab.com/download) | Into INI File |
-| 2b | `fpga_companion_nano20k.bin` | `0x040000` (BL616) | BLFlashCube + `flash_nano20k.ini` | Into Ini File |
-| 3 | `goauld_rom_int.bin` (BIOS pack) | `0x200000` | Gowin Programmer | *exFlash C Bin Erase, Program thru GAO-Bridge*. Bundles MSX2+ BIOS + sub-ROM + Nextor 2.1.4 + **WiFi ROM** + config. Build locally (copyright) |
-| 4 | ESP-01S UNAPI firmware (OCM) | — | esptool / Arduino IDE via CH340 adapter | *(WiFi only — see below)* |
-
-> **File 1 (`msxnano.fs`):** download from [releases](https://github.com/Papipapito/MSXnano/releases)  
-> **File 2a/2b:** download from [FPGA-Companion v1.4.21](https://github.com/MiSTle-Dev/FPGA-Companion/releases/tag/v1.4.21)  
-> **File 3 (BIOS pack):** contains copyrighted MSX system ROMs, so it is **not** distributed here — build it from your own ROM dumps with `fpga/src/rom/build.bat`  
-> **File 4 (ESP-01S):** download from [ducasp MSX-Development — ESPFW1.4](https://github.com/ducasp/MSX-Development/releases/tag/ESPFW1.4) — use the **OCM** release (contains two `.bin` files)
-
----
-
-## Turbo mode (F11)
-
-The CPU boots at **real-MSX speed** (the authentic per-M1 wait-state, ~100% / 3.58 MHz).
-Press **F11** on the USB keyboard to toggle **Turbo** on/off:
-
-| Mode | Speed | LED 5 |
-|------|-------|-------|
-| Real MSX (default) | ~100% (3.58 MHz) | blinking (~1.8 Hz) |
-| Turbo | full speed, ~116% (≈4.13 MHz) | solid on |
-
-The toggle is handled entirely in the FPGA (it never reaches the MSX), survives a soft
-reset, and powers on in real-MSX mode. (F11 is used because F12 is captured by the
-onboard BL616 FPGA-Companion firmware for its own OSD and never reaches the FPGA.)
-
-## Keyboard (USB → MSX)
-
-USB keyboard via the onboard BL616 (FPGA Companion). Letters and digits are 1:1; the
-MSX special keys are mapped as follows:
-
-| MSX key | USB key | Notes |
-|---------|---------|-------|
-| **GRAPH** | **Right Alt** | |
-| **CODE / KANA** | **Left Alt** | Same MSX matrix key — acts as **CODE** with the international BIOS and **KANA** with the Japanese BIOS |
-| **CAPS** | Caps Lock | |
-| **STOP** | Scroll Lock | |
-| **SELECT** | End | |
-| ESC / TAB / BS / RETURN | Esc / Tab / Backspace / Enter | |
-| Arrows / HOME / INS / DEL | Arrows / Home / Insert / Delete | |
-| F1–F5 | F1–F5 | |
-| **Turbo toggle** | **F11** | Not an MSX key — toggles CPU speed (see above) |
-
-Notes: **F12 is not usable** (the BL616 FPGA-Companion firmware captures it for its own
-OSD). The **Windows key is free** (unassigned). GRAPH and CODE/KANA were added by this
-project (stock nano did not map them).
-
-## Slot map
-
-Slot map has been updated to improve compatibility without requiring changes.
-
-![MSXnano MSX2+ slot map / memory layout for the Tang Nano 20K FPGA core](/pics/mapa_slots4.png)
-
-The slot layout is fixed by design (megaram in slot 2, SD in 3-2); the per-slot selectors were removed in v1.7.
-
-## Megaram + Sofarun
-Megaram is detected automatically by SofaRun with its default settings. With other software you may need to set the megaram location manually — it lives in **slot 2** (the OCM relocates it there at boot).
-
-## Known issues
-* Tape games fail: use poke -1,0
-* **Metal Gear 2 — Solid Snake**: the gameplay-start glitch (loading screen not fully
-  clearing) is **fixed in v1.8** — the boot menu's VDP blink register (R#13) was forcing
-  display page 0 and leaking into the launched game; the launcher now resets R#13/R#12
-  before the cartridge INIT. Re-flash the v1.8 BIOS pack to get the fix.
 
 ## Flashing
 
-Programming is done in three steps:
+Once a bitstream exists, two images go into the Tang's flash. `openFPGALoader` handles both
+and runs on Linux, Windows and macOS.
 
-### 1. Flash the FPGA bitstream
+```sh
+# core bitstream
+openFPGALoader -b tangnano20k -f msxnano.fs
 
-Flash `msxnano.fs` using Gowin Programmer at address `0x000000`.
+# BIOS pack (MSX2+ BIOS, sub-ROM, Nextor 2.1.4, WiFi ROM)
+openFPGALoader -b tangnano20k --external-flash -o 0x200000 --file-type raw goauld_rom_int.bin
+```
 
-### 2. Flash the BL616 FPGA Companion firmware
-
-The onboard BL616 MCU handles USB keyboard, mouse and gamepads via SPI.
-It requires **two binaries** flashed at specific addresses — using only one is not enough.
-
-Download the following files from the [MiSTle-Dev FPGA-Companion v1.4.21 release](https://github.com/MiSTle-Dev/FPGA-Companion/releases/tag/v1.4.21):
-
-| File | Address | Description |
-|------|---------|-------------|
-| [`bl616_fpga_partner_nano20k.bin`](https://github.com/MiSTle-Dev/FPGA-Companion/releases/download/v1.4.21/bl616_fpga_partner_nano20k.bin) | `0x000000` | BL616 bootloader / base firmware |
-| [`fpga_companion_nano20k.bin`](https://github.com/MiSTle-Dev/FPGA-Companion/releases/download/v1.4.21/fpga_companion_nano20k.bin) | `0x040000` | FPGA Companion application (HID, gamepad support) |
-
-Also download [`flash_nano20k.ini`](https://github.com/MiSTle-Dev/FPGA-Companion/releases/download/v1.4.21/flash_nano20k.ini) — it configures the flash tool to write both files at the correct addresses in one step.
-
-Flash using [BouffaloLabDevCube](https://dev.bouffalolab.com/download) (BLFlashCube) with the `.ini` file:
-* Press and hold **UPDATE** on the Tang Nano 20K, connect USB, release UPDATE (enters BL616 ISP mode)
-* For full flashing instructions see: [MiSTle-Dev BL616 Firmware Installation](https://github.com/MiSTle-Dev/.github/wiki/Firmware-Installation-BL616-%C2%B5C)
-
-#### Supported USB gamepads
-
-| Controller | Status |
-|-----------|--------|
-| Xbox 360 (wired) | ✅ Works |
-| Xbox 360-compatible clones (XInput) | ✅ Works |
-| Xbox One (XInput mode) | ✅ Works |
-| Lenovo X01 (USB dongle) | ✅ Works |
-| Xbox Series X/S | ❌ Not supported (different protocol) |
-| PlayStation 4 / 5 | ❌ Not supported |
-
-Player 1 = first XInput device enumerated; Player 2 = second device (requires USB hub).
-
-### 3. Flash the BIOS pack
-
-This standalone core loads the MSX2+ BIOS from external SPI flash (it is **not** embedded in the bitstream), so a second flash step is required. Flash the BIOS pack `goauld_rom_int.bin` (international; or `goauld_rom_japan.bin`) at address `0x200000` with Gowin Programmer, Operation = *"exFlash C Bin Erase, Program thru GAO-Bridge"*.
-
-The pack is a single 512 KB image that already bundles **everything**: MSX2+ BIOS + sub-ROM + logo/FM menu + **Nextor 2.1.4** disk ROM + **WiFi UNAPI ROM (esp8266e)** + config. There is no separate Nextor or WiFi ROM to flash.
-
-> The pack contains copyrighted MSX system ROMs, so it is **not** included in this repository. Build it yourself from your own ROM dumps with `fpga/src/rom/build.bat`.
-
-## WiFi (ESP-01S)
-
-WiFi support uses an ESP-01S module (ESP8266) connected to the Tang Nano 20K header pins.
-
-### Wiring
-
-| ESP-01S pin | Tang Nano 20K pin | Direction |
-|-------------|-------------------|-----------|
-| TX (GPIO1)  | Pin 28            | ESP → FPGA |
-| RX (GPIO3)  | Pin 27            | FPGA → ESP |
-| VCC         | 3.3V              | Power |
-| GND         | GND               | Ground |
-
-### WiFi ROM (already integrated)
-
-The WiFi UNAPI ROM (esp8266e) is **bundled inside the BIOS pack** flashed at `0x200000` (step 3) and is mapped to **Slot 1, page 1** (0x4000–0x7FFF), detected automatically by the MSX BIOS at boot. **No separate WiFi ROM flashing is needed** — you only have to wire the ESP-01S module and pre-flash it with its own UNAPI firmware (below).
-
-I/O ports used by the WiFi interface:
-| Port | Direction | Description |
-|------|-----------|-------------|
-| 0x06 | Read      | Receive byte from UART buffer |
-| 0x06 | Write     | Set baud rate / clear buffer |
-| 0x07 | Read      | UART status flags |
-| 0x07 | Write     | Send byte to UART (to ESP-01S) |
-
-Default baud rate: **859372 bps**. The ESP-01S must be pre-flashed with MSX UNAPI firmware at this baud rate.
-
-#### ESP-01S firmware
-
-Download the **OCM** build from [ducasp/MSX-Development — ESPFW1.4](https://github.com/ducasp/MSX-Development/releases/tag/ESPFW1.4).  
-It contains two `.bin` files — flash both using esptool or the Arduino IDE via a **CH340 / CP2102 USB-serial 3.3V adapter**.
-
-### MSX UNAPI
-
-The WiFi module implements MSX UNAPI TCP/IP over the ESP8266 serial interface. Compatible with standard MSX networking software (Telnet clients, FTP, etc.).
-
-
-## Hardware: case & bill of materials
-
-- 🧩 **3D-printable case**: STL files in [`case/`](case). Recommended material: **white PETG**. Print everything at once with `case/msxnano_case_bambulab.3mf` (Bambu Lab).
-- 📋 **Bill of materials**: component list in [`docs/BOM.md`](docs/BOM.md) and [`docs/MSXnano_BOM.xlsx`](docs/MSXnano_BOM.xlsx).
-
-> The 3D case is based on [this Thingiverse design](https://www.thingiverse.com/thing:4066021), which served as the inspiration and starting point for our improved version.
-
-## Credits
-
-This project is based on the work of **jabadiagm** ([MSXgoauldSD_tn20k](https://github.com/jabadiagm/MSXgoauldSD_tn20k)), licensed under **GPLv3**.
-
-It is a standalone FPGA implementation that does not rely on the original physical MSX hardware, so all hardware-related files (PCB, MSX interface, schematics) have been removed.
-
-**Claude (Anthropic)** collaborated on this project.
+The Pico on the shield takes stock FPGA-Companion firmware — hold BOOTSEL, plug it into a
+computer, and drop `fpga_companion.uf2` (the `BOARD=PICO` build) onto the `RPI-RP2` volume.
+No firmware goes to the Tang's on-board BL616.
 
 ---
 
-## Community & links
+## Using it
 
-- 🌐 Project page & guides: [msx.barcelona](https://msx.barcelona)
-- 🐙 Other MSX FPGA projects: [github.com/Papipapito](https://github.com/Papipapito)
-- 🗣️ Barcelona MSX community: [AAMSX](https://www.aamsx.com)
+Files go in the root of the SD card, or in subdirectories.
+
+| Extension | Loaded as |
+|---|---|
+| `.rom` | cartridge, into the megaram, with mapper auto-detection |
+| `.dsk` | disk image, through Nextor disk emulation |
+| `.col` | ColecoVision — also needs `COLECO.ROM` on the card |
+| `.sg` | Sega SG-1000 |
+
+Only these extensions are recognised. The boot menu matches the three extension bytes
+literally, so a `.mx2` file — a common format for MSX2 cartridge dumps, and byte-identical to
+a `.rom` — is **invisible** until renamed.
+
+The file browser starts before the OS. Arrows and RETURN navigate and launch, BS goes back,
+`R`/`D`/`A` filter by type, TAB switches partition, `S` opens settings, `W` opens WiFi, and
+ESC boots straight to Nextor/MSX-DOS. **F11** toggles turbo; F12 is consumed by the companion
+firmware and never reaches the MSX.
+
+---
+
+## Inherited from upstream
+
+Everything not listed above comes from MSXnano unchanged: the Z80, the V9958 VDP with HDMI
+output, dual PSG, SCC and SCC+ with an optional second SCC+, OPLL, SD card with Nextor 2.1.4,
+ColecoVision and SG-1000 emulation, the ESP-01S WiFi option, and the SD file browser.
+
+For the feature history and per-version release notes, see
+[upstream's README](https://github.com/Papipapito/MSXnano) — that history is not duplicated
+here, because this fork has not changed any of it.
+
+---
+
+## Credits and licence
+
+**GPLv3**, inherited from upstream.
+
+- [Papipapito/MSXnano](https://github.com/Papipapito/MSXnano) — the core this forks
+- [jabadiagm/MSXgoauldSD_tn20k](https://github.com/jabadiagm/MSXgoauldSD_tn20k) — MSXnano's own basis
+- [MiSTle-Dev/FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion) — HID companion firmware
+- [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano) — the shield's DB9 pin assignment and signal order
