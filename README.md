@@ -260,6 +260,18 @@ worth deciding what belongs in each rather than ending up with two menus that di
 `vdp_vga.vhd` (Ohnaka) **prohibits commercial use without written permission**, which
 constrains what a modified video path can be redistributed as.
 
+**No FPGA-Companion fork is needed.** The firmware is core-agnostic: the core identifies
+itself over SPI, and the companion loads its entire menu from an XML file — first looking for
+it on the SD card, and falling back to asking the core to serve it (`main.c`). So the menu is
+defined by data you write, not by C you maintain. A draft lives at
+[`fpga/src/usb/msxnano.xml`](fpga/src/usb/msxnano.xml) with System, Video and Audio menus —
+turbo, boot turbo, scanlines, aspect, stereo, second SCC+, reset and cold boot — and
+deliberately no file selectors, since the core's own browser does that better.
+
+Serving it from the core means implementing `sysctrl` **CMD 8** ("read menu config"), which
+upstream left as an empty block. The ids the menu sets arrive back via **CMD 4**, which also
+needs connecting to the config registers the `S` menu currently drives through I/O ports.
+
 Upstream's `fpga/GRAPHICAL_FRONTEND_DESIGN.md` explores a richer version of this idea (cover
 art, a full framebuffer) but targets the Console 60K. The plain 128×64 overlay is the modest,
 achievable version of the same thing.

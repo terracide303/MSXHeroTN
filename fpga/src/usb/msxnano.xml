@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSXnano-MiSTle - FPGA-Companion OSD menu definition.
+
+  DRAFT. Not wired up yet. This file describes the overlay menu that
+  FPGA-Companion renders when F12 is pressed. Two things are still missing
+  before it does anything:
+
+    1. The core must render the OSD. FPGA-Companion sends a 128x64 mono
+       framebuffer over SPI, but fpga_companion.v currently ties mcu_osd_din
+       to zero and nothing consumes mcu_osd_strobe.
+    2. The core must act on the ids below. They arrive via sysctrl CMD 4
+       ("config values set by user via OSD"); today MSXnano sets these
+       through its own S menu writing I/O ports instead, so the CMD 4 path
+       needs connecting to the same config registers.
+
+  Supply route: either drop this on the SD card as msxnano.xml, or serve it
+  from the core over SPI by implementing sysctrl CMD 8 ("read menu config"),
+  which upstream left as an empty block. No FPGA-Companion fork is needed
+  either way - the firmware is core-agnostic and reads its whole menu from
+  this file.
+
+  Deliberately NOT included: file selectors. The core has its own SD browser
+  with mapper auto-detection, which the companion's selector cannot match.
+  Loading stays in the core; this menu is for settings and reset.
+-->
+<config name="MSXnano-MiSTle" version="0">
+
+  <actions>
+    <!-- run as soon as this file is parsed; keep the machine in reset -->
+    <action name="init">
+      <load file="msxnano.ini"/>
+      <set id="R" value="1"/>
+    </action>
+
+    <!-- run once initialisation is complete; release reset -->
+    <action name="ready">
+      <set id="R" value="0"/>
+    </action>
+
+    <action name="save">
+      <save file="msxnano.ini"/>
+    </action>
+
+    <action name="reset">
+      <set id="R" value="1"/>
+      <delay ms="10"/>
+      <set id="R" value="0"/>
+    </action>
+
+    <action name="reset_hide">
+      <link action="reset"/>
+      <hide/>
+    </action>
+
+    <!-- cold reset: needed for Boot Turbo, which is only applied on a cold start -->
+    <action name="cold_reset">
+      <set id="R" value="3"/>
+      <delay ms="10"/>
+      <set id="R" value="0"/>
+    </action>
+
+    <action name="cold_reset_hide">
+      <link action="cold_reset"/>
+      <hide/>
+    </action>
+  </actions>
+
+  <menu label="MSXnano">
+
+    <menu label="System">
+      <!-- same switch as F11 -->
+      <list label="Turbo:" id="T" default="0">
+        <listentry label="3.58 MHz" value="0"/>
+        <listentry label="5.37 MHz" value="1"/>
+      </list>
+      <!-- persisted; only takes effect on the next cold boot -->
+      <toggle label="Boot in turbo:" id="B" default="0"/>
+      <button label="Cold Boot" action="cold_reset_hide"/>
+    </menu>
+
+    <menu label="Video">
+      <toggle label="Scanlines:" id="S" default="0"/>
+      <!-- HDMI AVI InfoFrame signalling; the display decides pillarbox vs stretch -->
+      <list label="Aspect:" id="A" default="0">
+        <listentry label="4:3" value="0"/>
+        <listentry label="16:9" value="1"/>
+      </list>
+    </menu>
+
+    <menu label="Audio">
+      <!-- PSG1+SCC1+OPLL left / PSG2+SCC2+OPLL right; off = mono on both -->
+      <toggle label="Stereo:" id="E" default="0"/>
+      <!-- second SCC+ in the free primary slot, for dual-SCC trackers -->
+      <toggle label="Second SCC+:" id="C" default="0"/>
+    </menu>
+
+    <button label="Save settings" action="save"/>
+    <button label="Reset" action="reset_hide"/>
+  </menu>
+
+</config>
