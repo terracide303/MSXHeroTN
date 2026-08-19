@@ -18,11 +18,15 @@ this fork has nothing to offer you yet.
 Specifically, at this point:
 
 - No bitstream has been built from this tree. It may not even synthesize.
-- The DB9 code is written but **untested on hardware**. The pin-to-direction mapping is
-  derived from MiSTeryNano's RTL rather than measured, so the stick may well move in the
-  wrong directions on first try.
+- **DB9 joystick** — written, unbuilt. The signal order is corroborated by MiSTeryNano's RTL
+  *and* the shield's own PCB netlist, but nobody has pushed a real stick in four directions.
+- **OSD overlay** — written, unbuilt. It renders the companion's framebuffer and serves the
+  menu XML, but the menu's settings are **not yet connected to the core's config registers**,
+  so the OSD will display and accept input without changing anything.
 - Removing the on-board BL616 path (see below) is a breaking change that has not been
   validated on real hardware.
+- New logic has been added to the pixel-clock domain on a device that is already fairly
+  full, so timing closure is an open question.
 
 Nothing here should be flashed to a board you care about until this section says otherwise.
 
@@ -106,6 +110,23 @@ J1 uses the standard Atari/MSX DE9 pinout (1=Up, 2=Down, 3=Left, 4=Right, 6=Fire
 and the Tang header carries those on consecutive pads in the order Fire1, Down, Up, Right,
 Left, Fire2. That is good evidence, but it is still not a substitute for plugging a stick in
 and pushing it in four directions.
+
+### Companion OSD overlay (implemented, untested)
+
+Upstream decoded the OSD SPI channel and discarded the data. This fork renders it: the
+128×64 monochrome framebuffer the companion sends is composited onto the picture inside
+`v9958_top`, between the VDP's RGB and the HDMI encoder.
+
+The menu itself is served from the core — `sysctrl` CMD 8 streams a gzipped
+[`msxnano.xml`](fpga/src/usb/msxnano.xml) out of a 1 KB ROM in the bitstream, so the menu
+cannot drift out of step with the core it configures. Regenerate it with
+`fpga/src/usb/make_menu_rom.sh` after editing the XML. CMD 4 decodes the ids the menu sets.
+
+`osd_u8g2.v` is vendored unchanged from MiSTeryNano (GPLv3), which is the reference
+implementation of this protocol.
+
+Not yet wired: the decoded values do not reach `config1_ff`/`config2_ff`, which the `S` menu
+drives through I/O ports.
 
 ---
 
