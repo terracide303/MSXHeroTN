@@ -229,7 +229,42 @@ just stopping, which is the part that makes the current behaviour confusing.
 Until this is fixed, the workaround is subdirectories: the cap is per directory, so folders of
 under 115 files each keep everything reachable.
 
-**4. Translate the on-screen menu to English** — not started, and the most user-visible item
+**4. Render the companion OSD overlay** — not started.
+
+FPGA-Companion draws its own on-screen display — the overlay other MiSTle cores use for
+settings, opened with F12 — and ships it to the FPGA as a 128×64 monochrome framebuffer over
+SPI. **This core receives it and throws it away.**
+
+The plumbing is half-built. `mcu_spi_new.v` already decodes the OSD channel:
+
+```verilog
+assign mcu_osd_strobe = spi_in_strobe && spi_target == 8'd2;
+```
+
+but in `fpga_companion.v` the data input is tied off and the strobe is consumed by nothing:
+
+```verilog
+.mcu_osd_din(8'b00000000),
+```
+
+So F12 currently does nothing visible: the companion swallows the key for its OSD — which is
+why upstream moved turbo to F11 — draws the overlay, sends it, and the core discards it.
+
+What is needed: a 1 KB framebuffer (128×64 bits) written by the OSD strobe, and a compositor
+in the video path to overlay it on the HDMI output. The video chain is
+`tn_vdp_v3_v9958/src/hdmi/*` plus `vdp_vga.vhd`.
+
+Two things to decide before building it. This core already has its own settings menu on `S`
+and a full SD browser, so the companion OSD would **overlap** rather than replace them — it is
+worth deciding what belongs in each rather than ending up with two menus that disagree. And
+`vdp_vga.vhd` (Ohnaka) **prohibits commercial use without written permission**, which
+constrains what a modified video path can be redistributed as.
+
+Upstream's `fpga/GRAPHICAL_FRONTEND_DESIGN.md` explores a richer version of this idea (cover
+art, a full framebuffer) but targets the Console 60K. The plain 128×64 overlay is the modest,
+achievable version of the same thing.
+
+**5. Translate the on-screen menu to English** — not started, and the most user-visible item
 on this list.
 
 The entire boot menu UI is in Spanish — the status bar, the help screen, every prompt and
@@ -258,7 +293,7 @@ deliberately along with it. English is usually shorter than Spanish, which helps
 This is worth doing early: it is the part of the fork every user sees, and it is independent
 of the DB9 and MIDI work.
 
-**5. Replace the boot logo** — not started.
+**6. Replace the boot logo** — not started.
 
 The boot screen shows the **MSX Barcelona** user-group logo. This fork has no affiliation
 with that group, so shipping their identity mark is not appropriate regardless of taste —
@@ -290,7 +325,7 @@ One dependency worth knowing: changing the logo means **rebuilding the BIOS pack
 `build.bat` assembles it from MSX system ROMs that are not in this repository. So this needs
 your own ROM dumps, not just a new image.
 
-**6. Translate the Spanish comments and docs to English** — not started.
+**7. Translate the Spanish comments and docs to English** — not started.
 
 Upstream is written in Spanish throughout its comments and design documents. This fork is
 worked on in English, and mixed-language sources are a genuine hazard when the comments are
@@ -314,7 +349,7 @@ Two rules for this work, because it is the kind of change that silently breaks t
 - Do it in **separate commits from functional changes**, so a translation pass never hides a
   behavioural edit in a large diff.
 
-**7. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+**8. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
 
 Note that translation and rebasing pull against each other: the more of upstream's comments
