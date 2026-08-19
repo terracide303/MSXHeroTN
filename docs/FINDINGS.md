@@ -319,7 +319,9 @@ harmless once saves depend on it.
 **Absent entirely:** `.cas` cassette support. The boot menu matches only `ROM` and `DSK`.
 A reusable implementation exists in `MSX1_MiSTer/rtl/tape.sv` (molekula, GPL v2+): it streams
 the CAS from RAM and generates the cassette bitstream, so the real BIOS decodes it and
-hook-bypassing loaders still work.
+hook-bypassing loaders still work. `fbelavenuto/msx1fpga` takes an entirely different
+approach — a `LOADCAS.BAS` software loader on the SD card rather than RTL — which is worth
+knowing as a fallback if the hardware route stalls.
 
 Also worth knowing that **OPL4 and V9990 do fit on a GW2AR-18** — `antxiko/mangOPL4` and
 `herraa1/tnCartWonder` run them on a Tang Nano 20K. But those implement a *cartridge* for a
@@ -345,6 +347,20 @@ via `OUT &H44,n` persisted to flash**, and CRT borders with exact integer scalin
 ⚠️ That DC blocking is a caution against this fork's own volume implementation, which assumes
 the mix is 0-based with silence at 0 and therefore shifts cleanly. If there is a DC component,
 attenuating by shifting moves it and clicks. Verify before trusting it.
+
+---
+
+## 6d. Tooling worth knowing
+
+The question gating most of the plan is **how full the GW2AR-18 already is**, and no figure
+exists: upstream's audit does not quote one and this fork has never been synthesized.
+[`Papipapito/gowin-mcp`](https://github.com/Papipapito/gowin-mcp) — by the same author —
+turns Gowin EDA build reports into structured data: resource usage, fMax per clock, timing
+violations and build-to-build comparison. Worth running against the first successful build,
+because it answers in one step what half these decisions are waiting on.
+
+Note also that synthesis needs **Gowin EDA, which has no macOS build**. `openFPGALoader`
+flashes a finished bitstream from a Mac but cannot produce one.
 
 ---
 
