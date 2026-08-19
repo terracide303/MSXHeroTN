@@ -249,7 +249,18 @@ Still to verify on hardware: that F12 actually produces a centred overlay, and t
 module to the pixel-clock domain does not upset timing closure on a device that is already
 fairly full.
 
-What remains unbuilt is the menu *content* path — see below.
+The menu **content** path is now built too: `sysctrl` implements **CMD 8**, streaming the
+gzipped `msxnano.xml` out of a 1 KB ROM in the bitstream, so the menu travels with the core
+and needs no file on the SD card. `make_menu_rom.sh` regenerates it (444 bytes gzipped, 580
+spare). **CMD 4** decodes the ids the menu sets — turbo, boot turbo, scanlines, aspect,
+stereo, second SCC+, reset — replacing the vestigial Atari ST ids upstream left behind.
+
+What is **still missing** is the last hop: those `system_*` values are decoded but not yet
+connected to the core's own config registers. Today `config1_ff`/`config2_ff` are driven by
+the `S` menu writing I/O ports, and merging two sources of truth needs a policy decision
+rather than more wiring — so the OSD will show its menu and accept input before it changes
+anything. That is deliberately left as a separate change, since it touches the boot config
+path.
 
 The plumbing is half-built. `mcu_spi_new.v` already decodes the OSD channel:
 
