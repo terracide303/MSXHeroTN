@@ -498,7 +498,45 @@ entirely, but enough is unknown that it needs investigating before it becomes a 
 **ESP32-C6** with an optional info display, rather than staying on the ESP-01S. That may be
 the better answer regardless of what the companion can do.
 
-**10. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+**10. USB mouse** — not started, and the cheapest real feature on this list.
+
+`hid.v` already exposes a mouse, and `fpga_companion.v` has the connection **commented out**:
+
+```verilog
+//.mouse(hid_mouse),
+```
+
+So the companion is receiving USB mouse data and the core is discarding it. What is missing
+is the MSX side: the MSX mouse is read through the PSG joystick port as a quadrature-style
+protocol, so the joystick mux needs a mouse mode alongside the DB9 and USB pad paths already
+there.
+
+Worth doing early because the MSX mouse is the platform's main non-joystick input — Graphos 3,
+Dynamic Publisher and the art and CAD software all expect it, and none of it is usable today.
+
+**11. `.CAS` cassette support** — not started.
+
+There is none: the boot menu matches only `ROM` and `DSK`, and nothing in the core handles
+tape. A large part of the MSX1 library exists only as `.cas`, so this widens what the machine
+can actually run rather than adding hardware it does not have.
+
+Two routes to weigh: emulate the cassette interface at the BIOS tape hooks, which is simpler
+and much faster than real tape, or generate the audio and let the BIOS decode it, which is
+slower but far more faithful for loaders that bypass the hooks.
+
+**12. Persist SRAM saves** — not started.
+
+The core already has cartridge SRAM for ASCII8 and ASCII16 — it lives in the top 32 KB of the
+megaram, gated by port `#43`. But it is **volatile**: saves in Hydlide 3, Xanadu, the Koei
+games and anything else with a battery-backed cartridge are lost at power-off.
+
+Upstream has a design for this in `SRAM_PERSIST_CONSOLE60K_DESIGN.md`, though it targets the
+Console 60K. **Read the audit first**: `AUDIT_PRE_PORT_60K.md` records that this plan reuses
+`flash_rw.v`, and that `flash_rw.v:24` has `write_terminate` declared `output` and never
+assigned, so PAGE PROGRAM always writes all 256 bytes. That bug is benign today and is not
+benign here — it must be fixed before anything relies on that writer.
+
+**13. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
 
 Note that translation and rebasing pull against each other: the more of upstream's comments

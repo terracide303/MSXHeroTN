@@ -299,6 +299,47 @@ commented out. Autofire exists but is hardcoded to ~10 Hz.
 
 ---
 
+## 6b. Unused capability already in the tree
+
+Three things exist but are not connected, which is why they are cheap:
+
+- **USB mouse.** `hid.v` exposes a mouse; `fpga_companion.v` has `//.mouse(hid_mouse),`
+  commented out. The companion receives the data and the core discards it. What is missing is
+  the MSX side — the mouse is read through the PSG joystick port.
+- **PAL/NTSC.** `pal_mode` exists in `v9958_top` but follows VDP R9 rather than a setting.
+- **Keyboard layout.** `config_keyboard[1:0]` is declared in `top.v` with its assignment
+  commented out.
+
+And one that exists but does not survive power-off: **cartridge SRAM** for ASCII8/ASCII16,
+in the top 32 KB of the megaram, gated by port `#43`. Persisting it means reusing
+`flash_rw.v`, whose `write_terminate` is declared `output` and never assigned
+(`AUDIT_PRE_PORT_60K.md`), so PAGE PROGRAM always writes 256 bytes — harmless today, not
+harmless once saves depend on it.
+
+**Absent entirely:** `.cas` cassette support. The boot menu matches only `ROM` and `DSK`.
+
+---
+
+## 6c. What MSXimus does that this cannot
+
+[MSXimus](https://github.com/Papipapito/MSXimus) is the same author's core for the Tang
+Console **60K** (GW5AT-60), GPLv3. It carries **MoonSound/OPL4** (OPL3 plus 24-voice
+wavetable), **MSX-Audio Y8950** with ADPCM-B and 256 KB sample RAM, and HRA!'s **V9968** — an
+extended VDP with 16 sprites per line, 15-colour sprites and 256 KB of VRAM held in the
+board's **DDR3**. None of that is reachable on a GW2AR-18 with no DDR3; the move to the 60K is
+precisely why they exist there.
+
+Plausibly backportable, if a utilisation figure ever justifies it: full **2 MB ASCII16**
+megaROMs (a mapper/capacity matter — the 20K has 8 MB of SDRAM in package), the **audio
+remaster** (DC blocking on the PSGs, per-chip balance, a soft-knee limiter), **master volume
+via `OUT &H44,n` persisted to flash**, and CRT borders with exact integer scaling.
+
+⚠️ That DC blocking is a caution against this fork's own volume implementation, which assumes
+the mix is 0-based with silence at 0 and therefore shifts cleanly. If there is a DC component,
+attenuating by shifting moves it and clicks. Verify before trusting it.
+
+---
+
 ## 7. Upstream documentation errors
 
 Recorded because two of them cost real time, and because they are a reason to verify
