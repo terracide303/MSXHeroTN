@@ -150,21 +150,45 @@ Addresses are masked with `0x3FFF` inside the 16K page. The YM2148 "MKS" handles
 the Yamaha keyboard port; from the Z80 it is a data register and a status/command register.
 That is considerably less work than an 8251 with a separate baud-rate generator.
 
-Three things make up the actual job:
+### Approach: load it like a cartridge, not a permanent fixture
 
-1. **A cartridge slot.** Being memory-mapped, the SFG needs one, and this core's slot layout
-   is fixed by design (megaram in slot 2, SD in 3-2). Freeing or sharing a slot is the first
-   problem to solve, before any MIDI code.
-2. **The SFG ROM**, which holds the driver and BASIC extensions. It is copyrighted, so it has
-   to come from your own dump, exactly like the MSX BIOS in the BIOS pack.
-3. **The OPM.** Software expects the FM chip, not just a MIDI port — the SFG-05 uses a YM2164
+The SFG claims a **whole primary slot** — its 16K ROM is mirrored across all four pages, which
+is why the registers appear at `0x3FF0`, `0x7FF0`, `0xBFF0` and `0xFFF0` alike. It cannot
+share a slot with a megaram-loaded ROM. Permanently dedicating a slot to it would be a poor
+trade, because only slots 1 and 2 are free and the "Second SCC" option already claims one.
+
+So the SFG is to be **entered deliberately, the way you would plug a cartridge in**: pick the
+SFG ROM in the file browser, and the core loads it, enables the SFG decode on a free primary
+slot, and resets so the BIOS finds and initialises it. Leave that mode and the slot goes back
+to being free.
+
+Note what can and cannot be loaded from SD. The **ROM** comes off the card; the **hardware**
+cannot — the YM2148 registers have to be decoded in the fabric, so the logic is always
+present and what the menu actually toggles is whether that decode is active. The cost of the
+gates is paid whether or not MIDI is in use, which matters on a GW2AR-18 that is already
+fairly full. That is the main thing to measure before committing to the OPM.
+
+This fits machinery the core already has: the browser loads `.rom` files with mapper
+detection and a manual override, so "SFG" becomes another override type, and launching a ROM
+already triggers a reset — which is exactly what the BIOS needs in order to scan the slot and
+initialise the cartridge.
+
+### The remaining work
+
+1. **The SFG ROM** holds the driver and BASIC extensions. It is copyrighted, so it comes from
+   your own dump on the SD card — which is tidier than baking it into the BIOS pack.
+2. **The OPM.** Software expects the FM chip, not just a MIDI port — the SFG-05 uses a YM2164
    (a YM2151 variant with shifted registers). This core already vendors **jtopl** from
    jotego, who also maintains **JT51** for the YM2151, so an OPM core is available from a
-   source already present in the tree.
+   source already present in the tree. Whether it fits alongside everything else is an open
+   question.
+3. **Slot arbitration.** The SFG and the second SCC+ would compete for the same free primary,
+   so they need to be mutually exclusive in the settings menu.
 
 A narrower first step is possible: implement only the YM2148 registers at `0x3FF5`/`0x3FF6`
 and leave the OPM out. Software doing plain MIDI output could work, but anything using the
-SFG ROM's BASIC extensions will expect the synth to exist.
+SFG ROM's BASIC extensions will expect the synth to exist. This is also the cheap way to find
+out whether the full SFG will fit before investing in JT51.
 
 Reference implementation to work from: openMSX's
 [`MSXYamahaSFG.cc`](https://github.com/openMSX/openMSX/blob/master/src/sound/MSXYamahaSFG.cc)
