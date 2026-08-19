@@ -217,6 +217,30 @@ character ROMs — so this repo ships [`pf2bdf.py`](../fpga/src/usb/pf2bdf.py) a
 
 ---
 
+## 5b. WiFi — open question
+
+Today WiFi is an **ESP-01S** on pins 27/28 at a fixed **859372 bps**, with the UNAPI ROM
+(`esp8266e.rom`) inside the BIOS pack talking to it through I/O ports `0x06`/`0x07`.
+
+**Established:** FPGA-Companion ships `at_wifi.c`, a Hayes AT-command modem running over the
+FPGA "port" interface (`sys_port_write`) — the `sysctrl` CMD 7 mechanism, for which this core
+**already has plumbing**. A Pico W could therefore serve the network directly over SPI, with
+credentials in the companion's `.ini` on SD, removing the module and freeing two pins.
+
+**Not established:** whether `at_wifi.c` speaks enough of the ESP8266 AT dialect for the
+bundled UNAPI ROM; whether the shield's Pico is a **W** variant (the stock `.uf2` is built
+`PICO_BOARD=pico_w` with `ENABLE_WIFI`, but a plain Pico has no radio); and what the radio
+costs the companion alongside USB host duty.
+
+**Cannot be done in the OSD:** credential entry. The XML has no text-entry widget and CMD 4
+carries one byte per id, so an SSID cannot be transported. Toggles, a reconnect button and a
+fixed pick-list are expressible; configuration is not. It stays in the core's `W` menu.
+
+MSXimus, the same author's Console 60K core, moved to an **ESP32-C6** with an optional
+display instead — possibly the better answer regardless.
+
+---
+
 ## 6. MSXnano internals
 
 ### Slot map

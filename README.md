@@ -460,7 +460,45 @@ shortening — a menu redesign, not a drop-in.
 No font is committed here: Fonts_MiSTer has no licence and its files are traced from arcade
 character ROMs, so supply your own as with the BIOS pack.
 
-**9. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+**9. WiFi — research, not yet a decision.** Today WiFi needs an **ESP-01S** wired to pins
+27/28, pre-flashed with its own UNAPI firmware. There may be a way to drop that module
+entirely, but enough is unknown that it needs investigating before it becomes a plan.
+
+**What we know:**
+
+- FPGA-Companion ships [`at_wifi.c`](https://github.com/MiSTle-Dev/FPGA-Companion/blob/main/src/at_wifi.c),
+  which implements a Hayes **AT-command modem over the FPGA "port" interface** — the same
+  `sysctrl` CMD 7 mechanism this core already has plumbing for (`port_out_available`,
+  `port_out_data`, `port_in_data`).
+- So in principle the MSX's UNAPI byte stream could be routed to the companion over SPI
+  instead of out to pins 27/28, and a **Pico W** could provide the network itself. That
+  would remove the module, its four jumper wires and its separate `esptool` flashing step,
+  and free two pins.
+- The companion already reads an `.ini` from SD (`inifile.c`), which is where credentials
+  would live — as MiSTeryNano does it.
+- **WiFi credentials cannot go in the OSD.** The XML vocabulary has no text-entry widget, and
+  CMD 4 carries a single byte per id, so it could not transport an SSID or password. On/off
+  toggles, a reconnect button and a fixed pick-list are expressible; configuration is not.
+  Credential entry stays in the core's own `W` menu.
+
+**What we do not know:**
+
+- Whether `at_wifi.c` speaks enough of the **ESP8266 AT dialect** for the bundled
+  `esp8266e.rom` UNAPI ROM to talk to it. The ROM expects specific ESP-AT responses at a
+  fixed **859372 bps**. If it does not, either `at_wifi.c` grows or the UNAPI ROM is replaced
+  — and that is the whole risk of the idea.
+- Whether the Pico on the shield is a **Pico W**. The published `fpga_companion.uf2` is built
+  with `PICO_BOARD=pico_w` and `ENABLE_WIFI`, but a plain Pico has no radio, and this route
+  is dead without one.
+- Whether the shield exposes what the radio needs, and what it costs in companion firmware
+  CPU time alongside USB host duty.
+- Whether the baud rate matters at all once the link is SPI rather than a real UART.
+
+**Also worth comparing:** MSXimus (the same author's Console 60K core) moved to an
+**ESP32-C6** with an optional info display, rather than staying on the ESP-01S. That may be
+the better answer regardless of what the companion can do.
+
+**10. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
 
 Note that translation and rebasing pull against each other: the more of upstream's comments
