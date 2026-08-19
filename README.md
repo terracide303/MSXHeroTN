@@ -194,8 +194,36 @@ Reference implementation to work from: openMSX's
 [`MSXYamahaSFG.cc`](https://github.com/openMSX/openMSX/blob/master/src/sound/MSXYamahaSFG.cc)
 and [`YM2148.cc`](https://github.com/openMSX/openMSX/blob/master/src/serial/YM2148.cc).
 
-**3. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+**3. Translate the Spanish comments and docs to English** — not started.
+
+Upstream is written in Spanish throughout its comments and design documents. This fork is
+worked on in English, and mixed-language sources are a genuine hazard when the comments are
+the only explanation of why a piece of timing-sensitive code is the way it is.
+
+Thirteen files carry meaningful Spanish. In the order it should be tackled:
+
+| File | Lines | Notes |
+|---|---|---|
+| `fpga/top.v` | 2808 | Comments only, and the file this fork actively edits. Start here. |
+| `fpga/src/megaram.v`, `fpga/src/memory.v` | 271 / 464 | Comments only. |
+| `fpga/src/msxnano_menu/src/menu_main.asm` | 8235 | The largest by far, and the boot menu the SFG work will have to touch. |
+| `tools/` (`scctest.asm`, test benches, ROM scripts) | — | Low risk, low urgency. |
+| The three inherited design docs | 86 / 257 / 136 | Prose only. Lowest priority — they are already marked out of scope. |
+
+Two rules for this work, because it is the kind of change that silently breaks things:
+
+- **Translate comments only. Not one instruction, label, or string literal changes.** In
+  `menu_main.asm` in particular, a renamed label or an altered message length is a bug, and
+  assembly gives no warning.
+- Do it in **separate commits from functional changes**, so a translation pass never hides a
+  behavioural edit in a large diff.
+
+**4. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
+
+Note that translation and rebasing pull against each other: the more of upstream's comments
+are rewritten here, the more conflicts a future `git merge upstream/main` produces. Worth
+weighing before translating files upstream is still actively changing.
 
 ---
 
