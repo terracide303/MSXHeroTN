@@ -429,7 +429,33 @@ Two rules for this work, because it is the kind of change that silently breaks t
 - Do it in **separate commits from functional changes**, so a translation pass never hides a
   behavioural edit in a large diff.
 
-**8. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+**8. Drawn OSD bar and a fixed 8×8 font** — **parked.** Decided against for now: get
+everything working on stock FPGA-Companion firmware first.
+
+The volume bar is currently ASCII (`[####] 100%`) because the stock firmware has no bar
+widget. A drawn bar is achievable, and the groundwork is already in the repo — but it costs a
+firmware fork, so it waits until the core actually runs.
+
+What it would take, when the time comes:
+
+- **The font.** MiSTer's `.pf` fonts are fixed 8×8, which is the OSD's native grid
+  (`osd_u8g2.v` is 16×8 characters over 128×64) where the stock proportional face sits
+  off-grid. They already carry a solid block at ASCII `0x7F` — a single byte, legal in XML,
+  so it needs no UTF-8 handling and no change to `menu.c`'s 22 `DrawStr` call sites.
+  [`pf2bdf.py`](fpga/src/usb/pf2bdf.py) converts one to BDF for `bdfconv`, and `--blocks`
+  appends a matching hollow square for the empty half of the bar.
+- **One line in `menu.c`** — the `u8g2_SetFont` call — then rebuild the `.uf2` and reflash
+  the Pico.
+
+Two costs to weigh at that point. It means **maintaining a firmware fork**, giving up
+free upstream fixes, though the diff is small enough to rebase indefinitely. And a fixed 8×8
+font imposes a hard **16 characters per line**, so labels like `Second SCC+:` would need
+shortening — a menu redesign, not a drop-in.
+
+No font is committed here: Fonts_MiSTer has no licence and its files are traced from arcade
+character ROMs, so supply your own as with the BIOS pack.
+
+**9. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
 
 Note that translation and rebasing pull against each other: the more of upstream's comments
