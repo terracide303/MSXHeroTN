@@ -194,7 +194,42 @@ Reference implementation to work from: openMSX's
 [`MSXYamahaSFG.cc`](https://github.com/openMSX/openMSX/blob/master/src/sound/MSXYamahaSFG.cc)
 and [`YM2148.cc`](https://github.com/openMSX/openMSX/blob/master/src/serial/YM2148.cc).
 
-**3. Translate the on-screen menu to English** — not started, and the most user-visible item
+**3. Remove the 115-file limit in the browser** — not started.
+
+The file browser silently shows only the **first 115 entries of any directory**. On a card
+with a few hundred ROMs in the root, everything past 115 is invisible with no warning that
+anything is missing.
+
+```asm
+MAX_ENT  equ  115    ; array capacity (115*80 = 9200 bytes -> C300..E6F0)
+```
+
+The listing is built into a fixed array in MSX RAM, 80 bytes per record, and the scan stops
+when it fills. Raising the constant alone does not help: `ENT_ARRAY` occupies `C300–E6F0`
+and `PART_TBL` sits immediately above at `E800`, so even claiming everything up to the system
+area yields roughly 155 entries. The record size is the real constraint, and `NAME_MAX` of 70
+dominates it.
+
+Three approaches, cheapest first:
+
+1. **Shrink the record.** Store the 8.3 name plus the directory entry's location (LBA +
+   offset) and re-read the long name only for the highlighted row. About 24 bytes per record,
+   so roughly 383 entries. Buys headroom, does not remove the ceiling.
+2. **Stream the directory.** Keep only the visible 18 rows plus a stack of page-start
+   positions and re-read from the card while scrolling. Unbounded, and clean here because the
+   listing is in raw FAT order with no sort to maintain. Costs one SD read per scroll.
+3. **Put the array in the megaram.** The preferred option. The menu already writes to the
+   megaram — that is how it loads ROMs — so the bank-switching path exists. At 80 bytes per
+   record, 2 MB holds on the order of 26,000 entries, MSX RAM is untouched, and the megaram
+   is free scratch until a ROM is actually launched.
+
+Whichever is chosen, the browser should also **say when a listing was truncated** rather than
+just stopping, which is the part that makes the current behaviour confusing.
+
+Until this is fixed, the workaround is subdirectories: the cap is per directory, so folders of
+under 115 files each keep everything reachable.
+
+**4. Translate the on-screen menu to English** — not started, and the most user-visible item
 on this list.
 
 The entire boot menu UI is in Spanish — the status bar, the help screen, every prompt and
@@ -223,7 +258,7 @@ deliberately along with it. English is usually shorter than Spanish, which helps
 This is worth doing early: it is the part of the fork every user sees, and it is independent
 of the DB9 and MIDI work.
 
-**4. Replace the boot logo** — not started.
+**5. Replace the boot logo** — not started.
 
 The boot screen shows the **MSX Barcelona** user-group logo. This fork has no affiliation
 with that group, so shipping their identity mark is not appropriate regardless of taste —
@@ -255,7 +290,7 @@ One dependency worth knowing: changing the logo means **rebuilding the BIOS pack
 `build.bat` assembles it from MSX system ROMs that are not in this repository. So this needs
 your own ROM dumps, not just a new image.
 
-**5. Translate the Spanish comments and docs to English** — not started.
+**6. Translate the Spanish comments and docs to English** — not started.
 
 Upstream is written in Spanish throughout its comments and design documents. This fork is
 worked on in English, and mixed-language sources are a genuine hazard when the comments are
@@ -279,7 +314,7 @@ Two rules for this work, because it is the kind of change that silently breaks t
 - Do it in **separate commits from functional changes**, so a translation pass never hides a
   behavioural edit in a large diff.
 
-**6. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+**7. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
 
 Note that translation and rebasing pull against each other: the more of upstream's comments
