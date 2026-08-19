@@ -242,12 +242,12 @@ SPI. Upstream received it and threw it away. This fork now wires it up:
 - The compositor is instantiated **inside `v9958_top`**, because RGB never surfaces at the
   top level — it sits between the VDP's `VideoR/G/B` and the `dvi_*` signals feeding the HDMI
   encoder, ahead of the scanline stage so the OSD dims with the picture rather than floating
-  over it. Sync is inverted on the way in, since `osd_u8g2` wants active-high and the VDP
-  emits active-low.
+  over it. `VideoHS_n`/`VideoVS_n` go in unmodified — `osd_u8g2` takes **active-low** sync
+  despite its port names, which is how MiSTeryNano and NanoMig both wire it.
 
-Still to verify on hardware: that F12 actually produces a centred overlay, that the sync
-polarity assumption holds, and that adding a module to the pixel-clock domain does not upset
-timing closure on a device that is already fairly full.
+Still to verify on hardware: that F12 actually produces a centred overlay, and that adding a
+module to the pixel-clock domain does not upset timing closure on a device that is already
+fairly full.
 
 What remains unbuilt is the menu *content* path — see below.
 

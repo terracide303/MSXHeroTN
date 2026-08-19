@@ -352,8 +352,13 @@ module v9958_top(
 
     // ---- FPGA-Companion OSD overlay -------------------------------------
     // Composited before the scanline stage so the OSD is dimmed along with
-    // the picture rather than floating above it. Sync is inverted because
-    // osd_u8g2 expects active-high while the VDP emits active-low.
+    // the picture rather than floating above it.
+    //
+    // osd_u8g2 takes ACTIVE-LOW sync despite its port names: it treats a
+    // rising edge on hs as the *end* of hsync and a falling edge on vs as the
+    // *start* of vsync. MiSTeryNano (src/tang/nano20k/video.v) and NanoMig
+    // (src/tang/nano20k/top.sv) both feed it hs_n/vs_n unmodified, so
+    // VideoHS_n/VideoVS_n go straight in.
     wire [5:0] osd_r, osd_g, osd_b;
 
     osd_u8g2 osd_inst (
@@ -364,8 +369,8 @@ module v9958_top(
         .data_in_start  ( osd_start     ),
         .data_in        ( osd_data      ),
 
-        .hs             ( ~VideoHS_n    ),
-        .vs             ( ~VideoVS_n    ),
+        .hs             ( VideoHS_n     ),
+        .vs             ( VideoVS_n     ),
         .r_in           ( VideoR        ),
         .g_in           ( VideoG        ),
         .b_in           ( VideoB        ),
