@@ -364,6 +364,46 @@ flashes a finished bitstream from a Mac but cannot produce one.
 
 ---
 
+## 6e. Reference implementations
+
+Prior art worth reading before building any of the planned items. Licence status matters:
+some can be reused, some can only be studied.
+
+| Project | Useful for | Licence |
+|---|---|---|
+| [`MSX1_MiSTer/rtl/tape.sv`](https://github.com/MiSTer-devel/MSX1_MiSTer/blob/master/rtl/tape.sv) | `.CAS` playback — streams the CAS and generates the cassette bitstream | **GPL v2+, reusable** |
+| [MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), [NanoMig](https://github.com/MiSTle-Dev/NanoMig) | Working cores on the same companion and shield — the oracle for OSD, sysctrl and shield wiring | GPL, reusable |
+| [openMSX](https://github.com/openMSX/openMSX) | Behavioural reference for MSX hardware (`MSXYamahaSFG.cc`, `YM2148.cc`) | GPL, reusable |
+| [MSXimus](https://github.com/Papipapito/MSXimus) | Same author's Console 60K core — audio remaster, 2 MB ASCII16, master volume | **GPL-3.0, reusable** |
+| [jotego](https://github.com/jotego) `jt51`, `jtopl` | YM2151 / OPL cores; `jtopl` is already vendored here | per-repo, check |
+| [`fbelavenuto/msx1fpga`](https://github.com/fbelavenuto/msx1fpga) | `.CAS` via a `LOADCAS.BAS` software loader — a no-RTL fallback | check |
+| [`antxiko/mangOPL4`](https://github.com/antxiko/mangOPL4), [`herraa1/tnCartWonder`](https://github.com/herraa1/tnCartWonder) | OPL4 and V9990 **on a GW2AR-18** — as a cartridge, not a whole machine | check |
+| [Carnivore2+](https://github.com/rbsc/carnivore2plus) | Architecture and register maps only — see below | **no licence, non-commercial: study only** |
+
+### Carnivore2+ — what to learn from it
+
+An Altera Cyclone II cartridge (8 MB flash, 2 MB RAM, CF + microSD) presenting as an expanded
+slot with four subslots: boot menu, IDE/SD ROM, RAM, and a music ROM that can be FMPAC,
+SFG-05 or MSX-Audio.
+
+The idea worth stealing is its **mapper engine**. Rather than fixed logic per mapper, four
+banks (R1–R4) each expose **Mask, Addr, Reg and Mult** registers, which between them describe
+an arbitrary mapper — which addresses respond, where the bank register lives, and how the
+value scales. Konami4, Konami5/SCC+, ASCII8, ASCII16, linear 64K and custom mappers are all
+*configurations*. Hence its `Presets/*.RCP` files, one per awkward game: a new mapper is a
+config, not a firmware change. That is a far more general answer than this core's fixed
+detection of four mapper types.
+
+It also emulates the **SFG-05 using jotego's OPM core** (the FM half only — the cartridge has
+no MIDI connectors, so no YM2148), does **50/60 Hz instant switching**, keeps **per-device
+volume levels**, and persists SRAM with a **backup battery** where this core would use flash.
+
+⚠️ Its repository carries **no licence** and states the material must not be used
+commercially without RBSC's permission. Read the documented register maps and the
+architecture; do not copy code into this tree.
+
+---
+
 ## 7. Upstream documentation errors
 
 Recorded because two of them cost real time, and because they are a reason to verify
