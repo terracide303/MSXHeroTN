@@ -380,6 +380,37 @@ some can be reused, some can only be studied.
 | [`antxiko/mangOPL4`](https://github.com/antxiko/mangOPL4), [`herraa1/tnCartWonder`](https://github.com/herraa1/tnCartWonder) | OPL4 and V9990 **on a GW2AR-18** — as a cartridge, not a whole machine | check |
 | [Carnivore2+](https://github.com/rbsc/carnivore2plus) | Architecture and register maps only — see below | **no licence, non-commercial: study only** |
 
+### Licence inconsistency inherited from upstream
+
+This repository is labelled **GPL-3.0**, but it vendors files that are **not** GPL-compatible.
+
+`fpga/src/ocm/` (`swioports.vhd`, `scc_wave2.vhd`, `rtc.v`, `wifi_lite.vhd`, `uart_lite.vhd`,
+`kanji.v`, `lpf.vhd`, `fifo.vhd`) descends from **ESE MSX-SYSTEM3 / OCM-PLD**, whose licence
+is BSD-style with an added clause:
+
+```
+Copyright (c) 2006 Kazuhiro Tsujikawa (ESE Artists' factory)
+Copyright (c) 2006 MSX association
+
+3. Redistributions may not be sold, nor may they be used in a commercial
+   product or activity without specific prior written permission.
+```
+
+`vdp_vga.vhd` in `tn_vdp_v3_v9958/` carries a comparable restriction from Ohnaka.
+
+Both are **source-available, not open source** — the commercial restriction fails the OSI and
+FSF definitions. GPLv3 requires that the whole work be distributable under its terms alone and
+explicitly forbids adding restrictions, so a GPL-3.0 label over these files is internally
+inconsistent.
+
+This is inherited from upstream, not introduced here, and it is close to the norm in the retro
+FPGA scene. But it is real, and worth knowing before anyone sells hardware running this core
+or relies on the GPL-3.0 label. Selling would need **specific prior written permission** from
+the copyright holders.
+
+It is also why the reference table above distinguishes reusable from study-only sources: in
+this ecosystem, "the source is on GitHub" says nothing about what may be done with it.
+
 ### Carnivore2+ — what to learn from it
 
 An Altera Cyclone II cartridge (8 MB flash, 2 MB RAM, CF + microSD) presenting as an expanded
