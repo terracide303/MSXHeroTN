@@ -572,6 +572,33 @@ megaram, or streamed from SD), the `cas_out` bit wired to the MSX's cassette inp
 Its `play` and `rewind` inputs are a natural fit for **OSD buttons**, which is one of the few
 places the overlay can do something the core's own menu cannot do as neatly.
 
+**Cost.** Counted from the RTL: `state` 3 bits, `ram_a` 27 (≈19 would do — a `.cas` is a few
+hundred KB), `counter` 11, `byte_out` 11, `baud_div` 11, `byte_pos` 4, `cnt` 2, plus about
+eight flags; combinationally a few comparators and an 8:1 byte mux for the signature. So
+**roughly 100–200 LUT4s and ~85 registers, no BSRAM and no DSP** — a fraction of a percent
+here. It also lives in a slow clock domain, so unlike the OSD compositor it is no threat to
+timing closure. The `.cas` itself rides the megaram path the ROM loader already uses, so
+storage costs a mux rather than new memory.
+
+### Decided approach
+
+**Phase 1 — convert `.CAS` to `.DSK` on the host.** Zero core changes, works today through the
+Nextor path that already exists. Note also that much MSX1 tape software has already been
+dumped as `.rom` or `.dsk`, so the marginal gain from native `.cas` is smaller than it looks.
+
+**Phase 2 — port `tape.sv`.** Cheap, faithful, handles loaders that bypass the BIOS, and
+reuses machinery that is already here.
+
+**Rejected: hooking the BIOS tape calls** (`TAPION` `0x00E1`, `TAPIN` `0x00E4`, `TAPOOF`
+`0x00E7`). It gives instant loading and costs almost no logic, but it is the worst trade of
+the three: it saves ~150 LUTs, which is irrelevant, while requiring a patched BIOS built from
+ROMs the user must supply, and it fails on exactly the custom turbo loaders that justify
+doing any of this. The only thing it buys over `tape.sv` is speed.
+
+**The speed caveat.** `tape.sv` loads at real tape speed — minutes per game. Moving to 2400
+baud (which the MSX supports natively) and stacking turbo on top helps, but it stays slow. If
+instant loading matters more than loader compatibility, the `.dsk` route already provides it.
+
 *[Phase 2]* **12. Persist SRAM saves** — not started.
 
 The core already has cartridge SRAM for ASCII8 and ASCII16 — it lives in the top 32 KB of the
