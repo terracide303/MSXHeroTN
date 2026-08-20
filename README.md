@@ -185,6 +185,7 @@ everything else.** Nothing from Phase 2 starts before Phase 1 boots.
 | **Drawn OSD bar + 8×8 font** | small, parked | Costs a companion firmware fork |
 | **Backports from MSXimus** | small–medium | Audio remaster, 2 MB ASCII16, master volume, CRT borders |
 | **Configurable mapper engine** | large | Carnivore2+'s register-driven approach, arrived at independently |
+| **Swap to an MIT V9958** | medium | Resolves the GPL-3.0 licence inconsistency; source is HRA!'s FPGA_MSXtR |
 | **Translate the Spanish comments** | large | 13 files; conflicts with rebasing onto upstream |
 | **Housekeeping** | small | Release pins 13/48/76/86, keep rebased on upstream |
 
@@ -611,7 +612,32 @@ Console 60K. **Read the audit first**: `AUDIT_PRE_PORT_60K.md` records that this
 assigned, so PAGE PROGRAM always writes all 256 bytes. That bug is benign today and is not
 benign here — it must be fixed before anything relies on that writer.
 
-*[Phase 2]* **13. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+*[Phase 2]* **13. Swap to an MIT-licensed V9958** — not started.
+
+This is a **licence fix** that happens to also be a component swap. The core's video path is
+`tn_vdp_v3_v9958/`, which contains Ohnaka's `vdp_vga.vhd` — one of the two files behind the
+GPL-3.0 inconsistency recorded in [FINDINGS](docs/FINDINGS.md), since it forbids commercial
+use without written permission.
+
+[`hra1129/FPGA_MSXtR`](https://github.com/hra1129/FPGA_MSXtR) ships a V9958 under **MIT**
+(`fpga/FPGA_MSXtR/src/v9958`), by the author of the V9968. Swapping to it would leave only the
+OCM-derived files under `fpga/src/ocm/` to deal with.
+
+Not a small change: the current VDP also carries the HDMI encoder, scanlines, aspect
+signalling and the OSD compositor added by this fork, so all of that has to be re-attached or
+replaced. `FPGA_MSXtR` has its own `hdmi_tx` and `i2s_audio`, also MIT, which may be the
+cleaner path than grafting.
+
+Its `labo/` tree — twenty-odd self-contained Gowin projects, each isolating one problem
+(`CPU_000`–`006`, `VDP_000`–`009`) — is a good model for trying this in isolation rather than
+against the working core, and a source of known-good reference projects when something
+confusing turns up.
+
+Also MIT and possibly useful from the same repo: `cr800` (an R800), a Tang Nano 20K SDRAM
+controller, `opll`, `ssg`, `rtc`, and `micom_connect` — his MCU link, which is the same
+Pico-as-companion pattern used here.
+
+*[Phase 2]* **14. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
 
 Note that translation and rebasing pull against each other: the more of upstream's comments
