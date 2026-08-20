@@ -19,7 +19,7 @@ plays games. It is not finished — two features do not work — but it is no lo
 | Boots, browser, loads and runs ROMs | yes |
 | **DB9 joystick** on the shield | **yes** — all directions and both fire buttons |
 | BIOS pack, SD browsing, Nextor | yes |
-| **OSD overlay (F12)** | **no** — nothing appears, no crash either. See below |
+| **OSD overlay (F12)** | **yes** — menu appears and renders |
 | **Turbo** | moved to the OSD; the core no longer intercepts F11 |
 | Boot logo | slot is blank in the v1.9 pack; adding one is optional |
 | On-board BL616 HID | removed by design — HID comes from the shield's Pico |
@@ -29,12 +29,10 @@ A prebuilt bitstream is in [`compiled/`](compiled/).
 
 ### Known issues
 
-**F12 / OSD shows nothing.** The RTL is in the bitstream and the menu XML has been tried both
-ways — served from the core over `sysctrl` CMD 8, and placed on the SD card as `config.xml`
-and `msxnano.xml`. Neither produces an overlay, and nothing crashes. Untested next steps: read
-the companion's debug output on the Pico's **GP0 at 921600 baud** to see whether it is drawing
-an OSD at all, and confirm whether FPGA-Companion **v1.4.21** (what the Pico runs) even has
-the "fetch config from the core" path, which was read from a later revision of `main.c`.
+**One timing violation.** `clock_54m` closes at 53.798 MHz against a 54.000 MHz constraint —
+the CPU cadence domain, on a design at 88% CLS. It predates this fork. It is the reason turbo
+moved out of that domain and into the OSD, and it is the first suspect for anything
+timing-sensitive that misbehaves. Details in [docs/UTILISATION.md](docs/UTILISATION.md).
 
 **F11 / turbo crashed the machine.** Upstream toggled turbo by watching for F11 in the
 `clk_54m` domain — the one domain in this design that misses its timing constraint (53.798
@@ -218,7 +216,7 @@ everything else.** Nothing from Phase 2 starts before Phase 1 boots.
 | 1 | **Synthesize it** on Gowin EDA | done | Still want the utilisation figure from the build report — no one has ever had one for this core |
 | 2 | **Bench-test the DB9** | done, works | Pins were wrong at first; corrected to NanoMig's `js0[]` group |
 | 3 | **Make F12 / the OSD work** | shows nothing | Next: read the Pico's debug UART on GP0 at 921600 baud |
-| 3b | **Turbo from the OSD** | code written | Replaces the F11 shortcut, which crashed. Needs the OSD working to be testable |
+| 3b | **Turbo from the OSD** | code written | Replaces the F11 shortcut, which crashed. Testable now the OSD works |
 | 4 | **Connect the OSD settings** to `config1_ff`/`config2_ff` | not started | The menu currently accepts input without changing anything — the last hop |
 | 5 | **Translate the on-screen menu** to English | not started | Most visible thing in the fork, and no RTL risk |
 | 6 | **Replace the boot logo** | not started | It is another group's identity mark. No RTL risk |
@@ -361,7 +359,7 @@ just stopping, which is the part that makes the current behaviour confusing.
 Until this is fixed, the workaround is subdirectories: the cap is per directory, so folders of
 under 115 files each keep everything reachable.
 
-*[Phase 1]* **4. Render the companion OSD overlay** — **implemented, but not working.**
+*[Phase 1]* **4. Render the companion OSD overlay** — **done, working on hardware.**
 
 FPGA-Companion draws its own on-screen display — the overlay other MiSTle cores use for
 settings, opened with F12 — and ships it to the FPGA as a 128×64 monochrome framebuffer over

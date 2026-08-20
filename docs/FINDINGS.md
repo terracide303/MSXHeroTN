@@ -205,6 +205,16 @@ The element vocabulary is `menu`, `list`/`listentry`, `toggle`, `range`, `filese
 `image`, `button`, and `actions` containing `set`, `load`, `save`, `delay`, `link`, `hide`.
 Each control carries a one-character `id` whose value is pushed to the core.
 
+### The core must return 0x5c,0x42 or the companion ignores it entirely
+
+`sys_status_is_valid()` tests CMD 0's first two bytes for exactly **`0x5c`, `0x42`**, and
+`sys_wait4fpga()` gates the companion's whole task on it — config loading, `osd_init()`, all
+of it. MSXnano returned `0x7c`, so its OSD had never worked. The third byte is the core id and
+should be `0x00`; a non-zero value makes the companion warn about a legacy core.
+
+The symptom is silence: no overlay, no error, nothing on screen. HID still works, which makes
+it very easy to conclude wrongly that the companion and core are talking properly.
+
 ### sysctrl commands used here
 
 - **CMD 4** — config values set via the OSD: byte 1 is the id character, byte 2 the value.
