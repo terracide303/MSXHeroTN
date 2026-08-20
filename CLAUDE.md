@@ -20,43 +20,30 @@ bitstream (built from `<sha>`)"*. The Mac side flashes from there with `openFPGA
 
 ## Things to watch for in this build
 
-**`fpga/src/usb/menu_rom.vh`** is `` `include``d from inside an `always` block in
-`fpga/src/usb/sys_ctrl.v`, and lives in the same directory. If Gowin cannot find it, its
-include search path does not cover the source file's own directory — say so rather than
-working around it silently, and the include can be changed to an explicit relative path.
-
-That file is the OSD menu, a gzipped XML emitted as a `case` statement. It **replaced a
-`$readmemh`** that was the prime suspect for the OSD not working: `$readmemh` resolves its
-path against the synthesis working directory, which differs between the Gowin IDE and
-`build.tcl`, and a path it cannot resolve yields a silently zero-filled ROM. If you still
-have the log from a build **before** commit `a70e68e`, a `$readmemh` warning in it would
-confirm that diagnosis — worth a look.
-
-Regenerate it with `fpga/src/usb/make_menu_rom.sh` if `msxnano.xml` changes. Never edit it by
-hand.
-
-## Please report the utilisation figure
-
-Nobody has ever recorded one for this core, and it gates most of the roadmap — whether there
-is room for MIDI, an OPM, cassette support, and so on. From the place & route report:
-**LUT, register and BSRAM usage, plus fMax per clock and any timing violations.** Paste it
-back, or commit it as `docs/UTILISATION.md`.
-
-The same author wrote [`gowin-mcp`](https://github.com/Papipapito/gowin-mcp), which turns
-Gowin build reports into structured data, if that is easier than reading them by hand.
+- `fpga/src/usb/msxnano_xml.hex` is loaded by `$readmemh` from `sys_ctrl.v`, with the path
+  relative to the synthesis working directory. Regenerate it with
+  `fpga/src/usb/make_menu_rom.sh` if `msxnano.xml` changes; never edit it by hand.
+- **`clock_54m` misses its constraint** — 53.798 MHz against 54.000. It predates this fork,
+  it is why turbo is applied via reset rather than live, and it is the first suspect for
+  anything timing-sensitive. If a change makes it worse, say so; CLS is at 88% and the design
+  is close to its routing limit.
+- Report the utilisation and timing after each build so `docs/UTILISATION.md` stays current.
 
 ## Current state
 
-The core builds, boots, browses the SD card and runs games. The DB9 joystick works. Two
-things do not: **F12 produces no OSD overlay** (the fix above is a hypothesis awaiting this
-rebuild) and **pressing F11 a few times crashes the machine** (cause unknown; upstream v1.9
-claims to fix an F11 hang, so a stock upstream build on the same board would establish whose
-bug it is).
+The core builds, boots, browses the SD card, runs games, reads the shield's DB9 joystick, and
+renders the FPGA-Companion OSD on F12 with working reset, turbo, volume, scanlines, aspect,
+stereo and second-SCC settings.
 
-Full status and the roadmap are in [README.md](README.md). Everything established about the
-hardware, the shield, the companion protocol and upstream's quirks is in
-[docs/FINDINGS.md](docs/FINDINGS.md) — **read that before re-deriving anything**, it exists
-so the same ground is not covered twice.
+**Settings do not persist.** The menu's Save writes `msxnano.ini` through the companion's
+FatFS, which reaches the card via the FPGA's SD target — and `mcu_sdc_din` is tied to zero
+here, so the companion cannot see the SD card. Implementing that target is the outstanding
+Phase 1 item.
+
+Full status is in [README.md](README.md), the roadmap in [docs/ROADMAP.md](docs/ROADMAP.md),
+and everything established about the hardware, the shield, the companion protocol and
+upstream's quirks in [docs/FINDINGS.md](docs/FINDINGS.md) — **read that before re-deriving
+anything**.
 
 ## Conventions
 

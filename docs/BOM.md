@@ -3,8 +3,8 @@
 Parts needed to build an **MSXnano-MiSTle** — MSX2+ on a Tang Nano 20K carried by a
 MiSTeryShield20k RPi Pico USB shield.
 
-> This fork is not working yet. See the [main README](../README.md) before buying
-> anything on the strength of this list.
+> The core runs on hardware. See the [main README](../README.md) for what does and does not
+> work before buying anything on the strength of this list.
 
 ## Core
 
@@ -31,7 +31,7 @@ the keyboard at once.
 
 | # | Qty | Component | Notes |
 |---|-----|-----------|-------|
-| 9 | 1 | **DB9 joystick** | Atari/MSX-style digital stick into the shield's DE9 port. Support is **implemented but untested**. |
+| 9 | 1 | **DB9 joystick** | Atari/MSX-style digital stick into the shield's DE9 port. Works — verified on hardware. |
 | 10 | 1 | **USB gamepad** | XInput (Xbox-style) recommended. Works alongside the DB9 stick on the same MSX port. |
 | 11 | 1 | **USB hub** | Only if you want two USB gamepads. Player 2 is the second XInput device enumerated. |
 
@@ -39,15 +39,10 @@ the keyboard at once.
 
 | # | Qty | Component | Notes |
 |---|-----|-----------|-------|
-| 12 | 1 | **ESP-01S** (ESP8266) | Wired to the GPIO header: **ESP TX  pin 28, ESP RX  pin 27**, VCC  3.3V, GND  GND. Flash with ducasp ESPFW1.4 (OCM build). |
-| 13 | — | Jumper wires / header | To reach the Tang's header. |
+| — | — | **Not available on this fork.** | Pins 27 and 28 are the shield's DB9 Fire 1 and Down lines, so there is nowhere to attach an ESP-01S. The UNAPI ROM is still in the BIOS pack but has no serial port to talk to. |
 
-The UNAPI ROM is already inside the BIOS pack, so there is no separate ROM to flash.
-
-> **Pin correction.** Upstream's BOM says the ESP-01S goes on pins 77 and 73. That was true
-> before MSXnano v1.7.2 moved the UART to pins 27/28, and it is doubly wrong here: pins 77
-> and 73 are the DB9 Up and Fire-1 lines in this fork. Wiring an ESP-01S to them would fight
-> the joystick port. Use 28 and 27.
+Reaching WiFi another way — through the companion rather than a separate module — is
+recorded as a research item in the [roadmap](ROADMAP.md).
 
 ## Enclosure
 
