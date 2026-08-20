@@ -69,8 +69,12 @@
   <menu label="MSXnano">
 
     <menu label="System">
-      <!-- same switch as F11 -->
-      <list label="Turbo:" id="T" default="0">
+      <!-- Applied via reset, not live. Switching CPU cadence while running hangs
+           the machine: clk_54m misses its timing constraint (53.798 vs 54.000
+           MHz) and that is the domain the cadence mux lives in. Resetting into
+           the new speed is reliable, and matches how MiSTeryNano handles
+           machine-level changes. -->
+      <list label="Turbo:" id="T" default="0" action="reset">
         <listentry label="3.58 MHz" value="0"/>
         <listentry label="5.37 MHz" value="1"/>
       </list>
