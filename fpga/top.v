@@ -90,6 +90,30 @@ module top
     // WS2812 case LED and the ESP-01S UART have no pins on this build. They
     // stay as internal wires: the modules driving them still elaborate, and
     // synthesis prunes them. WiFi would need the companion route instead.
+    // Settings the user changed in the OSD (sysctrl CMD 4). Declared here rather
+    // than beside the companion instance because reset and volume are consumed
+    // much earlier in the file. Wired through so far: reset, turbo, volume and
+    // the DB9 port assignment. The rest still need merging with
+    // config1_ff/config2_ff, which the S menu drives through I/O ports.
+    wire [1:0] system_reset;
+    wire       system_turbo;
+    wire       system_turbo_boot;
+    wire       system_scanlines;
+    wire       system_wide_screen;
+    wire       system_stereo;
+    wire       system_second_scc;
+    wire [2:0] system_volume;
+    wire       system_pal;
+    wire [1:0] system_keyboard_sel;
+    wire       system_db9_port;
+    wire [1:0] system_autofire;
+
+    // change detectors for the OSD settings above (see the config block)
+    reg osd_scan_d   = 1'b0;
+    reg osd_wide_d   = 1'b0;
+    reg osd_stereo_d = 1'b0;
+    reg osd_scc2_d   = 1'b0;
+
     wire ws2812_led;
     wire uart_tx;
     wire uart_rx = 1'b1;   // idle high
@@ -224,7 +248,9 @@ end
     PINFILTER dn3(
         .clk(clk_54m),
         .reset_n(1),
-        .din(ex_bus_reset_n & ~config_reset),
+        // system_reset comes from the OSD (sysctrl CMD 4, id "R"): 1 = reset,
+        // 3 = cold boot, 0 = run. Either non-zero value asserts reset here.
+        .din(ex_bus_reset_n & ~config_reset & ~(|system_reset)),
         .dout(bus_reset_n)
     );
 
@@ -1910,20 +1936,21 @@ memory_ctrl mem1 (
 
     // (modo consola SG-1000/ColecoVision eliminado en v1.9 -- solo MSX)
 
-    // OSD volume ("V"): mute(0), 25/50/75/100%(1..4). The mixer output is
-    // 0-based unsigned -- silence is 0, not mid-scale -- so a right shift
-    // attenuates cleanly without shifting a DC offset and clicking.
-    // 25% and 75% are approximated as 1/4 and 3/4 to stay shift-only.
-    function [15:0] apply_volume;
-        input [15:0] s;
+    // OSD volume ("V"): mute(0), 25/50/75/100%(1..4).
+    // HDMI/IEC60958 carries PCM as SIGNED two's complement, so this must use
+    // arithmetic shifts on a signed value. A logical shift turns a negative
+    // sample into a large positive one -- which sounds like loud distortion at
+    // every setting except 100%, where nothing is shifted at all.
+    function signed [15:0] apply_volume;
+        input signed [15:0] s;
         input [2:0]  vol;
         begin
             case (vol)
-                3'd0: apply_volume = 16'd0;                    // mute
-                3'd1: apply_volume = s >> 2;                   // 25%
-                3'd2: apply_volume = s >> 1;                   // 50%
-                3'd3: apply_volume = (s >> 1) + (s >> 2);      // 75%
-                default: apply_volume = s;                     // 100%
+                3'd0: apply_volume = 16'sd0;                     // mute
+                3'd1: apply_volume = s >>> 2;                    // 25%
+                3'd2: apply_volume = s >>> 1;                    // 50%
+                3'd3: apply_volume = (s >>> 1) + (s >>> 2);      // 75%
+                default: apply_volume = s;                       // 100%
             endcase
         end
     endfunction
@@ -2117,7 +2144,21 @@ memory_ctrl mem1 (
             config1_ff[1] <= 1;
             ocm_slot2_prev <= { iSlt2_linear, Slot2Mode };
         end
+
+        // OSD settings (sysctrl CMD 4) write the same config bits the S menu
+        // uses, on change rather than continuously -- so whichever was touched
+        // last wins and both menus keep working. sysctrl runs on clk_27m too,
+        // but these are re-registered here for a clean edge.
+        osd_scan_d   <= system_scanlines;
+        osd_wide_d   <= system_wide_screen;
+        osd_stereo_d <= system_stereo;
+        osd_scc2_d   <= system_second_scc;
+        if (system_scanlines   != osd_scan_d)   config1_ff[3] <= system_scanlines;
+        if (system_second_scc  != osd_scc2_d)   config1_ff[2] <= system_second_scc;
+        if (system_wide_screen != osd_wide_d)   config2_ff[4] <= system_wide_screen;
+        if (system_stereo      != osd_stereo_d) config2_ff[5] <= system_stereo;
     end
+
 
     monostable mono (
         .pulse_in(config_reset_ff),
@@ -2828,21 +2869,6 @@ memory_ctrl mem1 (
     wire osd_start;
     wire [7:0] osd_data;
 
-    // settings the user changed in the OSD. Only volume and the DB9 port
-    // assignment are acted on so far -- the rest still need merging with
-    // config1_ff/config2_ff, which the S menu drives through I/O ports.
-    wire [1:0] system_reset;
-    wire       system_turbo;
-    wire       system_turbo_boot;
-    wire       system_scanlines;
-    wire       system_wide_screen;
-    wire       system_stereo;
-    wire       system_second_scc;
-    wire [2:0] system_volume;
-    wire       system_pal;
-    wire [1:0] system_keyboard_sel;
-    wire       system_db9_port;
-    wire [1:0] system_autofire;
     fpga_companion fpga_companion_inst
     (
         .clk (clk_27m),

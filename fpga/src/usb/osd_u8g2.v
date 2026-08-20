@@ -25,7 +25,13 @@ module osd_u8g2 (
   input [7:0]  data_in,
 	    
   input        hs,
-  input        vs, 
+  input        vs,
+
+  // Centring correction. The module centres on the measured TOTAL line and
+  // frame period, which includes blanking, so the result sits off-centre in the
+  // visible picture. These shift it back; see v9958_top for the values.
+  input signed [11:0] x_offset,
+  input signed [9:0]  y_offset, 
   input [5:0]  r_in,
   input [5:0]  g_in,
   input [5:0]  b_in,
@@ -69,8 +75,8 @@ wire [5:0] osd_b = (tactive && osd_pix)?osd_pix_col:sactive?{4'b0000, b_in[5:4]}
 `define WIDTH 16   // OSD width in characters
 `define HEIGHT 8   // OSD height in characters
 
-wire [11:0] hstart = (hcntL/2)-8*`WIDTH*`SCALE/2;
-wire [9:0]  vstart = (vcntL/2)-8*`HEIGHT*`SCALE/2;
+wire [11:0] hstart = (hcntL/2)-8*`WIDTH*`SCALE/2 + x_offset;
+wire [9:0]  vstart = (vcntL/2)-8*`HEIGHT*`SCALE/2 + y_offset;
 
 // entire OSD area incl border
 wire	    hactive = hcnt >= hstart-`SCALE*`BORDER && hcnt < hstart+`SCALE*`BORDER+8*`WIDTH*`SCALE;
