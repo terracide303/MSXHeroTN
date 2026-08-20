@@ -61,15 +61,15 @@ reg [7:0] id;
 reg [9:0] menu_rom_addr;
 reg [7:0] menu_rom_data;
 
-// The ROM is a generated case statement rather than $readmemh, because
-// $readmemh resolves its path against the synthesis working directory, which
-// differs between the Gowin IDE and build.tcl. A path it cannot resolve gives
-// a silently zero-filled ROM -- indistinguishable from a good build whose OSD
-// simply does nothing. A case statement cannot fail that way.
-// Regenerate with fpga/src/usb/make_menu_rom.sh after editing msxnano.xml.
-always @(posedge clk) begin
-`include "menu_rom.vh"
-end
+// Same shape as NanoMig's: a byte array initialised by $readmemh, which Gowin
+// infers as BSRAM. A generated case statement was tried instead and cost LUTs
+// on a design already at 88% CLS, so it is not worth it.
+// Regenerate the hex with fpga/src/usb/make_menu_rom.sh after editing msxnano.xml.
+reg [7:0] msxnano_xml[1024];
+initial $readmemh("src/usb/msxnano_xml.hex", msxnano_xml);
+
+always @(posedge clk)
+  menu_rom_data <= msxnano_xml[menu_rom_addr];
    
 // reverse data byte for rgb   
 wire [7:0] data_in_rev = { data_in[0], data_in[1], data_in[2], data_in[3], 
@@ -163,9 +163,12 @@ always @(posedge clk) begin
             if(command == 8'd0) begin
                 // return some pattern that would not appear randomly
 	        // on e.g. an unprogrammed device
-                if(state == 4'd0) data_out <= 8'h7c;
-                if(state == 4'd1) data_out <= 8'h42;
-                if(state == 4'd2) data_out <= 8'h10;   // core id 0 = Generic core
+                // FPGA-Companion's sys_status_is_valid() tests for exactly
+                // 0x5c,0x42 and refuses to talk to the core otherwise --
+                // sys_wait4fpga() then never succeeds and osd_init() never runs.
+                if(state == 4'd0) data_out <= 8'h5c;   // \ magic marker identifying
+                if(state == 4'd1) data_out <= 8'h42;   // / a valid FPGA core
+                if(state == 4'd2) data_out <= 8'h00;   // core id 0 = generic core
             end
 	   
             // CMD 1: there are two MCU controlled LEDs
