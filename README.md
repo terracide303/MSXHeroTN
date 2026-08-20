@@ -15,15 +15,15 @@ plays games. It is not finished — two features do not work — but it is no lo
 
 | | State |
 |---|---|
-| Synthesizes on Gowin EDA | ✅ builds clean |
-| Boots, browser, loads and runs ROMs | ✅ verified on hardware |
-| **DB9 joystick** on the shield | ✅ **verified on hardware** — all directions and both fire buttons |
-| BIOS pack, SD browsing, Nextor | ✅ working |
-| **OSD overlay (F12)** | ❌ **nothing appears.** No crash, no picture. See below |
-| **Turbo (F11)** | ⚠️ **pressing it a few times crashes the machine** |
-| Boot logo | ⚪ slot is blank in the v1.9 pack; adding one is optional |
-| On-board BL616 HID | ⚪ removed by design — HID comes from the shield's Pico |
-| ESP-01S WiFi, WS2812 LED | ⚪ given up: their pins are the DB9 lines |
+| Synthesizes on Gowin EDA | yes |
+| Boots, browser, loads and runs ROMs | yes |
+| **DB9 joystick** on the shield | **yes** — all directions and both fire buttons |
+| BIOS pack, SD browsing, Nextor | yes |
+| **OSD overlay (F12)** | **no** — nothing appears, no crash either. See below |
+| **Turbo (F11)** | **crashes the machine** after a few presses |
+| Boot logo | slot is blank in the v1.9 pack; adding one is optional |
+| On-board BL616 HID | removed by design — HID comes from the shield's Pico |
+| ESP-01S WiFi, WS2812 LED | given up: their pins are the DB9 lines |
 
 A prebuilt bitstream is in [`compiled/`](compiled/).
 
@@ -118,12 +118,12 @@ USB gamepad, so either input can drive the game.
 
 | `db9[]` | Tang pin | Signal |
 |---|---|---|
-| 0 | 27 | Fire 1 → TrigA |
+| 0 | 27 | Fire 1  TrigA |
 | 1 | 28 | Down |
 | 2 | 25 | Up |
 | 3 | 26 | Right |
 | 4 | 29 | Left |
-| 5 | 30 | Fire 2 → TrigB |
+| 5 | 30 | Fire 2  TrigB |
 
 These are NanoMig's `js0[]` — its "generic IO pins used for DB9 port 1" — confirmed against
 this shield's own PCB netlist, where the joystick nets land on **J4 pads 8–13** and pad 14
@@ -205,10 +205,10 @@ everything else.** Nothing from Phase 2 starts before Phase 1 boots.
 
 | # | Item | State | Why it is Phase 1 |
 |---|---|---|---|
-| 1 | **Synthesize it** on Gowin EDA | ✅ done | Still want the utilisation figure from the build report — no one has ever had one for this core |
-| 2 | **Bench-test the DB9** | ✅ done, works | Pins were wrong at first; corrected to NanoMig's `js0[]` group |
-| 3 | **Make F12 / the OSD work** | ❌ shows nothing | Next: read the Pico's debug UART on GP0 at 921600 baud |
-| 3b | **Fix the F11 turbo crash** | ⚠️ new | Establish first whether stock upstream v1.9 does it too |
+| 1 | **Synthesize it** on Gowin EDA | done | Still want the utilisation figure from the build report — no one has ever had one for this core |
+| 2 | **Bench-test the DB9** | done, works | Pins were wrong at first; corrected to NanoMig's `js0[]` group |
+| 3 | **Make F12 / the OSD work** | shows nothing | Next: read the Pico's debug UART on GP0 at 921600 baud |
+| 3b | **Fix the F11 turbo crash** | new | Establish first whether stock upstream v1.9 does it too |
 | 4 | **Connect the OSD settings** to `config1_ff`/`config2_ff` | not started | The menu currently accepts input without changing anything — the last hop |
 | 5 | **Translate the on-screen menu** to English | not started | Most visible thing in the fork, and no RTL risk |
 | 6 | **Replace the boot logo** | not started | It is another group's identity mark. No RTL risk |
@@ -233,7 +233,7 @@ everything else.** Nothing from Phase 2 starts before Phase 1 boots.
 ### Detail
 
 
-*[Phase 1]* **1. DB9 joystick** — ✅ **done and verified on hardware.**
+*[Phase 1]* **1. DB9 joystick** — **done, and verified on hardware.**
 All four directions and both fire buttons work. Still unverified: that autofire on the USB
 pad's buttons 3/4 still behaves now the DB9 is AND-ed into the same lines.
 
@@ -351,7 +351,7 @@ just stopping, which is the part that makes the current behaviour confusing.
 Until this is fixed, the workaround is subdirectories: the cap is per directory, so folders of
 under 115 files each keep everything reachable.
 
-*[Phase 1]* **4. Render the companion OSD overlay** — ❌ **implemented but not working.**
+*[Phase 1]* **4. Render the companion OSD overlay** — **implemented, but not working.**
 
 FPGA-Companion draws its own on-screen display — the overlay other MiSTle cores use for
 settings, opened with F12 — and ships it to the FPGA as a 128×64 monochrome framebuffer over
@@ -449,7 +449,7 @@ plain find-and-replace, because many are **width-locked**:
 
 So each translated string has to fit its original footprint, or the layout has to be adjusted
 deliberately along with it. English is usually shorter than Spanish, which helps, but
-"Ajustes" → "Settings" is longer, so it cannot be assumed.
+"Ajustes"  "Settings" is longer, so it cannot be assumed.
 
 This is worth doing early: it is the part of the fork every user sees, and it is independent
 of the DB9 and MIDI work.
@@ -605,7 +605,7 @@ by molekula — 191 lines, **GPL v2 or later**, so compatible with this project.
 It takes the faithful route rather than hooking the BIOS: it streams the `.CAS` out of RAM
 and **generates the cassette bitstream itself**, presenting a single `cas_out` bit to the
 MSX's cassette input so the real BIOS does the decoding. Loaders that bypass the tape hooks
-therefore still work. Its state machine is `INIT → SEARCH → PLAY_SILENT → PLAY_SYNC →
+therefore still work. Its state machine is `INIT  SEARCH  PLAY_SILENT  PLAY_SYNC
 PLAY_DATA`, it recognises the CAS block marker, frames each byte as `{2'b11, data, 1'b0}`,
 and encodes bits as the usual 1200/2400 Hz pair from a baud divider.
 

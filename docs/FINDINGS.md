@@ -130,7 +130,7 @@ This is NanoMig's `js0[]` group — "generic IO pins used for DB9 port 1" — an
 `db9_joy0 = {!js0[5],!js0[0],!js0[2],!js0[1],!js0[4],!js0[3]}`. **Verified working on
 hardware.**
 
-⚠️ **The trap:** the shield's schematic also names nets `P73 P74 P75 P77 P31 P49`, which look
+**The trap:** the shield's schematic also names nets `P73 P74 P75 P77 P31 P49`, which look
 exactly like MiSTeryNano's `spare[]` second-DB9 group. They are not the joystick — the PCB
 netlist shows them going to **J3, an expansion header**. Assigning the DB9 there produced a
 build that worked in every respect except that the joystick did nothing. Two sources agreeing
@@ -368,7 +368,7 @@ wavetable), **MSX-Audio Y8950** with ADPCM-B and 256 KB sample RAM, and HRA!'s *
 extended VDP with 16 sprites per line, 15-colour sprites and 256 KB of VRAM held in the
 board's **DDR3**. The move to the 60K is why they exist there rather than in MSXnano.
 
-⚠️ **Do not read that as "the V9968 cannot run on a GW2AR-18".** HRA!'s own
+**Do not read that as "the V9968 cannot run on a GW2AR-18".** HRA!'s own
 [FPGA_MSXtR](https://github.com/hra1129/FPGA_MSXtR) (**MIT**) contains
 `labo/FPGA_MSXtR_VDP_002`, a Gowin project whose device is `GW2AR-18C`
 (`GW2AR-LV18QN88C8/I7`) — the exact Tang Nano 20K part — running **cz80 + UART + V9968** with
@@ -390,7 +390,7 @@ megaROMs (a mapper/capacity matter — the 20K has 8 MB of SDRAM in package), th
 remaster** (DC blocking on the PSGs, per-chip balance, a soft-knee limiter), **master volume
 via `OUT &H44,n` persisted to flash**, and CRT borders with exact integer scaling.
 
-⚠️ That DC blocking is a caution against this fork's own volume implementation, which assumes
+Note that the DC blocking is a caution against this fork's own volume implementation, which assumes
 the mix is 0-based with silence at 0 and therefore shifts cleanly. If there is a DC component,
 attenuating by shifting moves it and clicks. Verify before trusting it.
 
@@ -477,7 +477,7 @@ It also emulates the **SFG-05 using jotego's OPM core** (the FM half only — th
 no MIDI connectors, so no YM2148), does **50/60 Hz instant switching**, keeps **per-device
 volume levels**, and persists SRAM with a **backup battery** where this core would use flash.
 
-⚠️ Its repository carries **no licence** and states the material must not be used
+Its repository carries **no licence** and states the material must not be used
 commercially without RBSC's permission. Read the documented register maps and the
 architecture; do not copy code into this tree.
 

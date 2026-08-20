@@ -39,7 +39,7 @@ the keyboard at once.
 
 | # | Qty | Component | Notes |
 |---|-----|-----------|-------|
-| 12 | 1 | **ESP-01S** (ESP8266) | Wired to the GPIO header: **ESP TX → pin 28, ESP RX → pin 27**, VCC → 3.3V, GND → GND. Flash with ducasp ESPFW1.4 (OCM build). |
+| 12 | 1 | **ESP-01S** (ESP8266) | Wired to the GPIO header: **ESP TX  pin 28, ESP RX  pin 27**, VCC  3.3V, GND  GND. Flash with ducasp ESPFW1.4 (OCM build). |
 | 13 | — | Jumper wires / header | To reach the Tang's header. |
 
 The UNAPI ROM is already inside the BIOS pack, so there is no separate ROM to flash.
