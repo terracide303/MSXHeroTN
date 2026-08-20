@@ -157,11 +157,45 @@ and the joystick mux, not the boot config path.
 
 ## Plan
 
-**1. DB9 joystick** — code written, awaiting a synthesis run and a bench test.
+Split into two phases. **Phase 1 is getting a working port** — build what is already written,
+prove it on hardware, and do only the easy things that make it pleasant to use. **Phase 2 is
+everything else.** Nothing from Phase 2 starts before Phase 1 boots.
+
+### Phase 1 — a working port
+
+| # | Item | State | Why it is Phase 1 |
+|---|---|---|---|
+| 1 | **Synthesize it** on Gowin EDA | blocked — needs a Windows/Linux machine | Gates everything. Also yields the first utilisation figure, which half the later decisions wait on |
+| 2 | **Bench-test the DB9** | code written | Four directions and both fire buttons. If wrong, reorder `db9[]` in `joy0_msx` |
+| 3 | **Bench-test the OSD** | code written | F12 should give a centred overlay with the menu in it |
+| 4 | **Connect the OSD settings** to `config1_ff`/`config2_ff` | not started | The menu currently accepts input without changing anything — the last hop |
+| 5 | **Translate the on-screen menu** to English | not started | Most visible thing in the fork, and no RTL risk |
+| 6 | **Replace the boot logo** | not started | It is another group's identity mark. No RTL risk |
+| 7 | **Fix the 115-file browser limit** | not started | A real bug: files past 115 are invisible with no warning |
+
+### Phase 2 — the extras
+
+| Item | Size | Notes |
+|---|---|---|
+| **MIDI as a Yamaha SFG-05** | large | Loadable cartridge mode. Needs a slot, the SFG ROM, and probably an OPM |
+| **USB mouse** | small | `hid.v` already has it; `fpga_companion.v` has the line commented out |
+| **`.CAS` cassette** | medium | `MSX1_MiSTer/rtl/tape.sv` is reusable (GPL v2+) |
+| **Persist SRAM saves** | medium | Fix `flash_rw.v`'s `write_terminate` first |
+| **WiFi without the ESP-01S** | research | Depends on `at_wifi.c`'s AT dialect and whether the Pico is a W |
+| **Drawn OSD bar + 8×8 font** | small, parked | Costs a companion firmware fork |
+| **Backports from MSXimus** | small–medium | Audio remaster, 2 MB ASCII16, master volume, CRT borders |
+| **Configurable mapper engine** | large | Carnivore2+'s register-driven approach, arrived at independently |
+| **Translate the Spanish comments** | large | 13 files; conflicts with rebasing onto upstream |
+| **Housekeeping** | small | Release pins 13/48/76/86, keep rebased on upstream |
+
+### Detail
+
+
+*[Phase 1]* **1. DB9 joystick** — code written, awaiting a synthesis run and a bench test.
 Verify directions and both fire buttons, and confirm autofire on the USB pad still behaves
 now that the DB9 is AND-ed into the same lines.
 
-**2. MIDI in/out, as a Yamaha SFG-05** — not started.
+*[Phase 2]* **2. MIDI in/out, as a Yamaha SFG-05** — not started.
 
 The shield's MIDI hardware is complete and conventional: an `H11L1S` Schmitt opto-isolator
 on IN, a `74LVC2G14` buffer on OUT, landing on FPGA pins **71 (out) and 72 (in)**, both
@@ -240,7 +274,7 @@ Reference implementation to work from: openMSX's
 [`MSXYamahaSFG.cc`](https://github.com/openMSX/openMSX/blob/master/src/sound/MSXYamahaSFG.cc)
 and [`YM2148.cc`](https://github.com/openMSX/openMSX/blob/master/src/serial/YM2148.cc).
 
-**3. Remove the 115-file limit in the browser** — not started.
+*[Phase 1]* **3. Remove the 115-file limit in the browser** — not started.
 
 The file browser silently shows only the **first 115 entries of any directory**. On a card
 with a few hundred ROMs in the root, everything past 115 is invisible with no warning that
@@ -275,7 +309,7 @@ just stopping, which is the part that makes the current behaviour confusing.
 Until this is fixed, the workaround is subdirectories: the cap is per directory, so folders of
 under 115 files each keep everything reachable.
 
-**4. Render the companion OSD overlay** — code written, untested.
+*[Phase 1]* **4. Render the companion OSD overlay** — code written, untested.
 
 FPGA-Companion draws its own on-screen display — the overlay other MiSTle cores use for
 settings, opened with F12 — and ships it to the FPGA as a 128×64 monochrome framebuffer over
@@ -349,7 +383,7 @@ Upstream's `fpga/GRAPHICAL_FRONTEND_DESIGN.md` explores a richer version of this
 art, a full framebuffer) but targets the Console 60K. The plain 128×64 overlay is the modest,
 achievable version of the same thing.
 
-**5. Translate the on-screen menu to English** — not started, and the most user-visible item
+*[Phase 1]* **5. Translate the on-screen menu to English** — not started, and the most user-visible item
 on this list.
 
 The entire boot menu UI is in Spanish — the status bar, the help screen, every prompt and
@@ -378,7 +412,7 @@ deliberately along with it. English is usually shorter than Spanish, which helps
 This is worth doing early: it is the part of the fork every user sees, and it is independent
 of the DB9 and MIDI work.
 
-**6. Replace the boot logo** — not started.
+*[Phase 1]* **6. Replace the boot logo** — not started.
 
 The boot screen shows the **MSX Barcelona** user-group logo. This fork has no affiliation
 with that group, so shipping their identity mark is not appropriate regardless of taste —
@@ -410,7 +444,7 @@ One dependency worth knowing: changing the logo means **rebuilding the BIOS pack
 `build.bat` assembles it from MSX system ROMs that are not in this repository. So this needs
 your own ROM dumps, not just a new image.
 
-**7. Translate the Spanish comments and docs to English** — not started.
+*[Phase 2]* **7. Translate the Spanish comments and docs to English** — not started.
 
 Upstream is written in Spanish throughout its comments and design documents. This fork is
 worked on in English, and mixed-language sources are a genuine hazard when the comments are
@@ -434,7 +468,7 @@ Two rules for this work, because it is the kind of change that silently breaks t
 - Do it in **separate commits from functional changes**, so a translation pass never hides a
   behavioural edit in a large diff.
 
-**8. Drawn OSD bar and a fixed 8×8 font** — **parked.** Decided against for now: get
+*[Phase 2]* **8. Drawn OSD bar and a fixed 8×8 font** — **parked.** Decided against for now: get
 everything working on stock FPGA-Companion firmware first.
 
 The volume bar is currently ASCII (`[####] 100%`) because the stock firmware has no bar
@@ -460,7 +494,7 @@ shortening — a menu redesign, not a drop-in.
 No font is committed here: Fonts_MiSTer has no licence and its files are traced from arcade
 character ROMs, so supply your own as with the BIOS pack.
 
-**9. WiFi — research, not yet a decision.** Today WiFi needs an **ESP-01S** wired to pins
+*[Phase 2]* **9. WiFi — research, not yet a decision.** Today WiFi needs an **ESP-01S** wired to pins
 27/28, pre-flashed with its own UNAPI firmware. There may be a way to drop that module
 entirely, but enough is unknown that it needs investigating before it becomes a plan.
 
@@ -498,7 +532,7 @@ entirely, but enough is unknown that it needs investigating before it becomes a 
 **ESP32-C6** with an optional info display, rather than staying on the ESP-01S. That may be
 the better answer regardless of what the companion can do.
 
-**10. USB mouse** — not started, and the cheapest real feature on this list.
+*[Phase 2]* **10. USB mouse** — not started, and the cheapest real feature on this list.
 
 `hid.v` already exposes a mouse, and `fpga_companion.v` has the connection **commented out**:
 
@@ -514,7 +548,7 @@ there.
 Worth doing early because the MSX mouse is the platform's main non-joystick input — Graphos 3,
 Dynamic Publisher and the art and CAD software all expect it, and none of it is usable today.
 
-**11. `.CAS` cassette support** — not started.
+*[Phase 2]* **11. `.CAS` cassette support** — not started.
 
 There is none: the boot menu matches only `ROM` and `DSK`, and nothing in the core handles
 tape. A large part of the MSX1 library exists only as `.cas`, so this widens what the machine
@@ -538,7 +572,7 @@ megaram, or streamed from SD), the `cas_out` bit wired to the MSX's cassette inp
 Its `play` and `rewind` inputs are a natural fit for **OSD buttons**, which is one of the few
 places the overlay can do something the core's own menu cannot do as neatly.
 
-**12. Persist SRAM saves** — not started.
+*[Phase 2]* **12. Persist SRAM saves** — not started.
 
 The core already has cartridge SRAM for ASCII8 and ASCII16 — it lives in the top 32 KB of the
 megaram, gated by port `#43`. But it is **volatile**: saves in Hydlide 3, Xanadu, the Koei
@@ -550,7 +584,7 @@ Console 60K. **Read the audit first**: `AUDIT_PRE_PORT_60K.md` records that this
 assigned, so PAGE PROGRAM always writes all 256 bytes. That bug is benign today and is not
 benign here — it must be fixed before anything relies on that writer.
 
-**13. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
+*[Phase 2]* **13. Housekeeping** — once the above work, revisit whether the remaining on-board BL616 pins
 (13, 48, 76, 86) should be released too, and keep this fork rebased on upstream.
 
 Note that translation and rebasing pull against each other: the more of upstream's comments
