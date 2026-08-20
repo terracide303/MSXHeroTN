@@ -60,13 +60,16 @@ reg [7:0] id;
 // Regenerate with fpga/src/usb/make_menu_rom.sh after editing msxnano.xml.
 reg [9:0] menu_rom_addr;
 reg [7:0] menu_rom_data;
-reg [7:0] msxnano_xml[1024];
-// Path is relative to the synthesis working directory, which is fpga/ for
-// build.tcl. If the Gowin IDE resolves it differently, adjust here.
-initial $readmemh("src/usb/msxnano_xml.hex", msxnano_xml);
 
-always @(posedge clk)
-  menu_rom_data <= msxnano_xml[menu_rom_addr];
+// The ROM is a generated case statement rather than $readmemh, because
+// $readmemh resolves its path against the synthesis working directory, which
+// differs between the Gowin IDE and build.tcl. A path it cannot resolve gives
+// a silently zero-filled ROM -- indistinguishable from a good build whose OSD
+// simply does nothing. A case statement cannot fail that way.
+// Regenerate with fpga/src/usb/make_menu_rom.sh after editing msxnano.xml.
+always @(posedge clk) begin
+`include "menu_rom.vh"
+end
    
 // reverse data byte for rgb   
 wire [7:0] data_in_rev = { data_in[0], data_in[1], data_in[2], data_in[3], 
