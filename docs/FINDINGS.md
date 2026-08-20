@@ -336,8 +336,24 @@ alongside a complete MSX2+.
 Console **60K** (GW5AT-60), GPLv3. It carries **MoonSound/OPL4** (OPL3 plus 24-voice
 wavetable), **MSX-Audio Y8950** with ADPCM-B and 256 KB sample RAM, and HRA!'s **V9968** — an
 extended VDP with 16 sprites per line, 15-colour sprites and 256 KB of VRAM held in the
-board's **DDR3**. None of that is reachable on a GW2AR-18 with no DDR3; the move to the 60K is
-precisely why they exist there.
+board's **DDR3**. The move to the 60K is why they exist there rather than in MSXnano.
+
+⚠️ **Do not read that as "the V9968 cannot run on a GW2AR-18".** HRA!'s own
+[FPGA_MSXtR](https://github.com/hra1129/FPGA_MSXtR) (**MIT**) contains
+`labo/FPGA_MSXtR_VDP_002`, a Gowin project whose device is `GW2AR-18C`
+(`GW2AR-LV18QN88C8/I7`) — the exact Tang Nano 20K part — running **cz80 + UART + V9968** with
+VRAM in SDRAM (`ip_sdram_tangnano20k_c.v`). So it fits on this chip.
+
+What does not follow is that it fits *alongside a complete MSX2+*. That lab is a VDP, a small
+Z80 and a UART, with essentially the whole device to itself — the same distinction as
+mangOPL4 being a cartridge rather than a machine. Its 256 KB of VRAM would also compete for
+the SDRAM this core already uses as MSX RAM.
+
+The strongest evidence is HRA!'s own architecture: FPGA_MSXtR is **stackable 95×95 mm boards,
+one FPGA per function** — CPU (Z80/R800/R80) on a Tang Primer 25K, V9968 on a Tang Nano 20K,
+audio (OPLL ×2, PSG ×2, OPL2 ×2, ADPCM ×2, DCSG ×2, SCC) on another Primer 25K, plus a
+**Raspberry Pi Pico 2W** for WiFi, SD and an I²C keyboard. He did not fit it in one device
+either; he split it across four.
 
 Plausibly backportable, if a utilisation figure ever justifies it: full **2 MB ASCII16**
 megaROMs (a mapper/capacity matter — the 20K has 8 MB of SDRAM in package), the **audio
@@ -378,6 +394,7 @@ some can be reused, some can only be studied.
 | [jotego](https://github.com/jotego) `jt51`, `jtopl` | YM2151 / OPL cores; `jtopl` is already vendored here | per-repo, check |
 | [`fbelavenuto/msx1fpga`](https://github.com/fbelavenuto/msx1fpga) | `.CAS` via a `LOADCAS.BAS` software loader — a no-RTL fallback | check |
 | [`antxiko/mangOPL4`](https://github.com/antxiko/mangOPL4), [`herraa1/tnCartWonder`](https://github.com/herraa1/tnCartWonder) | OPL4 and V9990 **on a GW2AR-18** — as a cartridge, not a whole machine | check |
+| [`hra1129/FPGA_MSXtR`](https://github.com/hra1129/FPGA_MSXtR) | The V9968 source, and a `GW2AR-18C` lab project proving it fits this chip | **MIT, reusable** |
 | [Carnivore2+](https://github.com/rbsc/carnivore2plus) | Architecture and register maps only — see below | **no licence, non-commercial: study only** |
 
 ### Licence inconsistency inherited from upstream
