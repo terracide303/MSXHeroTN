@@ -371,6 +371,15 @@ module v9958_top(
 
         .hs             ( VideoHS_n     ),
         .vs             ( VideoVS_n     ),
+
+        // osd_u8g2 centres on the total line/frame period, blanking included,
+        // so it lands off-centre in the visible picture. The correction is
+        // (back - front - sync)/2 horizontally and (sync + back - front)/2
+        // vertically, from the CEA-861 timings for each mode:
+        //   480p (VIC 2):  H 60/720/16/62 -> -9    V 6/30/480/9  -> +14
+        //   576p (VIC 17): H 68/720/12/64 -> -4    V 5/39/576/5  -> +20
+        .x_offset       ( pal_mode ? -12'sd4  : -12'sd9  ),
+        .y_offset       ( pal_mode ?  10'sd20 :  10'sd14 ),
         .r_in           ( VideoR        ),
         .g_in           ( VideoG        ),
         .b_in           ( VideoB        ),

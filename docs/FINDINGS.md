@@ -324,8 +324,11 @@ palette architecture.
 
 ### Audio
 
-The mixer output is **0-based unsigned** — silence is 0, not mid-scale — so a right shift
-attenuates cleanly with no DC step or click. That is why the OSD volume is shift-only.
+The mixer output is **signed two's complement**, as HDMI/IEC60958 requires. Attenuating it
+therefore needs an **arithmetic** shift on a value declared `signed`. Getting this wrong is
+not subtle: a logical shift on `reg [15:0]` turns a negative sample into a large positive one,
+so every attenuated setting sounds like loud distortion while 100% — which shifts nothing —
+sounds clean but quieter by comparison. That exact bug shipped here once.
 
 ### Settings plumbing
 
