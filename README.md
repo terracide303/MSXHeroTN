@@ -64,13 +64,22 @@ this fork does not use the on-board BL616 at all.
 ## Why this fork exists
 
 Upstream MSXnano targets a bare Tang Nano 20K and drives its USB keyboard through the
-board's **on-board BL616** microcontroller. That works, but on a Tang Nano 20K it forces an
-awkward arrangement: the board has a single USB-C connector, so a keyboard has to go through
-an OTG adapter and a powered hub, which competes with powering the board.
+board's **on-board BL616** microcontroller. That works, but the Tang Nano 20K has a single
+USB-C connector and no USB-A, so the one port has to carry power and the keyboard at once.
+In practice that means an **OTG adapter and a powered USB hub**, with the hub backfeeding
+power to the board.
 
-The MiSTeryShield20k solves that in hardware — it carries its own RP2040 companion with a
-proper USB host port, plus a DB9 joystick port and MIDI in/out. Upstream constrains **no
-pins** for the DB9 or MIDI connectors, so on that shield they are inert.
+Which is the point worth making: **that arrangement is not free either.** A powered hub plus
+an OTG adapter costs real money, takes two mains outlets between the board and the hub, and
+leaves a tangle of adapters on the desk. Against that, the MiSTeryShield20k is not the
+expensive option it first appears — it is roughly the same outlay for a tidier machine, and
+you get more for it.
+
+The shield solves the problem in hardware: it carries its own **RP2040 companion with a
+proper USB host port**, so the keyboard plugs straight in and the Tang's USB-C is left doing
+nothing but power. No hub, no OTG adapter, no backfeeding. It also brings a **DB9 joystick
+port** and **MIDI in and out** — connectors upstream constrains **no pins** for, so on that
+shield they sit inert.
 
 This fork assumes the shield is present and wires the shield's hardware into the core.
 
