@@ -20,7 +20,7 @@ plays games. It is not finished — two features do not work — but it is no lo
 | **DB9 joystick** on the shield | **yes** — all directions and both fire buttons |
 | BIOS pack, SD browsing, Nextor | yes |
 | **OSD overlay (F12)** | **no** — nothing appears, no crash either. See below |
-| **Turbo (F11)** | **crashes the machine** after a few presses |
+| **Turbo** | moved to the OSD; the core no longer intercepts F11 |
 | Boot logo | slot is blank in the v1.9 pack; adding one is optional |
 | On-board BL616 HID | removed by design — HID comes from the shield's Pico |
 | ESP-01S WiFi, WS2812 LED | given up: their pins are the DB9 lines |
@@ -36,12 +36,13 @@ the companion's debug output on the Pico's **GP0 at 921600 baud** to see whether
 an OSD at all, and confirm whether FPGA-Companion **v1.4.21** (what the Pico runs) even has
 the "fetch config from the core" path, which was read from a later revision of `main.c`.
 
-**F11 / turbo crashes after a few presses.** Cause unknown, and it is not yet established
-whether this is ours or upstream's. Upstream's v1.9 changelog claims to *fix* an F11 hang in
-the menu — "the async mux delivered two ENABLE/FALLING in a row to the Z80" — by only
-adopting turbo on a clean T-state boundary. Either that fix is incomplete, or something in
-this fork interacts with it. Worth testing an unmodified upstream v1.9 build on the same board
-to tell the two apart.
+**F11 / turbo crashed the machine.** Upstream toggled turbo by watching for F11 in the
+`clk_54m` domain — the one domain in this design that misses its timing constraint (53.798
+against 54.000 MHz). Rather than chase it, **turbo is now an OSD setting and the core does not
+intercept F11 at all**: keys belong to the MSX, machine settings belong in the overlay. That
+removes the crashing path instead of patching it. Whether the underlying timing violation
+still bites elsewhere is a separate question — it predates this fork and is recorded in
+[docs/UTILISATION.md](docs/UTILISATION.md).
 
 ---
 
@@ -217,7 +218,7 @@ everything else.** Nothing from Phase 2 starts before Phase 1 boots.
 | 1 | **Synthesize it** on Gowin EDA | done | Still want the utilisation figure from the build report — no one has ever had one for this core |
 | 2 | **Bench-test the DB9** | done, works | Pins were wrong at first; corrected to NanoMig's `js0[]` group |
 | 3 | **Make F12 / the OSD work** | shows nothing | Next: read the Pico's debug UART on GP0 at 921600 baud |
-| 3b | **Fix the F11 turbo crash** | new | Establish first whether stock upstream v1.9 does it too |
+| 3b | **Turbo from the OSD** | code written | Replaces the F11 shortcut, which crashed. Needs the OSD working to be testable |
 | 4 | **Connect the OSD settings** to `config1_ff`/`config2_ff` | not started | The menu currently accepts input without changing anything — the last hop |
 | 5 | **Translate the on-screen menu** to English | not started | Most visible thing in the fork, and no RTL risk |
 | 6 | **Replace the boot logo** | not started | It is another group's identity mark. No RTL risk |
@@ -749,7 +750,7 @@ for MSX2 cartridge dumps, and byte-identical to a `.rom` — is **invisible** un
 
 The file browser starts before the OS. Arrows and RETURN navigate and launch, BS goes back,
 `R`/`D`/`A` filter by type, TAB switches partition, `S` opens settings, `W` opens WiFi, and
-ESC boots straight to Nextor/MSX-DOS. **F11** toggles turbo; F12 is consumed by the companion
+ESC boots straight to Nextor/MSX-DOS. Turbo is set from the OSD, not a keyboard shortcut; F12 is consumed by the companion
 firmware and never reaches the MSX.
 
 ---
