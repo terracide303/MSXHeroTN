@@ -429,11 +429,13 @@ deliberately along with it. English is usually shorter than Spanish, which helps
 This is worth doing early: it is the part of the fork every user sees, and it is independent
 of the DB9 and MIDI work.
 
-*[Phase 1]* **6. Replace the boot logo** — not started.
+*[Phase 1]* **6. Boot logo** — the problem resolved itself; adding one is optional.
 
-The boot screen shows the **MSX Barcelona** user-group logo. This fork has no affiliation
-with that group, so shipping their identity mark is not appropriate regardless of taste —
-it needs replacing with something of this project's own.
+The boot screen used to show the **MSX Barcelona** user-group logo, which this fork has no
+affiliation with. It is **already gone**: upstream's v1.9 BIOS pack ships the logo slot
+(`0x7C000`–`0x80000`) blank — all `0xFF` where v1.8 had the `LG` magic and 6120 bytes of
+image. The menu checks that magic before calling the logo routine, finds nothing, and skips
+it. So the concern is settled and what follows is only for adding a logo of your own.
 
 The pipeline is self-contained:
 
