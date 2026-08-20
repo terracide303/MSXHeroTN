@@ -45,9 +45,7 @@ IO_LOC  "led[4]" 16;
 IO_PORT "led[4]" IO_TYPE=LVCMOS33;
 IO_LOC  "led[5]" 15;
 IO_PORT "led[5]" IO_TYPE=LVCMOS33;
-// External WS2812B status strip (case) — single data pin (DIN). Pin 25 = free GPIO header.
-IO_LOC  "ws2812_led" 25;
-IO_PORT "ws2812_led" IO_TYPE=LVCMOS33 DRIVE=8;
+// ws2812_led dropped: pin 25 is the DB9 Up line on this shield.
 
 //hdmi pins
 IO_LOC "data_p[0]" 35,36;
@@ -87,26 +85,25 @@ IO_PORT "sd_dat2" IO_TYPE=LVCMOS33;
 IO_LOC  "sd_dat3" 81;
 IO_PORT "sd_dat3" IO_TYPE=LVCMOS33;
 
-//wifi (ESP-01S): tx=27, rx=28 -> dos pines CONSECUTIVOS y libres para un solo
-//conector (v1.7.2; antes rx=77/tx=73). Zona 26-32 libre (25=ws2812, 33+=HDMI)
-IO_LOC "uart_rx" 28;
-IO_PORT "uart_rx" PULL_MODE=UP IO_TYPE=LVCMOS33;
-IO_LOC "uart_tx" 27;
-IO_PORT "uart_tx"  IO_TYPE=LVCMOS33;
+// ESP-01S UART removed: pins 27/28 are DB9 lines on this shield (Fire1 / Down).
+// WiFi would need the companion route instead -- see the plan.
+
 
 // DB9 joystick on the MiSTeryShield20k RPi Pico USB shield.
-// Pin set matches MiSTeryNano's "spare[]" 2nd-DB9 group, except that this
-// shield uses pin 75 where MiSTeryNano uses 52. All lines are active low
-// (switch to GND), so they carry internal pull-ups.
-IO_LOC  "db9[0]" 73;
+// These are MiSTeryNano's / NanoMig's "DB9 port 1" pins (js0[] in
+// NanoMig's nanomig.cst), confirmed against this shield's PCB netlist: the
+// joystick nets land on J4 pads 8-13, and pad 14 carries P31, which anchors
+// that run of the header to FPGA pins 25-31.
+// Active low: switch to ground, so internal pull-ups are enabled.
+IO_LOC  "db9[0]" 27;
 IO_PORT "db9[0]" PULL_MODE=UP IO_TYPE=LVCMOS33;
-IO_LOC  "db9[1]" 74;
+IO_LOC  "db9[1]" 28;
 IO_PORT "db9[1]" PULL_MODE=UP IO_TYPE=LVCMOS33;
-IO_LOC  "db9[2]" 77;
+IO_LOC  "db9[2]" 25;
 IO_PORT "db9[2]" PULL_MODE=UP IO_TYPE=LVCMOS33;
-IO_LOC  "db9[3]" 31;
+IO_LOC  "db9[3]" 26;
 IO_PORT "db9[3]" PULL_MODE=UP IO_TYPE=LVCMOS33;
-IO_LOC  "db9[4]" 49;
+IO_LOC  "db9[4]" 29;
 IO_PORT "db9[4]" PULL_MODE=UP IO_TYPE=LVCMOS33;
-IO_LOC  "db9[5]" 75;
+IO_LOC  "db9[5]" 30;
 IO_PORT "db9[5]" PULL_MODE=UP IO_TYPE=LVCMOS33;

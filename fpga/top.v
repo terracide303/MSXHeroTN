@@ -42,7 +42,6 @@ module top
 
     // discrete status LEDs (active low)
     output wire [5:0] led,
-    output wire ws2812_led,   // external WS2812B status strip (case)
 
     //hdmi out
     output wire [2:0] data_p,
@@ -64,11 +63,9 @@ module top
     output wire sd_dat2,     // 1
     output wire sd_dat3,     // 1
 
-`ifdef ENABLE_WIFI
-    //uart
-    output wire uart_tx,
-    input wire uart_rx,
-`endif 
+// ESP-01S UART ports removed: pins 27/28 are the shield's DB9 Fire1 and Down
+// lines. uart_tx/uart_rx exist as internal wires further down so wifi_lite
+// still elaborates; synthesis prunes it.
 
     //usb uart
     output wire usb_uart_tx,
@@ -88,6 +85,15 @@ module top
     //output wire SLTSL3
 
 );
+
+    // Pins 25/27/28 now carry the shield's DB9 (Up / Fire1 / Down), so the
+    // WS2812 case LED and the ESP-01S UART have no pins on this build. They
+    // stay as internal wires: the modules driving them still elaborate, and
+    // synthesis prunes them. WiFi would need the companion route instead.
+    wire ws2812_led;
+    wire uart_tx;
+    wire uart_rx = 1'b1;   // idle high
+
 
 initial begin
 
@@ -540,6 +546,10 @@ wire af_fb1 = joystick1[5] | (joystick1[7] & af_phase);   // joy1 TrigB
 // pin has PULL_MODE=UP), which is exactly what PSG Port A wants -- so it just
 // gets AND-ed in: either the USB pad or the DB9 stick can pull a line low.
 // Port 0 only; the shield has a single DB9 and port 1 stays USB-only.
+// db9[] is NanoMig's js0[] on pins 27,28,25,26,29,30. Its decode is
+//   Fire2=js0[5] Fire1=js0[0] Up=js0[2] Down=js0[1] Left=js0[4] Right=js0[3]
+// (NanoMig top.sv: db9_joy0 = {!js0[5],!js0[0],!js0[2],!js0[1],!js0[4],!js0[3]}).
+// Both sides are active low, so the DB9 just AND-s into the existing lines.
 wire [7:0] joy0_msx = {2'b11, ~af_fb0 & db9[5],       // TrigB <- Fire2
                               ~af_fa0 & db9[0],       // TrigA <- Fire1
                               ~joystick0[0] & db9[3], // Right

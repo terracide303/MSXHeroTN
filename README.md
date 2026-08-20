@@ -94,27 +94,43 @@ USB gamepad, so either input can drive the game.
 
 | `db9[]` | Tang pin | Signal |
 |---|---|---|
-| 0 | 73 | Fire 1 → TrigA |
-| 1 | 74 | Down |
-| 2 | 77 | Up |
-| 3 | 31 | Right |
-| 4 | 49 | Left |
-| 5 | 75 | Fire 2 → TrigB |
+| 0 | 27 | Fire 1 → TrigA |
+| 1 | 28 | Down |
+| 2 | 25 | Up |
+| 3 | 26 | Right |
+| 4 | 29 | Left |
+| 5 | 30 | Fire 2 → TrigB |
+
+These are NanoMig's `js0[]` — its "generic IO pins used for DB9 port 1" — confirmed against
+this shield's own PCB netlist, where the joystick nets land on **J4 pads 8–13** and pad 14
+carries `P31`, anchoring that run of the header to FPGA pins 25–31.
+
+### What this costs
+
+Three of those pins were in use, so this build gives up:
+
+- **The WS2812 case LED** (pin 25) — an *external* addressable LED strip for the 3D-printed
+  case, not anything on the Tang itself. Nothing is lost unless you built that case with a
+  strip fitted.
+- **The ESP-01S WiFi UART** (pins 27/28) — so WiFi over an ESP-01S module is not available on
+  this build. The UNAPI ROM is still in the BIOS pack and `wifi_lite` still elaborates; it
+  simply has no pins. Reaching WiFi another way is plan item 9.
+
+Both ports are removed from `top.v` and kept as internal wires, so the modules driving them
+still elaborate and synthesis prunes them. Leaving them as unconstrained ports would be worse
+— Gowin would auto-place them, possibly onto pins that matter.
 
 The lines are active low — a switch to ground, with internal pull-ups — which is already
 what MSX PSG Port A expects, so they AND straight into the existing joystick path with no
 level conversion. The shield level-shifts them through six `2N7002` FETs in the usual
 bidirectional (non-inverting) arrangement, so the polarity survives to the FPGA.
 
-This pin group matches MiSTeryNano's `spare[]` set (its second DB9 port) except for fire-2,
-which this shield puts on pin 75 where MiSTeryNano uses 52.
 
-The signal order above is corroborated twice over: it is what MiSTeryNano's `db9_1`
-expression in `misterynano.sv` implies, and it is what the shield's own PCB netlist shows —
-J1 uses the standard Atari/MSX DE9 pinout (1=Up, 2=Down, 3=Left, 4=Right, 6=Fire1, 9=Fire2)
-and the Tang header carries those on consecutive pads in the order Fire1, Down, Up, Right,
-Left, Fire2. That is good evidence, but it is still not a substitute for plugging a stick in
-and pushing it in four directions.
+
+The decode follows NanoMig's `db9_joy0` exactly —
+`{!js0[5],!js0[0],!js0[2],!js0[1],!js0[4],!js0[3]}`, i.e. Fire2=`js0[5]`, Fire1=`js0[0]`,
+Up=`js0[2]`, Down=`js0[1]`, Left=`js0[4]`, Right=`js0[3]` — since NanoMig demonstrably works
+on this shield.
 
 ### Companion OSD overlay (implemented, untested)
 
