@@ -4,8 +4,9 @@ Everything established while retargeting MSXnano to the MiSTeryShield20k, with t
 for each claim. Recorded so none of it has to be re-derived, and so the wrong turns are not
 taken twice.
 
-Anything marked **unverified** was established by reading code or schematics, not by running
-it. Nothing in this fork has been synthesized.
+Anything marked **unverified** was established by reading code or schematics rather than by
+running it. The core now builds and boots on hardware, and what has actually been confirmed
+there is listed in the README's status table — treat everything else here as reading.
 
 ---
 
@@ -50,6 +51,33 @@ the button press did not take.
 
 ---
 
+## 1b. Two ways to lose the ability to flash
+
+Both were hit on this project, and neither is obvious.
+
+**The shield blocks JTAG.** With the MiSTeryShield20k attached, the FTDI device still
+enumerates as `20K's FRIEND` and both `tty.usbserial-*` ports appear, but openFPGALoader fails
+with `unable to open ftdi device: -6 (ftdi_usb_reset failed)`. Out of the shield it works
+every time. FPGA-Companion can drive JTAG itself (`jtag.c`, `gowin.c`) and the shield wires
+`RECONFIGN` to the Tang (J7 pad 10), so something there contends for those lines. **Take the
+board out of the shield to flash it.**
+
+**Flashing FPGA-Companion onto the on-board BL616 removes the JTAG bridge.** The Tang's
+factory debugger firmware presents as an FTDI FT2232 device — that is the only thing
+openFPGALoader can talk to. Replacing it with `bl616_fpga_partner` + `fpga_companion` makes
+the board enumerate as `Bouffalo CDC DEMO` instead, and FPGA flashing stops working **on any
+host**. The symptom is easy to misread as a broken cable or a bad PC.
+
+Restore it with
+[`friend_20k_encrypted_bl616.bin`](https://github.com/MiSTle-Dev/FPGA-Companion/tree/main/src/bl616/friend_20k)
+at `0x0` — the **encrypted** variant for fused `3923` boards; the plain one will not run on
+them. After a power cycle the board reports `20K's FRIEND` again and JTAG returns.
+
+For this fork that restore is free: the on-board BL616 is unused, since HID comes from the
+shield's Pico and `spi_dir`'s pin is now a DB9 line.
+
+---
+
 ## 2. Flashing from macOS
 
 Neither Gowin Programmer nor Bouffalo Dev Cube has a macOS build. Both have working
@@ -86,28 +114,30 @@ The DE9 (J1) uses the standard Atari/MSX pinout — pad 1 Up, 2 Down, 3 Left, 4 
 9 Fire2 — level-shifted through **six `2N7002` FETs** in the usual bidirectional arrangement,
 which is **non-inverting**, so active-low survives to the FPGA.
 
+The joystick nets land on **J4 pads 8–13**. Pad 14 carries `P31`, which anchors that run of
+the header to FPGA pins **25–31**:
+
 | `db9[]` | Tang pin | Signal |
 |---|---|---|
-| 0 | 73 | Fire 1 |
-| 1 | 74 | Down |
-| 2 | 77 | Up |
-| 3 | 31 | Right |
-| 4 | 49 | Left |
-| 5 | **75** | Fire 2 |
+| 0 | 27 | Fire 1 |
+| 1 | 28 | Down |
+| 2 | 25 | Up |
+| 3 | 26 | Right |
+| 4 | 29 | Left |
+| 5 | 30 | Fire 2 |
 
-This is MiSTeryNano's `spare[]` group (its *second* DB9 port) except that fire-2 is on **75**
-where MiSTeryNano uses **52**. Pin 75 is `spi_dir` upstream, which is why this fork drops the
-on-board BL616 path.
+This is NanoMig's `js0[]` group — "generic IO pins used for DB9 port 1" — and its decode is
+`db9_joy0 = {!js0[5],!js0[0],!js0[2],!js0[1],!js0[4],!js0[3]}`. **Verified working on
+hardware.**
 
-The order is corroborated twice: it is what `db9_1` in `misterynano.sv` implies —
+⚠️ **The trap:** the shield's schematic also names nets `P73 P74 P75 P77 P31 P49`, which look
+exactly like MiSTeryNano's `spare[]` second-DB9 group. They are not the joystick — the PCB
+netlist shows them going to **J3, an expansion header**. Assigning the DB9 there produced a
+build that worked in every respect except that the joystick did nothing. Two sources agreeing
+on a pin set is not corroboration if they are describing a different connector.
 
-```systemverilog
-wire [5:0] db9_1 = { !spare[5], !spare[0], !spare[2], !spare[1], !spare[4], !spare[3] };
-```
-
-— and it is what the PCB netlist shows, with the Tang header carrying the lines on
-consecutive pads in the order Fire1, Down, Up, Right, Left, Fire2. **Still unverified** by
-pushing a real stick.
+Using `js0[]` costs three pins that MSXnano had in use: **25** (`ws2812_led`, an external case
+LED strip), **27** and **28** (the ESP-01S WiFi UART). All three are given up here.
 
 ### MIDI
 
@@ -369,7 +399,8 @@ attenuating by shifting moves it and clicks. Verify before trusting it.
 ## 6d. Tooling worth knowing
 
 The question gating most of the plan is **how full the GW2AR-18 already is**, and no figure
-exists: upstream's audit does not quote one and this fork has never been synthesized.
+exists: upstream's audit does not quote one, and although this fork now builds, the
+utilisation figure from that build has not been recorded yet.
 [`Papipapito/gowin-mcp`](https://github.com/Papipapito/gowin-mcp) — by the same author —
 turns Gowin EDA build reports into structured data: resource usage, fMax per clock, timing
 violations and build-to-build comparison. Worth running against the first successful build,

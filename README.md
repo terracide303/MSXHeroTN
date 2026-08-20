@@ -8,32 +8,56 @@ port and MIDI sockets — actually works, instead of sitting unconnected.
 
 ---
 
-## Status: not working yet. Do not use this.
+## Status: builds, boots, partly working
 
-**This fork has never been synthesized, never been loaded onto a board, and is not usable.**
-It exists as a work in progress. If you want a working MSX2+ on a Tang Nano 20K today, use
-[upstream MSXnano](https://github.com/Papipapito/MSXnano) — it is complete and tested, and
-this fork has nothing to offer you yet.
+**It runs on real hardware.** The core synthesizes, boots to the file browser, and loads and
+plays games. It is not finished — two features do not work — but it is no longer vapour.
 
-Specifically, at this point:
+| | State |
+|---|---|
+| Synthesizes on Gowin EDA | ✅ builds clean |
+| Boots, browser, loads and runs ROMs | ✅ verified on hardware |
+| **DB9 joystick** on the shield | ✅ **verified on hardware** — all directions and both fire buttons |
+| BIOS pack, SD browsing, Nextor | ✅ working |
+| **OSD overlay (F12)** | ❌ **nothing appears.** No crash, no picture. See below |
+| **Turbo (F11)** | ⚠️ **pressing it a few times crashes the machine** |
+| Boot logo | ⚪ slot is blank in the v1.9 pack; adding one is optional |
+| On-board BL616 HID | ⚪ removed by design — HID comes from the shield's Pico |
+| ESP-01S WiFi, WS2812 LED | ⚪ given up: their pins are the DB9 lines |
 
-- No bitstream has been built from this tree. It may not even synthesize.
-- **DB9 joystick** — written, unbuilt. The signal order is corroborated by MiSTeryNano's RTL
-  *and* the shield's own PCB netlist, but nobody has pushed a real stick in four directions.
-- **OSD overlay** — written, unbuilt. It renders the companion's framebuffer and serves the
-  menu XML, but the menu's settings are **not yet connected to the core's config registers**,
-  so the OSD will display and accept input without changing anything.
-- Removing the on-board BL616 path (see below) is a breaking change that has not been
-  validated on real hardware.
-- New logic has been added to the pixel-clock domain on a device that is already fairly
-  full, so timing closure is an open question.
+A prebuilt bitstream is in [`compiled/`](compiled/).
 
-Nothing here should be flashed to a board you care about until this section says otherwise.
+### Known issues
+
+**F12 / OSD shows nothing.** The RTL is in the bitstream and the menu XML has been tried both
+ways — served from the core over `sysctrl` CMD 8, and placed on the SD card as `config.xml`
+and `msxnano.xml`. Neither produces an overlay, and nothing crashes. Untested next steps: read
+the companion's debug output on the Pico's **GP0 at 921600 baud** to see whether it is drawing
+an OSD at all, and confirm whether FPGA-Companion **v1.4.21** (what the Pico runs) even has
+the "fetch config from the core" path, which was read from a later revision of `main.c`.
+
+**F11 / turbo crashes after a few presses.** Cause unknown, and it is not yet established
+whether this is ours or upstream's. Upstream's v1.9 changelog claims to *fix* an F11 hang in
+the menu — "the async mux delivered two ENABLE/FALLING in a row to the Z80" — by only
+adopting turbo on a clean T-state boundary. Either that fix is incomplete, or something in
+this fork interacts with it. Worth testing an unmodified upstream v1.9 build on the same board
+to tell the two apart.
 
 ---
 
-Every hardware fact, protocol detail and upstream error established while building this is
-recorded in **[docs/FINDINGS.md](docs/FINDINGS.md)**, with the evidence for each.
+## Flashing notes learned the hard way
+
+**Take the Tang out of the shield to flash it.** With the shield attached, the FTDI device
+enumerates but JTAG fails with `ftdi_usb_reset failed (-6)`. FPGA-Companion can drive JTAG
+itself (`jtag.c`, `gowin.c`) and the shield also wires `RECONFIGN`, so something on the shield
+contends for those lines. Out of the shield it works every time.
+
+**Do not flash FPGA-Companion firmware onto the Tang's on-board BL616.** Doing so replaces the
+factory debugger — the FTDI-compatible `20K's FRIEND` — and openFPGALoader then has nothing to
+talk to, on any host. Restore it by flashing
+[`friend_20k_encrypted_bl616.bin`](https://github.com/MiSTle-Dev/FPGA-Companion/tree/main/src/bl616/friend_20k)
+at `0x0` (the encrypted variant, for fused `3923` boards). This costs nothing here, because
+this fork does not use the on-board BL616 at all.
 
 ---
 
@@ -87,7 +111,7 @@ Consequences, and they are real:
 
 If you want the on-board BL616 back, use upstream.
 
-### DB9 joystick (implemented, untested)
+### DB9 joystick — working
 
 The shield's DE9 port is read directly by the FPGA and mixed into PSG port 0 alongside the
 USB gamepad, so either input can drive the game.
@@ -132,7 +156,7 @@ The decode follows NanoMig's `db9_joy0` exactly —
 Up=`js0[2]`, Down=`js0[1]`, Left=`js0[4]`, Right=`js0[3]` — since NanoMig demonstrably works
 on this shield.
 
-### Companion OSD overlay (implemented, untested)
+### Companion OSD overlay — implemented, not working
 
 Upstream decoded the OSD SPI channel and discarded the data. This fork renders it: the
 128×64 monochrome framebuffer the companion sends is composited onto the picture inside
@@ -181,9 +205,10 @@ everything else.** Nothing from Phase 2 starts before Phase 1 boots.
 
 | # | Item | State | Why it is Phase 1 |
 |---|---|---|---|
-| 1 | **Synthesize it** on Gowin EDA | blocked — needs a Windows/Linux machine | Gates everything. Also yields the first utilisation figure, which half the later decisions wait on |
-| 2 | **Bench-test the DB9** | code written | Four directions and both fire buttons. If wrong, reorder `db9[]` in `joy0_msx` |
-| 3 | **Bench-test the OSD** | code written | F12 should give a centred overlay with the menu in it |
+| 1 | **Synthesize it** on Gowin EDA | ✅ done | Still want the utilisation figure from the build report — no one has ever had one for this core |
+| 2 | **Bench-test the DB9** | ✅ done, works | Pins were wrong at first; corrected to NanoMig's `js0[]` group |
+| 3 | **Make F12 / the OSD work** | ❌ shows nothing | Next: read the Pico's debug UART on GP0 at 921600 baud |
+| 3b | **Fix the F11 turbo crash** | ⚠️ new | Establish first whether stock upstream v1.9 does it too |
 | 4 | **Connect the OSD settings** to `config1_ff`/`config2_ff` | not started | The menu currently accepts input without changing anything — the last hop |
 | 5 | **Translate the on-screen menu** to English | not started | Most visible thing in the fork, and no RTL risk |
 | 6 | **Replace the boot logo** | not started | It is another group's identity mark. No RTL risk |
@@ -208,9 +233,9 @@ everything else.** Nothing from Phase 2 starts before Phase 1 boots.
 ### Detail
 
 
-*[Phase 1]* **1. DB9 joystick** — code written, awaiting a synthesis run and a bench test.
-Verify directions and both fire buttons, and confirm autofire on the USB pad still behaves
-now that the DB9 is AND-ed into the same lines.
+*[Phase 1]* **1. DB9 joystick** — ✅ **done and verified on hardware.**
+All four directions and both fire buttons work. Still unverified: that autofire on the USB
+pad's buttons 3/4 still behaves now the DB9 is AND-ed into the same lines.
 
 *[Phase 2]* **2. MIDI in/out, as a Yamaha SFG-05** — not started.
 
@@ -326,7 +351,7 @@ just stopping, which is the part that makes the current behaviour confusing.
 Until this is fixed, the workaround is subdirectories: the cap is per directory, so folders of
 under 115 files each keep everything reachable.
 
-*[Phase 1]* **4. Render the companion OSD overlay** — code written, untested.
+*[Phase 1]* **4. Render the companion OSD overlay** — ❌ **implemented but not working.**
 
 FPGA-Companion draws its own on-screen display — the overlay other MiSTle cores use for
 settings, opened with F12 — and ships it to the FPGA as a 128×64 monochrome framebuffer over
