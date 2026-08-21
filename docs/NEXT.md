@@ -65,14 +65,30 @@ upstream in v1.9, so nothing is lost. Removing the settings screen also frees Z8
 Note the status bar is width-padded: `"R/D/A=Filter ESC=Boot S=Save F12=Setup TAB=Part H=Help  "`
 must stay its exact width as entries come and go.
 
-### A3. Drive the browser with a joystick
+### A3. Drive the browser with a joystick — **already implemented, needs testing**
 
-Read PSG register 14 and map the directions onto the keys the browser already handles, fire
-onto RETURN. The DB9 stick and a USB pad are mixed onto the same PSG lines in the core, so both
-work from one implementation.
+**Do not build this.** It exists. Found while starting work on it:
 
-Ordinary MSX programming, immediately useful every time you change game, and a mistake costs a
-reflash rather than a build cycle. **Start here.**
+`browse_getkey` polls the joystick alongside the keyboard, via `poll_joy` and `read_joy_code`
+(around line 2810). It uses the BIOS `GTSTCK`/`GTTRIG` on **port 1**, edge-detected against
+`JOY_PREV` so holding the stick gives one event per push, with auto-repeat after
+`JOY_RPT_DELAY` = 14 frames at `JOY_RPT_RATE` = one step per 2 frames.
+
+| Input | Does |
+|---|---|
+| up / down / left / right | the cursor keys — left and right page |
+| trigger A | RETURN — launch |
+| trigger B | BACKSPACE — parent folder |
+
+It should already work with the shield's DB9 stick, which defaults to MSX port 1, and with a
+USB pad, since both feed the same PSG lines.
+
+**So the task is to test it, not to write it.** If it works, this item closes for free. If it
+does not, how it fails narrows the cause immediately: nothing at all points at the port or the
+PSG mixing, wrong directions at the `GTSTCK` decode, constant firing at the edge detection.
+
+Worth remembering as a general lesson — this menu is 6,000 lines of someone else's Z80 and it
+does more than the status bar advertises. Read before building.
 
 ### A4. (folded into A2)
 
