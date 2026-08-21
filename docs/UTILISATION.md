@@ -1,15 +1,15 @@
 # Utilisation (Gowin place & route, GW2AR-18C QFN88)
 
-Built from commit `b903b2f` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
+Built from commit `8e6a5e9` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
 `build.tcl`, `set_option -place_option 2 -route_option 2`).
 
 ## Resource usage
 
 | Resource | Usage | Utilization |
 |---|---|---|
-| Logic (LUT/ALU/ROM16) | 14695/20736 (12194 LUT, 2099 ALU) | 71% |
-| Register | 7453/15915 | 47% |
-| CLS | 8993/10368 | 87% |
+| Logic (LUT/ALU/ROM16) | 14488/20736 (12011 LUT, 2075 ALU) | 70% |
+| Register | 7425/15915 | 47% |
+| CLS | 8977/10368 | 87% |
 | I/O Port | 43/66 | 66% |
 | IOLOGIC | 6/121 | 5% |
 | BSRAM | 15/46 | 33% |
@@ -22,16 +22,37 @@ place/route effort at level 2.
 
 | Clock | Constraint | Actual Fmax | Logic level | Status |
 |---|---|---|---|---|
-| clock_audio | 3.600 MHz | 413.158 MHz | - | pass |
-| clock_27m | 27.000 MHz | 65.339 MHz | - | pass |
-| clock_54m | 54.000 MHz | 57.049 MHz | - | pass |
-| clock_108m | 108.000 MHz | 182.540 MHz | - | pass |
-| clock_108i | 108.000 MHz | 182.540 MHz | - | pass |
-| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 284.348 MHz | - | pass |
+| clock_audio | 3.600 MHz | 415.895 MHz | - | pass |
+| clock_27m | 27.000 MHz | 70.613 MHz | - | pass |
+| clock_54m | 54.000 MHz | 54.138 MHz | - | pass (thin) |
+| clock_108m | 108.000 MHz | 184.178 MHz | - | pass |
+| clock_108i | 108.000 MHz | 184.178 MHz | - | pass |
+| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 220.554 MHz | - | pass |
 
-All clocks pass, zero negative slack anywhere.
+All clocks pass, zero negative slack anywhere. **`clock_54m`'s margin dropped sharply**
+— 57.049 MHz (previous build) to 54.138 MHz (this one), about 0.25% headroom — despite
+this build containing *less* logic (14488 vs 14695 total), not more. Worth watching:
+margin on this domain has not tracked logic size predictably build-to-build, so if a
+future change regresses it again, don't assume the same congestion story that explained
+the earlier `28c916d`/`0cf00b7` failures without checking.
 
-## Reset-loop fix (commit `b903b2f`, currently flashable) — the current build
+## OSD-reset-wiring removal (commit `8e6a5e9`, currently flashable) — the current build
+
+The previous build (`b903b2f`, below) closed timing (57.049 MHz) but **showed no
+picture at all** on hardware — worse than the boot loop before it. Root cause per
+`69791f9`: routing the OSD reset through a monostable stopped the immediate
+self-clearing loop, but `fpga_companion`'s own init action sets `R=1` after every
+reset, so the one-shot retriggered indefinitely and the machine never got past reset.
+Fix: remove the OSD reset wiring entirely. Reset and Cold Boot are gone from the OSD
+menu; Turbo no longer applies via reset (takes effect on next power cycle). **Do not
+re-add OSD-driven reset wiring** without giving sysctrl its own power-on reset outside
+the core reset domain — both prior attempts (level, and monostable) broke the machine
+in different ways, and that's a design decision, not a build-side fix.
+
+Menu XML and its generated `.hex` changed to match (two menu items dropped);
+`msxnano_xml` extracted into RAM cleanly, no missing-file warnings.
+
+## Reset-loop fix (commit `b903b2f`, superseded by `8e6a5e9` above)
 
 The previous build (`ca77609`, below) closed timing but **did not boot**: the user
 reported it flashed and showed the MSX screen briefly before resetting, over and over,
