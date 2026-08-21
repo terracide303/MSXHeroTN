@@ -9,8 +9,9 @@ puts everything on HDMI. A USB keyboard plugs straight into the shield. Press `F
 time — in the browser or mid-game — for settings.
 
 This is a fork of [Papipapito/MSXnano](https://github.com/Papipapito/MSXnano), retargeted to
-run on the **MiSTeryShield20k RPi Pico USB** shield, so that the shield's joystick port and
-MIDI sockets are wired to something instead of sitting inert.
+run on the **MiSTeryShield20k RPi Pico USB** — an open-hardware shield from the
+[MiSTle](https://github.com/MiSTle-Dev) project — so that the shield's joystick port and MIDI
+sockets are wired to something instead of sitting inert.
 
 ---
 
@@ -57,7 +58,7 @@ The browser starts before the OS, so you pick a game before there is an MSX to r
 | Part | Notes |
 |---|---|
 | **Sipeed Tang Nano 20K** | the FPGA board |
-| **MiSTeryShield20k RPi Pico USB** | required — it carries the USB port and the joystick socket |
+| **MiSTeryShield20k RPi Pico USB** | required — it carries the USB port and the joystick socket. Open hardware from the [MiSTle](https://github.com/MiSTle-Dev) project: [KiCad sources](https://github.com/MiSTle-Dev/Boards/tree/main/misteryshield20k_rpipico) |
 | **Raspberry Pi Pico** | sits on the shield and handles the keyboard |
 | **microSD card** | FAT16 or FAT32, any size |
 | **USB-C cable** | power, and programming the FPGA |
@@ -202,4 +203,7 @@ carry a `Co-Authored-By: Claude` trailer, so `git log` shows exactly which ones.
 - [Papipapito/MSXnano](https://github.com/Papipapito/MSXnano) — the core this forks
 - [jabadiagm/MSXgoauldSD_tn20k](https://github.com/jabadiagm/MSXgoauldSD_tn20k) — MSXnano's own basis
 - [MiSTle-Dev/FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion) — the Pico firmware
-- [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano) — the shield's joystick pin assignment
+- [MiSTle-Dev/Boards](https://github.com/MiSTle-Dev/Boards) — the shield itself, as open KiCad
+  hardware. This fork exists to make its connectors work
+- [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano) — where the shield's
+  joystick pin assignment was read from, after getting it wrong twice

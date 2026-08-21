@@ -11,7 +11,7 @@ MiSTeryShield20k RPi Pico USB shield.
 | # | Qty | Component | Notes |
 |---|-----|-----------|-------|
 | 1 | 1 | **Sipeed Tang Nano 20K** (GW2AR-18) | The FPGA board. Developed against one silkscreened `3923`. |
-| 2 | 1 | **MiSTeryShield20k RPi Pico USB** | Carries the RP2040, USB host, DB9 joystick port and MIDI sockets. This fork requires it. |
+| 2 | 1 | **MiSTeryShield20k RPi Pico USB** | Carries the RP2040, USB host, DB9 joystick port and MIDI sockets. This fork requires it. Open hardware from the [MiSTle](https://github.com/MiSTle-Dev) project — KiCad sources in [MiSTle-Dev/Boards](https://github.com/MiSTle-Dev/Boards/tree/main/misteryshield20k_rpipico), so you can have it fabricated yourself. |
 | 3 | 1 | **Raspberry Pi Pico** | Seats on the shield and runs FPGA-Companion as the USB HID host. A Pico W works too. |
 | 4 | 1 | **microSD card** | FAT16 or FAT32, for `.rom` and `.dsk` files. Any size; small is fine. |
 | 5 | 1 | **USB-C cable** | Power and FPGA programming. |
@@ -68,3 +68,26 @@ recorded as a research item in the [roadmap](ROADMAP.md).
   [main README](../README.md).
 - `MSXnano_BOM.xlsx` in this directory is upstream's spreadsheet for a bare-Tang build and
   has not been updated for the shield.
+
+## About the shield
+
+The MiSTeryShield20k is part of the **[MiSTle](https://github.com/MiSTle-Dev)** project — the
+same people behind [FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion) and the
+MiSTeryNano, NanoMig, C64Nano and NanoMac cores. The board designs are published as KiCad
+sources in [MiSTle-Dev/Boards](https://github.com/MiSTle-Dev/Boards), which holds several
+variants:
+
+| Variant | Notes |
+|---|---|
+| `misteryshield20k_rpipico` | the one this fork targets |
+| `misteryshield20k_rpipico_dual_db9` | two joystick ports instead of one |
+| `misteryshield20k` | the original, WiFi rather than an RP2040 |
+| `misteryshield20k_lite` | no WiFi, and its absence cannot be auto-detected |
+| `misteryshield20k_ds2_adapter` | PlayStation 2 controller adapter |
+
+Note that FPGA-Companion's own README still links the shield to
+`vossstef/tang_nano_20k_c64/board/…`, which now 404s — the board designs were moved into their
+own repository.
+
+Supporting the dual-DB9 variant is a roadmap item; this fork currently mixes its single DB9
+into one MSX port, selectable between port 1 and port 2 from the overlay.
