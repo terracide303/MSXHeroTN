@@ -5,44 +5,39 @@ top-level `CLAUDE.md` (build instructions for this machine).
 
 ## Current bitstream
 
-`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `6389ac0`
+`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `85729ad`
 (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88). Synthesis and
 place & route both completed with no errors.
 
-**Three newer builds were attempted and are NOT here** — all missed `clock_54m`,
-so the bitstream in this folder is still `6389ac0`.
+**`clock_54m` closes for real this time: Fmax 56.588 MHz against 54.000 MHz,
+zero negative slack confirmed via the TNS table** (not just a passing-looking
+Fmax number — see below for why that distinction matters here). All six
+clocks pass. CLS 9074/10368 (88%).
 
-- `0b3f629` (first compile of `db4ac25` — settings persistence to flash,
-  `system_turbo_boot`/`system_autofire` wired up): compiled cleanly (no
-  warnings on `config_save_byte` or `af_limit`, the two things flagged as
-  worth watching) but Gowin's "Max Frequency Summary" showed 54.367 MHz —
-  looks like a pass, but "Total Negative Slack Summary" showed -0.555 ns
-  across 6 Setup endpoints. **The two reports can disagree; TNS is the
-  authoritative one.**
-- `aa52343` (rewrote OSD autofire from a 23-bit comparator to a
-  comparator-free free-running counter, aimed at recovering the miss above):
-  CLS landed exactly where predicted (9028/10368, below the 9054 target), but
-  timing got **worse**, not better — Fmax 50.717 MHz (a real fail this time,
-  not a look-alike), TNS -5.172 ns across 17 endpoints, now including the
-  `cpu1/RD` -> `mem1/sdram_*` path family from the original `28c916d`
-  regression as well as the recurring `IStatus` -> `cpu_din` one.
-- `c2fcec4` (reverted both autofire attempts, byte-for-byte back to `6389ac0`'s
-  autofire block — the only remaining delta is persistence: 12 flip-flops in
-  `clk_27m`, one mux leg on `flash_write_din`, two signal renames, **nothing
-  touching `clk_54m`**): **still fails.** Fmax 51.309 MHz, TNS -1.583 ns
-  across 7 endpoints, CLS 9008/10368 (87%) — lower than both the last-passing
-  build (9054) and `aa52343` (9028), which also failed.
+This ends a run of three failed builds (`0b3f629`, `aa52343`, `c2fcec4`, all
+in `compiled/failed/`) that circled the actual cause without finding it. The
+last of those, `c2fcec4`, had the lowest CLS of any build (9008, below the
+9054 of the last good build `6389ac0`) and touched nothing in `clk_54m` at
+all — yet still failed. That ruled out both "resource count" and "which
+domain the change lands in" as the explanation, and pointed at the one path
+that had never been restructured: every failing build's worst endpoints were
+on `cpu1/RD -> mem1/sdram_*`. The `ram_req`/`ram_read`/`ram_write` chains
+feeding `memory_ctrl` (instantiated on `clk_54m` despite its `clk_27m` port
+name) were serial `?:` chains up to nine levels deep — one had no real
+priority to preserve (every branch just returned its own condition, an OR
+written the long way), the other had nine branches all returning the
+identical value. Flattened to balanced OR trees, exact by construction since
+every term is one bit wide, verified across all 544 input combinations of
+the compiled configuration with zero mismatches.
 
-**Worth surfacing plainly:** CLS has now been lower than the last-passing build's
-in two consecutive attempts, and both still failed `clock_54m` — one of them
-(`c2fcec4`) with a change that touches nothing in the failing clock domain at
-all. Neither resource count nor "does the change touch clk_54m" predicts the
-outcome here; something else is driving the placer's behaviour on this specific
-netlist. All three kept at `compiled/failed/msxnano-mistle_tangnano20k_<sha>.fs`
-with full details in `compiled/failed/README.md` and `docs/UTILISATION.md`.
-Reported rather than trimmed further, per `CLAUDE.md` and the file-ownership
-convention — this needs the design side's judgement now, not another
-build-side attempt.
+**Persistence (from `db4ac25`) and the reverted autofire (from `c2fcec4`)
+both ride along unchanged in this build** — `c2fcec4` already proved
+persistence wasn't the cause, so nothing there needs re-testing. Same OSD
+reset/Cold Boot fix, centring correction and MSXHero rename as `6389ac0`;
+the new thing to confirm on hardware specifically is that settings actually
+persist across power cycles (volume, DB9 port, autofire — though autofire's
+rate control is gone from the menu, fixed at ~10 Hz) and that Boot-in-Turbo
+now works.
 
 **`clock_54m` passes with a healthy margin again: Fmax 56.973 MHz against the
 54.000 MHz constraint**, zero negative slack, all six clocks pass. CLS ticked

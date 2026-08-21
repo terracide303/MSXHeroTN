@@ -1,39 +1,58 @@
 # Utilisation (Gowin place & route, GW2AR-18C QFN88)
 
-Built from commit `6389ac0` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
+Built from commit `85729ad` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
 `build.tcl`, `set_option -place_option 2 -route_option 2`).
 
 ## Resource usage
 
 | Resource | Usage | Utilization |
 |---|---|---|
-| Logic (LUT/ALU/ROM16) | 14091/20736 (12016 LUT, 2075 ALU) | 68% |
-| Register | 7427/15915 | 47% |
-| CLS | 9054/10368 | 88% |
+| Logic (LUT/ALU/ROM16) | 14200/20736 (12120 LUT, 2080 ALU) | 68% |
+| Register | 7444/15915 | 47% |
+| CLS | 9074/10368 | 88% |
 | I/O Port | 43/66 | 66% |
 | IOLOGIC | 6/121 | 5% |
 | BSRAM | 15/46 | 33% |
 | DSP | 2.5/24 | 11% |
 
-CLS ticked back up to 88% (from 87%), still the tightest resource, why
-`build.tcl` keeps place/route effort at level 2.
+CLS is still the tightest resource at 88%, which is why `build.tcl` keeps
+place/route effort at level 2.
 
 ## Max frequency summary
 
 | Clock | Constraint | Actual Fmax | Logic level | Status |
 |---|---|---|---|---|
-| clock_audio | 3.600 MHz | 492.285 MHz | - | pass |
-| clock_27m | 27.000 MHz | 67.703 MHz | - | pass |
-| clock_54m | 54.000 MHz | 56.973 MHz | - | pass |
-| clock_108m | 108.000 MHz | 141.901 MHz | - | pass |
-| clock_108i | 108.000 MHz | 141.901 MHz | - | pass |
-| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 284.338 MHz | - | pass |
+| clock_audio | 3.600 MHz | 405.845 MHz | - | pass |
+| clock_27m | 27.000 MHz | 70.479 MHz | - | pass |
+| clock_54m | 54.000 MHz | 56.588 MHz | - | pass |
+| clock_108m | 108.000 MHz | 156.163 MHz | - | pass |
+| clock_108i | 108.000 MHz | 156.163 MHz | - | pass |
+| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 123.140 MHz | - | pass |
 
-All clocks pass, zero negative slack anywhere. **`clock_54m` margin recovered** —
-54.138 MHz (previous build) to 56.973 MHz (this one). Five commits landed together
-this round (OSD reset fixed properly, OSD centring corrected, menu translated and
-renamed to MSXHero), so no single change is isolated as the reason; nothing here
-looks fragile.
+All clocks pass, **zero negative slack anywhere** — a genuine, TNS-confirmed pass,
+not a look-alike Fmax number. See "SDRAM sequencer flattened" below — this is the
+build that finally addresses the actual recurring critical path after three misses.
+
+## SDRAM sequencer flattened (commit `85729ad`, currently flashable) — the current build
+
+Three failed builds (`0b3f629`, `aa52343`, `c2fcec4`) all missed `clock_54m` on
+`cpu1/RD -> mem1/sdram_*` paths, and `c2fcec4` — lowest CLS of any build (9008,
+below the 9054 of the last good build) and touching nothing in `clk_54m` — proved
+neither resource count nor which domain a change lands in explained the misses.
+That path itself had simply never been restructured: `ram_req`, `ram_read` and
+`ram_write` (feeding `memory_ctrl`, which despite its `clk_27m` port name is
+instantiated on `clk_54m`) were serial `?:` chains up to nine levels deep. Every
+`ram_req` branch returned its own condition — no real priority, just an OR written
+the long way — and all nine `ram_read` branches returned the identical value.
+Flattened to balanced OR trees; exact because every term is one bit wide, verified
+against the original across all 544 input combinations of the compiled
+configuration, zero mismatches.
+
+`clock_54m` closes for real this time: 56.588 MHz against 54.000 MHz, zero negative
+slack confirmed via the TNS table (not just the Fmax summary — see the miss history
+below for why that distinction matters). CLS is 9074/10368 (88%), close to the
+recent range. Settings persistence rides along unchanged from `c2fcec4`, since that
+build already proved it wasn't the cause.
 
 ## Settings persistence attempt: clock_54m misses despite a passing-looking Fmax (not flashed)
 
@@ -100,7 +119,7 @@ netlist. All other clocks pass comfortably. Kept at
 `compiled/failed/msxnano-mistle_tangnano20k_c2fcec4.fs`, not flashed; the table at
 the top of this document still reflects the current flashable build (`6389ac0`).
 
-## OSD reset done right, centring fixed, menu translated (commit `6389ac0`, currently flashable)
+## OSD reset done right, centring fixed, menu translated (commit `6389ac0`, superseded by `85729ad` above)
 
 **Reset and Cold Boot work again, by fixing the actual cause instead of retrying
 either broken approach** (`c52c1ac`). `fpga_companion` — which holds sysctrl, and
