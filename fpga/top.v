@@ -104,12 +104,6 @@ module top
     // much earlier in the file. Wired through so far: reset, turbo, volume and
     // the DB9 port assignment. The rest still need merging with
     // config1_ff/config2_ff, which the S menu drives through I/O ports.
-    // OSD reset, stretched to a one-shot. sysctrl is reset by the core reset, so
-    // a level from it cannot hold the machine in reset -- it would clear itself
-    // and release immediately, over and over. The monostable gives a clean
-    // single reset of fixed length, which is how config_reset already works.
-    wire osd_reset_req;
-
     wire [1:0] system_reset;
     wire       system_turbo;
     wire       system_turbo_boot;
@@ -268,13 +262,16 @@ end
     PINFILTER dn3(
         .clk(clk_54m),
         .reset_n(1),
-        // system_reset comes from the OSD (sysctrl CMD 4, id "R"): 1 = reset,
-        // 3 = cold boot, 0 = run. It is turned into a fixed-length pulse first --
-        // see osd_reset_req below. Using the level directly self-destructs:
-        // sysctrl lives inside fpga_companion, which is reset by ~bus_reset_n, so
-        // asserting reset clears the very register that was asserting it, and the
-        // machine boot-loops.
-        .din(ex_bus_reset_n & ~config_reset & ~osd_reset_req),
+        // NOTE: the OSD's Reset button (sysctrl CMD 4, id "R") is deliberately
+        // NOT wired in here. sysctrl lives inside fpga_companion, which is reset
+        // by ~bus_reset_n, so anything it drives into this net fights itself.
+        // Driving the level directly boot-loops the machine (the reset clears the
+        // register asserting it); routing it through a monostable one-shot gives
+        // no picture at all, because the companion re-runs its init action -- which
+        // sets R=1 -- after each reset, retriggering the pulse indefinitely.
+        // Making it work needs sysctrl held out of the core reset domain, which is
+        // a bigger change than the button is worth. See docs/FINDINGS.md.
+        .din(ex_bus_reset_n & ~config_reset),
         .dout(bus_reset_n)
     );
 
@@ -2245,13 +2242,6 @@ memory_ctrl mem1 (
         if (system_stereo      != osd_stereo_d) config2_ff[5] <= system_stereo;
     end
 
-
-    // OSD reset one-shot (see the reset din near the top of the file)
-    monostable mono_osd (
-        .pulse_in(|system_reset),
-        .clock(clk_27m),
-        .pulse_out(osd_reset_req)
-    );
 
     monostable mono (
         .pulse_in(config_reset_ff),

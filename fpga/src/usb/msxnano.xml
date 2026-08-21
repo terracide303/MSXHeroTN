@@ -69,12 +69,11 @@
   <menu label="MSXnano">
 
     <menu label="System">
-      <!-- Applied via reset, not live. Switching CPU cadence while running hangs
-           the machine: clk_54m misses its timing constraint (53.798 vs 54.000
-           MHz) and that is the domain the cadence mux lives in. Resetting into
-           the new speed is reliable, and matches how MiSTeryNano handles
-           machine-level changes. -->
-      <list label="Turbo:" id="T" default="0" action="reset">
+      <!-- No action="reset": the core does not act on the OSD reset (see
+           docs/FINDINGS.md), so a reset action would do nothing. Turbo takes
+           effect on the next power cycle, or immediately if the machine is
+           reset by other means. -->
+      <list label="Turbo:" id="T" default="0">
         <listentry label="3.58 MHz" value="0"/>
         <listentry label="5.37 MHz" value="1"/>
       </list>
@@ -90,7 +89,6 @@
         <listentry label="Japanese" value="1"/>
         <listentry label="Spanish" value="2"/>
       </list>
-      <button label="Cold Boot" action="cold_reset_hide"/>
     </menu>
 
     <menu label="Input">
@@ -137,7 +135,6 @@
     </menu>
 
     <button label="Save settings" action="save"/>
-    <button label="Reset" action="reset_hide"/>
   </menu>
 
 </config>
