@@ -1,39 +1,53 @@
 # Utilisation (Gowin place & route, GW2AR-18C QFN88)
 
-Built from commit `ca77609` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
+Built from commit `b903b2f` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
 `build.tcl`, `set_option -place_option 2 -route_option 2`).
 
 ## Resource usage
 
 | Resource | Usage | Utilization |
 |---|---|---|
-| Logic (LUT/ALU/ROM16) | 14526/20736 (12049 LUT, 2075 ALU) | 71% |
-| Register | 7427/15915 | 47% |
-| CLS | 8982/10368 | 87% |
+| Logic (LUT/ALU/ROM16) | 14695/20736 (12194 LUT, 2099 ALU) | 71% |
+| Register | 7453/15915 | 47% |
+| CLS | 8993/10368 | 87% |
 | I/O Port | 43/66 | 66% |
 | IOLOGIC | 6/121 | 5% |
 | BSRAM | 15/46 | 33% |
 | DSP | 2.5/24 | 11% |
 
-CLS eased slightly from 88% to 87% with this build — see "clock_54m closes again"
-below for why. It's still the tightest resource, which is why `build.tcl` keeps
+CLS is still the tightest resource at 87%, which is why `build.tcl` keeps
 place/route effort at level 2.
 
 ## Max frequency summary
 
 | Clock | Constraint | Actual Fmax | Logic level | Status |
 |---|---|---|---|---|
-| clock_audio | 3.600 MHz | 380.214 MHz | 3 | pass |
-| clock_27m | 27.000 MHz | 64.997 MHz | 16 | pass |
-| clock_54m | 54.000 MHz | 55.626 MHz | 16 | pass |
-| clock_108m | 108.000 MHz | 193.216 MHz | 6 | pass |
-| clock_108i | 108.000 MHz | 193.216 MHz | 6 | pass |
-| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 185.455 MHz | 2 | pass |
+| clock_audio | 3.600 MHz | 413.158 MHz | - | pass |
+| clock_27m | 27.000 MHz | 65.339 MHz | - | pass |
+| clock_54m | 54.000 MHz | 57.049 MHz | - | pass |
+| clock_108m | 108.000 MHz | 182.540 MHz | - | pass |
+| clock_108i | 108.000 MHz | 182.540 MHz | - | pass |
+| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 284.348 MHz | - | pass |
 
-All clocks pass, zero negative slack anywhere. See "clock_54m closes again" below —
-this is the build that fixes the saga documented through the rest of this file.
+All clocks pass, zero negative slack anywhere.
 
-## clock_54m closes again (commit `ca77609`, currently flashable)
+## Reset-loop fix (commit `b903b2f`, currently flashable) — the current build
+
+The previous build (`ca77609`, below) closed timing but **did not boot**: the user
+reported it flashed and showed the MSX screen briefly before resetting, over and over,
+every time. Root cause per `6bf45e1`: the OSD reset wiring from `1911c67` had
+`system_reset` (which lives in sysctrl, inside `fpga_companion`) drive `bus_reset_n` —
+which resets `fpga_companion` itself. Asserting reset cleared the register asserting it,
+releasing reset, re-entering the loop; the companion's own startup (`R=1` on init,
+`R=0` on ready) hit this on every boot, not intermittently. Fixed by routing the OSD
+reset through the same fixed-length monostable pulse pattern already used for
+`config_reset`, so sysctrl clearing itself mid-pulse no longer shortens it.
+
+This is a functional fix, not a timing one — `clock_54m` remains closed at 57.049 MHz
+(up slightly from 55.626 MHz), CLS essentially unchanged (87%). The `cpu_din` mux tree
+that actually closed timing (below) is untouched by this commit.
+
+## clock_54m closes again (commit `ca77609`, superseded by `b903b2f` above)
 
 `clock_54m` had closed once before (`fb6bea0`, 58.929 MHz — see below), then missed
 across two more builds and a place/route sweep and a synthesis-option sweep that turned
@@ -44,9 +58,10 @@ groups resolved in parallel, then resolved against each other, 11 levels deep in
 26. Priority is preserved exactly by construction and was verified against the original
 chain across 400,000 combinations of condition truth values, zero mismatches.
 
-Fmax is now 55.626 MHz against the 54.000 MHz constraint — a real pass, not a near-miss.
-CLS eased from 88% to 87%. This bitstream is the one in `compiled/`; the two failed
-attempts below stay in `compiled/failed/` for reference.
+Fmax was 55.626 MHz against the 54.000 MHz constraint — a real pass, not a near-miss.
+CLS eased from 88% to 87%. This bitstream closed timing but didn't boot (reset loop,
+fixed in `b903b2f` above, which is the current `compiled/` build); the two failed
+timing attempts below stay in `compiled/failed/` for reference.
 
 ## Original closure (commit `fb6bea0`, since regressed and now fixed above)
 

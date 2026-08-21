@@ -5,36 +5,31 @@ top-level `CLAUDE.md` (build instructions for this machine).
 
 ## Current bitstream
 
-`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `ca77609`
+`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `b903b2f`
 (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88). Synthesis and
 place & route both completed with no errors.
 
-**`clock_54m` timing closes again, for the first time since `fb6bea0`.** Fmax
-55.626 MHz against the 54.000 MHz constraint, zero negative slack anywhere,
-all six clock domains pass. The fix is `12444a6` (`e48a96f`), which
-restructured the CPU read mux (`cpu_din`) from a single 29-level priority
-chain into a five-group tree, 11 levels deep, verified equivalent to the
-original priority ordering across 400,000 truth-table combinations. CLS also
-eased to 8982/10368 (87%, down from 88%). Two earlier attempts to close this
-same domain (`28c916d`, `0cf00b7`) failed and are archived at
-`compiled/failed/` with `docs/UTILISATION.md` carrying the full history if
-useful — this build supersedes both.
+**`clock_54m` still closes comfortably: Fmax 57.049 MHz against 54.000 MHz**,
+zero negative slack anywhere, all six clock domains pass, CLS 8993/10368
+(87%). This is a rebuild on top of the previous timing-closing commit
+(`ca77609`), carrying a real functional fix rather than a timing change.
 
-The commit itself flagged one build-time risk worth confirming landed clean:
-the new mux's group wires forward-reference signals declared later in
-`top.v` (`sd_busreq_w` at line 2754, `config_req` at line 2153) from
-continuous assignments rather than the old procedural-block style. Gowin
-accepted it without complaint — no errors, no new warnings beyond the usual
-two long-standing ones (`PINFILTER`/`NL0002` module-swept-in-optimizing
-messages, and the `TA1132` clock-not-created warning on
-`fpga_companion_inst/mcu/n4_24`).
+**The previous build (`ca77609`, pushed as this folder's bitstream earlier
+today) did not boot** — the user reported it flashed and showed the MSX
+screen briefly before resetting, over and over. Root cause per `6bf45e1`:
+the OSD reset wiring (from `1911c67`) let `system_reset` (in sysctrl, inside
+`fpga_companion`) drive `bus_reset_n`, which resets `fpga_companion` itself —
+so asserting reset cleared the very register asserting it, releasing reset,
+which re-entered the loop. The companion's own startup sequence (`R=1` on
+init, `R=0` on ready) hit this on every boot, not intermittently. Fixed by
+routing the OSD reset through the same fixed-length monostable pulse already
+used for `config_reset`, so sysctrl clearing itself mid-pulse no longer
+shortens it. This is a genuine functional bug fix, unrelated to the timing
+work — worth flashing and confirming the machine now boots and stays up
+before testing anything else.
 
-Priority logic in `cpu_din`'s mux was restructured but is claimed
-behaviorally identical by the commit's own verification (not independently
-re-verified here beyond a clean build) — worth keeping an eye on CPU read
-correctness (memory reads, I/O port reads, ROM/RAM select) on hardware given
-how central this mux is, even though nothing in the build log suggests a
-problem.
+Nothing about the `cpu_din` mux tree restructure (the thing that closed
+timing, see `ca77609`/`12444a6`) changed in this build.
 
 ## Flashing
 
