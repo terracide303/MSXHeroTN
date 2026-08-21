@@ -52,6 +52,28 @@ the `af_limit` case statement) — this is a timing-margin problem, not a syntax
 Kept at `compiled/failed/msxnano-mistle_tangnano20k_0b3f629.fs`, not flashed; the
 table at the top of this document still reflects the current flashable build (`6389ac0`).
 
+## Autofire rewrite attempt: clock_54m gets worse, not better (not flashed)
+
+`aa52343` rewrote the OSD autofire rate from a 23-bit counter/comparator to a
+comparator-free free-running counter, specifically to recover `clock_54m` from the
+`0b3f629` miss above. CLS landed exactly where predicted — 9028/10368 (88%), below
+the 9054 of the last good build — **but timing got markedly worse, not better.**
+
+`clock_54m` Fmax 50.717 MHz against 54.000 MHz (flagged red in Gowin's own report
+this time, not a look-alike pass), TNS -5.172 ns across 17 Setup endpoints — both
+worse than `0b3f629`'s -0.555 ns / 6 endpoints. Failing paths now span two families:
+
+- `cpu1/u0/IStatus_0_s15/DO[8]` -> `cpu_din_*_s0/D` (worst -0.524 ns), the recurring one
+- `cpu1/RD_s0/Q` -> `mem1/sdram_addr_*_s0/D` / `mem1/sdram_seq_*_s*` (worst -0.599 ns),
+  the class from the original `28c916d` regression, not present in `0b3f629`
+
+All other clocks pass comfortably. CLS coming down while timing got worse means this
+isn't simply a resource-count story — something about where the placer landed this
+specific netlist hurt the CPU/memory-controller boundary despite there being more
+room overall. Kept at `compiled/failed/msxnano-mistle_tangnano20k_aa52343.fs`, not
+flashed; reported rather than trimmed further, per `CLAUDE.md`. The table at the top
+of this document still reflects the current flashable build (`6389ac0`).
+
 ## OSD reset done right, centring fixed, menu translated (commit `6389ac0`, currently flashable)
 
 **Reset and Cold Boot work again, by fixing the actual cause instead of retrying

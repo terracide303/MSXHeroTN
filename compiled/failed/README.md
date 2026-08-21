@@ -72,6 +72,34 @@ family (worst -0.194 ns) — the same one that's shown up in every prior `clock_
 miss on this project. CLS grew slightly (9054/10368 -> 9102/10368, 87% -> 88%),
 consistent with the new save/autofire logic.
 
+## msxnano-mistle_tangnano20k_aa52343.fs
+
+Built from commit `aa52343` (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target
+GW2AR-18C QFN88), 2026-08-21. Rewrote the OSD autofire rate from a 23-bit
+counter/comparator to a comparator-free free-running counter, specifically
+aimed at recovering `clock_54m` from the `0b3f629` miss above. CLS did land
+where predicted — 9028/10368 (88%), below the 9054 of the last good build —
+but timing got markedly **worse**, not better.
+
+`clock_54m` Fmax 50.717 MHz against 54.000 MHz (flagged red in Gowin's own
+report this time, not a look-alike pass), TNS -5.172 ns across **17** Setup
+endpoints — both worse than `0b3f629`'s -0.555 ns / 6 endpoints. Failing paths
+now span two families rather than one:
+
+- `cpu1/u0/IStatus_0_s15/DO[8]` -> `cpu_din_*_s0/D` (worst -0.524 ns) — the
+  recurring one
+- `cpu1/RD_s0/Q` -> `mem1/sdram_addr_*_s0/D` / `mem1/sdram_seq_*_s*` (worst
+  -0.599 ns) — the class that caused the original `28c916d` regression, not
+  seen in `0b3f629`
+
+All other clocks pass comfortably; only `clock_54m` fails. CLS coming down
+while timing got worse means this isn't simply a resource-count story —
+something about where the placer landed this specific netlist hurt the
+CPU/memory-controller boundary specifically, despite there being more room
+overall. Per `CLAUDE.md`, reported rather than trimmed further; this needs
+the design side's judgement, not another build-side attempt. Do not flash;
+kept for comparison.
+
 No compile errors — `config_save_byte` and the `af_limit` case statement (the two
 things specifically flagged as worth watching) produced no warnings and parsed
 cleanly; this is a timing-margin problem, not a syntax one. Do not flash; kept for
