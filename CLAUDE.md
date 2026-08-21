@@ -37,32 +37,55 @@ samples IORQ on every `clk_54m` edge by design — it has to assert WAIT before 
 samples the bus. Relaxing it would produce a build that passes timing and corrupts
 memory reads.
 
-`fpga/sweep_pnr.tcl` (`gw_sh sweep_pnr.tcl` from `fpga/`) tries several place/route
-effort combinations in one process, but as written it errors after the first trial —
-each loop iteration re-sources `build_files.tcl`, and Gowin's `add_file` refuses a
-file already in the project, so the second iteration fails with `unable to add file
-"...", already in project`. It has not been fixed; running each combination as its
-own `gw_sh` invocation (one process per trial, same pattern as `build.tcl`) works
-around it and is what produced the results below.
+`fpga/sweep_pnr.tcl` now takes a tag and runs **one trial per process** — the loop
+version failed because Gowin's `add_file` refuses a file already in the project when
+`build_files.tcl` is re-sourced. Run from `fpga/`:
 
-**Sweep result (2026-08-21, from commit `0cf00b7`): none of the 6 combinations
-close `clock_54m`.** `place_option 2 / route_option 2` — what `build.tcl` already
-uses — ties for the best result. Route effort matters more than place effort:
-dropping route effort alone costs ~1 MHz regardless of place effort, and dropping
-both to 0 is far worse.
+```
+gw_sh sweep_pnr.tcl <tag>
+```
+
+**Place/route effort has already been swept (2026-08-21, from `0cf00b7`) and none of
+the six combinations closed.** `place_option 2 / route_option 2` — what `build.tcl`
+already uses — was the best available, and place effort 1 and 2 gave byte-identical
+results. Route effort matters more: dropping it alone costs about 1 MHz.
 
 | place / route | Fmax | TNS (setup) | endpoints |
 |---|---|---|---|
 | 2 / 2 (current) | 53.217 MHz | -0.464 ns | 5 |
 | 1 / 2 | 53.217 MHz | -0.464 ns | 5 |
-| 0 / 2 | 49.941 MHz | -9.143 ns | 27 |
 | 2 / 1 | 52.237 MHz | -2.220 ns | 14 |
 | 1 / 1 | 52.237 MHz | -2.220 ns | 14 |
+| 0 / 2 | 49.941 MHz | -9.143 ns | 27 |
 | 0 / 0 | 47.792 MHz | -22.206 ns | 33 |
 
-PnR effort isn't the lever. The next step is trimming `swioports.vhd` while
-preserving its `$40-$4F` readback exactly, and that is a decision to raise rather
-than take.
+**So PnR effort is not the lever, and there is no point sweeping it again.** What that
+sweep never touched is the *synthesis* options, which attack the problem differently.
+Those are the remaining free experiments:
+
+```
+gw_sh sweep_pnr.tcl iob      # -oreg_in_iob/-ireg_in_iob: pack registers next to
+                             # pins into the IO blocks; frees CLS, shortens IO paths
+gw_sh sweep_pnr.tcl retime   # -retiming 1: let synthesis move registers across
+                             # logic to balance path delays
+gw_sh sweep_pnr.tcl both
+```
+
+Report the `clock_54m` Fmax for each. If one closes, set those options in `build.tcl`,
+build normally, and commit the bitstream.
+
+**Do not trim `swioports.vhd`.** An earlier note here suggested it as the next step;
+that was withdrawn after tracing what it feeds. Its `iSlt2_linear` and `Slot2Mode`
+outputs drive the megaram mapper's `map_linear` and `map_sel`, so it is part of how
+cartridges are mapped, not a dormant status block — and the likely saving is small
+(removing 693 lines of WiFi freed only 24 CLS). Breaking it would show up as games
+failing to load or loading corrupt.
+
+If the synthesis sweep also fails, stop and report rather than cutting features. The
+remaining options are a judgement call for the user: finish shortening the `cpu_din`
+mux (26 levels now, ~8 possible, but it does not touch the worst path), cut a feature,
+or stay on tag `known-good-fb6bea0` — the last build verified working on hardware,
+with timing closed at 58.929 MHz.
 
 ## Current state
 
