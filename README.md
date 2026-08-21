@@ -73,10 +73,11 @@ Upstream MSXnano runs on a bare Tang Nano 20K and uses the board's **on-board BL
 its USB host. That works, but it constrains the machine in ways that are easy to miss until you
 are living with one.
 
-### There is no on-screen overlay
+### Upstream has no on-screen overlay. This fork does.
 
-This is the big one. The companion chip upstream uses is perfectly capable of drawing a settings
-menu — it is the same firmware this fork uses, and it offers one. Upstream just never connects
+That is the headline difference, and the one you notice every day.
+
+The companion chip upstream uses is perfectly capable of drawing a settings menu — it is the same firmware this fork uses, and it offers one. Upstream just never connects
 it to the picture. The menu is generated and then thrown away, because nothing in the core is
 listening for it.
 
