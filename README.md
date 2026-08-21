@@ -1,5 +1,14 @@
 ![MSXHeroTN](docs/img/banner.png)
 
+> ### You are on `dev`
+>
+> This is the working branch: half-finished features, builds that failed timing, and the
+> reasoning behind both. Things here are expected to be broken.
+>
+> **If you want a machine that works, use [`main`](../../tree/main).** It only moves when a
+> build has been confirmed running on real hardware, and its README is written for building
+> one rather than developing it.
+
 # MSXHeroTN
 
 An MSX2+ core for the **Tang Nano 20K** running on the **MiSTeryShield20k RPi Pico USB** shield.
