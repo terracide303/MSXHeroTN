@@ -9,6 +9,20 @@ top-level `CLAUDE.md` (build instructions for this machine).
 (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88). Synthesis and
 place & route both completed with no errors.
 
+**A newer build (`0b3f629`, first compile of `db4ac25` — settings persistence
+to flash, `system_turbo_boot`/`system_autofire` wired up) was attempted and is
+NOT here.** It compiled cleanly (no errors, and specifically no warnings on
+`config_save_byte` or the `af_limit` case statement, the two things flagged as
+worth watching) but misses `clock_54m` timing: Gowin's "Max Frequency Summary"
+reports 54.367 MHz, which looks like a pass, but the "Total Negative Slack
+Summary" shows -0.555 ns across 6 Setup endpoints — the two reports can
+disagree, and TNS is the one that's actually authoritative. All 6 failing
+endpoints are the recurring `cpu1/u0/IStatus_0_s15/DO[8]` -> `cpu_din_*_s0/D`
+path family. Kept at `compiled/failed/msxnano-mistle_tangnano20k_0b3f629.fs`
+with full details in `compiled/failed/README.md` and `docs/UTILISATION.md`.
+Not a build-side fix per the file-ownership convention — reporting back rather
+than restructuring logic or relaxing constraints.
+
 **`clock_54m` passes with a healthy margin again: Fmax 56.973 MHz against the
 54.000 MHz constraint**, zero negative slack, all six clocks pass. CLS ticked
 up slightly to 9054/10368 (88%, from 87%). This is a real recovery from the

@@ -35,6 +35,23 @@ this round (OSD reset fixed properly, OSD centring corrected, menu translated an
 renamed to MSXHero), so no single change is isolated as the reason; nothing here
 looks fragile.
 
+## Settings persistence attempt: clock_54m misses despite a passing-looking Fmax (not flashed)
+
+A build from commit `0b3f629` (first compile of `db4ac25` — settings persistence to
+flash, plus wiring up previously-unused `system_turbo_boot`/`system_autofire`) misses
+`clock_54m`: **the Max Frequency Summary shows 54.367 MHz, which looks like a pass, but
+the Total Negative Slack Summary shows -0.555 ns across 6 Setup endpoints on `clock_54m`.**
+These two reports can disagree — the Fmax number reflects one representative critical
+path, not every endpoint's own setup check — so always check the TNS table, not just
+whether Fmax clears the constraint number. All 6 failing endpoints are the familiar
+`cpu1/u0/IStatus_0_s15/DO[8]` -> `cpu_din_*_s0/D` path family (worst -0.194 ns), the
+same one behind every prior `clock_54m` miss here. CLS grew slightly (9054/10368 ->
+9102/10368, 87% -> 88%), consistent with the new logic. No compile errors or warnings
+on the two things the design side flagged as worth watching (`config_save_byte`,
+the `af_limit` case statement) — this is a timing-margin problem, not a syntax one.
+Kept at `compiled/failed/msxnano-mistle_tangnano20k_0b3f629.fs`, not flashed; the
+table at the top of this document still reflects the current flashable build (`6389ac0`).
+
 ## OSD reset done right, centring fixed, menu translated (commit `6389ac0`, currently flashable)
 
 **Reset and Cold Boot work again, by fixing the actual cause instead of retrying

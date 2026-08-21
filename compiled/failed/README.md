@@ -52,3 +52,29 @@ as before:
 CLS only dropped slightly (9124/10368 -> 9100/10368, still 88%) — less relief than
 the commit's reasoning expected, so WiFi removal alone isn't quite enough to close
 this domain. All other clocks pass comfortably. Do not flash; kept for comparison.
+
+## msxnano-mistle_tangnano20k_0b3f629.fs
+
+Built from commit `0b3f629` (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target
+GW2AR-18C QFN88), 2026-08-21. First compile of `db4ac25` (settings persistence
+to flash, plus wiring up `system_turbo_boot`/`system_autofire`, previously
+declared but unused) — the design side flagged it as untested on any toolchain
+before this build.
+
+**Caution: Gowin's own "Max Frequency Summary" reports this as a pass (54.367 MHz
+vs 54.000 MHz) — it is not.** The "Total Negative Slack Summary" tells the real
+story: `clock_54m` has -0.555 ns TNS across 6 Setup endpoints. The two reports
+disagree because the Fmax summary reflects a single representative critical path,
+not every endpoint's actual setup check; always check the TNS table before trusting
+an Fmax number that looks like a pass close to the constraint. All 6 failing
+endpoints are the familiar `cpu1/u0/IStatus_0_s15/DO[8]` -> `cpu_din_*_s0/D` path
+family (worst -0.194 ns) — the same one that's shown up in every prior `clock_54m`
+miss on this project. CLS grew slightly (9054/10368 -> 9102/10368, 87% -> 88%),
+consistent with the new save/autofire logic.
+
+No compile errors — `config_save_byte` and the `af_limit` case statement (the two
+things specifically flagged as worth watching) produced no warnings and parsed
+cleanly; this is a timing-margin problem, not a syntax one. Do not flash; kept for
+comparison. Per the file-ownership convention in `CLAUDE.md`, this needs a report
+back rather than a build-side fix — restructuring logic or relaxing constraints to
+close it is a design decision.
