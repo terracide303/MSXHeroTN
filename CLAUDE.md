@@ -29,6 +29,26 @@ bitstream (built from `<sha>`)"*. The Mac side flashes from there with `openFPGA
   is close to its routing limit.
 - Report the utilisation and timing after each build so `docs/UTILISATION.md` stays current.
 
+## If clock_54m misses timing
+
+Do not add multicycle constraints to the failing CPU paths. The worst one,
+`cpu1/IORQ_n_i/Q -> wait_io_ff/CE`, is the wait-state generator's IDLE branch, which
+samples IORQ on every `clk_54m` edge by design — it has to assert WAIT before the Z80
+samples the bus. Relaxing it would produce a build that passes timing and corrupts
+memory reads.
+
+Run `fpga/sweep_pnr.tcl` instead (`gw_sh sweep_pnr.tcl` from `fpga/`). It tries several
+place/route effort combinations and writes each report to `impl/pnr/sweep_<tag>.tr`.
+The point is that Gowin's PnR is deterministic — re-running the same options
+reproduces the same result, so an option has to change for the placer to land
+differently. This domain has closed at 58.9 MHz and missed at 53.2 and 50.4 across
+builds differing by under 1% of logic, so it is congestion-sensitive and worth
+sweeping.
+
+Report which combination wins and its margin. If none closes, say so — the next step
+is trimming `swioports.vhd` while preserving its `$40-$4F` readback exactly, and that
+is a decision to raise rather than take.
+
 ## Current state
 
 The core builds, boots, browses the SD card, runs games, reads the shield's DB9 joystick, and
