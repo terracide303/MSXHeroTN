@@ -646,8 +646,7 @@ assign keyboard_addr = ppi_port_c[3:0];
                 `ifdef ENABLE_BIOS
                      ( exp_slot0_req_r == 1) ? ~exp_slot0  :
                      ( exp_slotx_req_r == 1) ? ~exp_slotx  :
-                     ( bios_req == 1) ? ram_dout : 
-                     ( subrom_logo_req == 1 ) ? ram_dout :
+                     ( bios_req | subrom_logo_req ) ? ram_dout :
                 `endif
                 `ifdef ENABLE_SDCARD
                      ( sd_busreq_w == 1) ? sd_cd_w :
@@ -665,8 +664,7 @@ assign keyboard_addr = ppi_port_c[3:0];
                      ( config_req == 1 && config_ok == 1) ? config_dout :
                      ( config_req == 1 && config_ok == 0) ? swio_dout :
                 `endif
-                     ( kanji_driver_req == 1 ) ? ram_dout :
-                     ( kanji_data_req_r == 1 ) ? ram_dout :
+                     ( kanji_driver_req | kanji_data_req_r ) ? ram_dout :
                 `ifdef ENABLE_WIFI
                      ( wifi_req == 1 ) ? ram_dout :
                      ( logo_req == 1 ) ? ram_dout :
@@ -675,8 +673,10 @@ assign keyboard_addr = ppi_port_c[3:0];
                 `endif
                      ( rtc_req_r == 1 ) ? rtc_dout :
                      ( ppi_req_r == 1 ) ? ppi_port_a :
-                     ( slot0_req_r == 1 ) ? 8'hff :
-                     ( slotx_req_r == 1 ) ? 8'hff :
+                     // slot0_req_r and slotx_req_r used to select 8'hff here.
+                     // Both branches and the default are the same value, so the
+                     // tests could not change the result -- two mux levels of
+                     // pure delay on the CPU read path. Removed.
                       8'hFF;   // STANDALONE: was bus_data (external MSX board). No bus -> FF.
     end
 
