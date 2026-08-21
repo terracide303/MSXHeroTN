@@ -629,55 +629,117 @@ assign keyboard_addr = ppi_port_c[3:0];
     // Encoding 0x1X = version 1.X. Bump FPGA_VERSION each release together with the pack.
     localparam [7:0] FPGA_VERSION = 8'h19;
     wire ver_req_r = (bus_iorq_n == 1'b0 && bus_m1_n == 1'b1 && bus_rd_n == 1'b0 && bus_addr[7:0] == 8'h2F);
-    always @ (posedge clk_54m) begin
-        cpu_din <=
+    // ---- cpu_din source groups ---------------------------------------------
+    // The CPU read mux below was a single priority chain ~29 ternaries deep.
+    // Every level is a mux in series, and cpu_din is the endpoint of two of the
+    // paths that miss timing on clock_54m.
+    //
+    // Split into groups that resolve in parallel, then combined: depth becomes
+    // (largest group) + (number of groups) rather than the total count.
+    //
+    // Priority is preserved EXACTLY -- order within each group is unchanged and
+    // the groups are combined in their original order. Deliberately no
+    // assumption is made about which decodes can be true at once. Merging the
+    // nine ram_dout conditions into one test would be shorter still, but is
+    // only correct if those decodes are provably mutually exclusive, and being
+    // wrong there returns the wrong byte to the CPU.
+    wire g1_hit = ver_req_r | psg_req_r | ppi_portb_req_r
+`ifdef ENABLE_SOUND
+                | psg2_req_r
+`endif
+`ifdef ENABLE_V9958
+                | (vdp_csr_n == 1'b0)
+`endif
+                ;
+    wire [7:0] g1_val =
                 ( ver_req_r == 1 ) ? FPGA_VERSION :
                 ( psg_req_r == 1 ) ? ((psg_addr_latch == 4'd14) ? psg_joy_data : 8'hFF) :
-                `ifdef ENABLE_SOUND
-                     ( psg2_req_r == 1 ) ? psg2_dout :
-                `endif
+`ifdef ENABLE_SOUND
+                ( psg2_req_r == 1 ) ? psg2_dout :
+`endif
                 ( ppi_portb_req_r == 1 ) ? keyboard_data :
-                `ifdef ENABLE_V9958
-                     ( vdp_csr_n == 0) ? vdp_dout :
-                `endif
-                `ifdef ENABLE_MAPPER
-                     ( mapper_read == 1) ? ram_dout :
-                `endif
-                `ifdef ENABLE_BIOS
-                     ( exp_slot0_req_r == 1) ? ~exp_slot0  :
-                     ( exp_slotx_req_r == 1) ? ~exp_slotx  :
-                     ( bios_req | subrom_logo_req ) ? ram_dout :
-                `endif
-                `ifdef ENABLE_SDCARD
-                     ( sd_busreq_w == 1) ? sd_cd_w :
-                     ( sram_busreq_w == 1) ? sram_cd_w :
-                     ( megarom_req == 1) ? ram_dout :
-                     //( slot3_req_r == 1) ? 8'hff :
-                 `endif
-                `ifdef ENABLE_SOUND
-                     ( megaram_req == 1 ) ? ram_dout:
-                     ( scc_rd_r == 1 ) ? scc_dout:
-                     ( scc2x_rd_r == 1 ) ? scc2x_dout:
-                `endif
-                `ifdef ENABLE_CONFIG
-                     ( config_req == 1 && pana_sel == 1 ) ? pana_dout :
-                     ( config_req == 1 && config_ok == 1) ? config_dout :
-                     ( config_req == 1 && config_ok == 0) ? swio_dout :
-                `endif
-                     ( kanji_driver_req | kanji_data_req_r ) ? ram_dout :
-                `ifdef ENABLE_WIFI
-                     ( wifi_req == 1 ) ? ram_dout :
-                     ( logo_req == 1 ) ? ram_dout :
-                     ( f2_req_r == 1 ) ? f2_port :
-                     ( uart_req == 1 ) ? uart_dout :
-                `endif
-                     ( rtc_req_r == 1 ) ? rtc_dout :
-                     ( ppi_req_r == 1 ) ? ppi_port_a :
-                     // slot0_req_r and slotx_req_r used to select 8'hff here.
-                     // Both branches and the default are the same value, so the
-                     // tests could not change the result -- two mux levels of
-                     // pure delay on the CPU read path. Removed.
-                      8'hFF;   // STANDALONE: was bus_data (external MSX board). No bus -> FF.
+`ifdef ENABLE_V9958
+                ( vdp_csr_n == 0) ? vdp_dout :
+`endif
+                8'hFF;
+
+    wire g2_hit = 1'b0
+`ifdef ENABLE_MAPPER
+                | mapper_read
+`endif
+`ifdef ENABLE_BIOS
+                | exp_slot0_req_r | exp_slotx_req_r | bios_req | subrom_logo_req
+`endif
+                ;
+    wire [7:0] g2_val =
+`ifdef ENABLE_MAPPER
+                ( mapper_read == 1) ? ram_dout :
+`endif
+`ifdef ENABLE_BIOS
+                ( exp_slot0_req_r == 1) ? ~exp_slot0 :
+                ( exp_slotx_req_r == 1) ? ~exp_slotx :
+                ( bios_req | subrom_logo_req ) ? ram_dout :
+`endif
+                8'hFF;
+
+    wire g3_hit = 1'b0
+`ifdef ENABLE_SDCARD
+                | sd_busreq_w | sram_busreq_w | megarom_req
+`endif
+`ifdef ENABLE_SOUND
+                | megaram_req | scc_rd_r | scc2x_rd_r
+`endif
+                ;
+    wire [7:0] g3_val =
+`ifdef ENABLE_SDCARD
+                ( sd_busreq_w == 1) ? sd_cd_w :
+                ( sram_busreq_w == 1) ? sram_cd_w :
+                ( megarom_req == 1) ? ram_dout :
+`endif
+`ifdef ENABLE_SOUND
+                ( megaram_req == 1 ) ? ram_dout :
+                ( scc_rd_r == 1 ) ? scc_dout :
+                ( scc2x_rd_r == 1 ) ? scc2x_dout :
+`endif
+                8'hFF;
+
+    wire g4_hit = kanji_driver_req | kanji_data_req_r
+`ifdef ENABLE_CONFIG
+                | config_req
+`endif
+                ;
+    wire [7:0] g4_val =
+`ifdef ENABLE_CONFIG
+                ( config_req == 1 && pana_sel == 1 ) ? pana_dout :
+                ( config_req == 1 && config_ok == 1) ? config_dout :
+                ( config_req == 1 && config_ok == 0) ? swio_dout :
+`endif
+                ( kanji_driver_req | kanji_data_req_r ) ? ram_dout :
+                8'hFF;
+
+    wire g5_hit = rtc_req_r | ppi_req_r
+`ifdef ENABLE_WIFI
+                | wifi_req | logo_req | f2_req_r | uart_req
+`endif
+                ;
+    wire [7:0] g5_val =
+`ifdef ENABLE_WIFI
+                ( wifi_req == 1 ) ? ram_dout :
+                ( logo_req == 1 ) ? ram_dout :
+                ( f2_req_r == 1 ) ? f2_port :
+                ( uart_req == 1 ) ? uart_dout :
+`endif
+                ( rtc_req_r == 1 ) ? rtc_dout :
+                ( ppi_req_r == 1 ) ? ppi_port_a :
+                8'hFF;
+
+    always @ (posedge clk_54m) begin
+        cpu_din <= g1_hit ? g1_val :
+                   g2_hit ? g2_val :
+                   g3_hit ? g3_val :
+                   g4_hit ? g4_val :
+                   g5_hit ? g5_val :
+                   8'hFF;   // STANDALONE: was bus_data (external MSX board). No bus -> FF.
     end
 
 
