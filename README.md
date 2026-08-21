@@ -108,14 +108,25 @@ That is why `F12` works anywhere — mid-game, mid-load, in the browser — with
 video and audio settings, reset and cold boot all reachable without losing what you are doing.
 And `F11` goes back to being an ordinary key that belongs to the MSX.
 
-### The shield
+### What a "shield" actually is
 
-The shield brings its own RP2040 with a proper USB host port, so the keyboard plugs straight in
-and the Tang's USB-C does nothing but power. The on-board BL616 is left untouched — this fork
-never flashes it.
+If the word is new to you: a shield is a carrier board that other boards plug into. It has no
+processor of its own and runs no software. It is a socket, some connectors and the wiring
+between them.
 
-It also carries a **DB9 joystick port** and **MIDI sockets**. The original core never assigns
-any FPGA pins to those, so on this shield they sit dead — wiring them up is what this fork is
+![The MiSTeryShield20k with a Raspberry Pi Pico and a Tang Nano 20K plugged into it](docs/img/shield.png)
+
+That is the whole machine. **Two small, cheap boards sit in it** — the Raspberry Pi Pico on the
+left and the Tang Nano 20K on the right — and the shield gives them sockets a bare board does
+not have: USB-A for the keyboard, a DE9 for the joystick, MIDI. Both boards lift straight out.
+
+The Tang Nano 20K is the computer: the FPGA on it *becomes* the MSX. The Pico handles USB, so
+the keyboard has somewhere to plug in and the Tang's own USB-C is left doing nothing but power.
+The chip on the Tang that would otherwise do that job is left untouched — this fork never
+flashes it.
+
+The joystick and MIDI sockets you can see are wired to the FPGA, but the original core never
+assigns any pins to them, so on this shield they sit dead. Wiring them up is what this fork is
 for.
 
 ## What you need
