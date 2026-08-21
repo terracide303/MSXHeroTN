@@ -63,3 +63,33 @@ commit expected, so that change alone isn't sufficient to close this domain. All
 clocks pass comfortably. Kept at
 `compiled/failed/msxnano-mistle_tangnano20k_0cf00b7.fs`, not flashed. The table above
 still reflects the current flashable build (`fb6bea0`).
+
+## Place/route effort sweep (still on `0cf00b7`, still not flashed)
+
+Commit `21745b7` added `fpga/sweep_pnr.tcl` to try several place/route effort
+combinations, on the theory that PnR is deterministic and only an option change
+moves the placer. The script itself errors after its first iteration (Gowin's
+`add_file` rejects a file already in the project when `build_files.tcl` is
+re-sourced on the second loop pass) — worked around by running each combination as
+its own `gw_sh` process instead. See `CLAUDE.md` for the fix note.
+
+None of the 6 combinations close `clock_54m`. `place_option 2 / route_option 2` —
+what `build.tcl` already uses — ties for the best result (with `place_option 1`, same
+numbers exactly). Route effort matters more than place effort: dropping it alone
+costs about 1 MHz regardless of place effort, and dropping both to 0 is far worse.
+
+| place / route | Fmax | TNS (setup) | endpoints | CLS |
+|---|---|---|---|---|
+| 2 / 2 (current) | 53.217 MHz | -0.464 ns | 5 | 88% |
+| 1 / 2 | 53.217 MHz | -0.464 ns | 5 | 88% |
+| 0 / 2 | 49.941 MHz | -9.143 ns | 27 | 89% |
+| 2 / 1 | 52.237 MHz | -2.220 ns | 14 | 88% |
+| 1 / 1 | 52.237 MHz | -2.220 ns | 14 | 88% |
+| 0 / 0 | 47.792 MHz | -22.206 ns | 33 | 89% |
+
+PnR effort isn't the lever here — nothing beats current settings. Per `CLAUDE.md`,
+the next step under consideration is trimming `swioports.vhd` while preserving its
+`$40-$4F` readback exactly, which is a decision to raise with the user rather than
+take unilaterally. No new bitstream came out of this sweep (same source as
+`0cf00b7`); the table at the top of this document still reflects the current
+flashable build (`fb6bea0`).
