@@ -59,20 +59,25 @@ results. Route effort matters more: dropping it alone costs about 1 MHz.
 | 0 / 2 | 49.941 MHz | -9.143 ns | 27 |
 | 0 / 0 | 47.792 MHz | -22.206 ns | 33 |
 
-**So PnR effort is not the lever, and there is no point sweeping it again.** What that
-sweep never touched is the *synthesis* options, which attack the problem differently.
-Those are the remaining free experiments:
+**So PnR effort is not the lever, and there is no point sweeping it again.**
 
-```
-gw_sh sweep_pnr.tcl iob      # -oreg_in_iob/-ireg_in_iob: pack registers next to
-                             # pins into the IO blocks; frees CLS, shortens IO paths
-gw_sh sweep_pnr.tcl retime   # -retiming 1: let synthesis move registers across
-                             # logic to balance path delays
-gw_sh sweep_pnr.tcl both
-```
+**The `iob`/`retime` synthesis-option sweep is also a dead end — but not because the
+options don't help. They don't exist.** `-oreg_in_iob`/`-ireg_in_iob`/`-retiming` are not
+documented `set_option` flags for GowinSynthesis (checked against Gowin's own
+`SUG550-2.0.1E GowinSynthesis User Guide`, which covers `set_option` usage and the full
+synthesis-attribute-constraint list — no such flags appear anywhere in it). Confirmed by
+running all four `base`/`iob`/`retime`/`both` trials (2026-08-21, from commit `0cf00b7`,
+after the `cpu_din` mux shortening in `c82e239`): every trial produced a byte-identical
+netlist and PnR result — same resource usage (CLS 8973/10368), same `clock_54m` Fmax
+(53.881 MHz, still short of 54.000 MHz). The options were silently swallowed by
+`set_option`, not applied; `gw_sh` gives no warning when that happens, so a clean run
+looks identical to a real (failed) test. Do not read "no error" as "the flags worked."
 
-Report the `clock_54m` Fmax for each. If one closes, set those options in `build.tcl`,
-build normally, and commit the bitstream.
+If IO-register-packing or retiming behavior is wanted here, it would have to come through
+GowinSynthesis's documented mechanism — per-signal/per-module attribute constraints
+(`syn_preserve`, `syn_srlstyle`, etc., see the User Guide) or a GSC constraint file — not
+a `set_option` flag on the whole build. Nobody has tried that; it is a different, unstarted
+experiment, not a retry of this one.
 
 **Do not trim `swioports.vhd`.** An earlier note here suggested it as the next step;
 that was withdrawn after tracing what it feeds. Its `iSlt2_linear` and `Slot2Mode`

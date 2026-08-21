@@ -93,3 +93,24 @@ the next step under consideration is trimming `swioports.vhd` while preserving i
 take unilaterally. No new bitstream came out of this sweep (same source as
 `0cf00b7`); the table at the top of this document still reflects the current
 flashable build (`fb6bea0`).
+
+## Synthesis-option sweep (`iob`/`retime`) — inconclusive, not a real test
+
+Commit `c82e239` shortened the `cpu_din` read mux (29 levels -> 26) and extended
+`sweep_pnr.tcl` to sweep synthesis options — `-oreg_in_iob`/`-ireg_in_iob` (IO register
+packing) and `-retiming 1` — since the place/route sweep above showed effort wasn't the
+lever. Ran all four trials (`base`/`iob`/`retime`/`both`) as separate `gw_sh` processes,
+2026-08-21, from commit `0cf00b7` plus the `cpu_din` shortening.
+
+**All four produced a byte-identical netlist and PnR result**: CLS 8973/10368 (87%),
+`clock_54m` Fmax 53.881 MHz against 54.000 MHz (closer than any prior attempt, thanks to
+the `cpu_din` change alone — but still short). Checking each trial's recorded synthesis
+project (`impl/gwsynthesis/sweep_<tag>.prj`, `<OptionList>` section) shows
+`oreg_in_iob`/`ireg_in_iob`/`retiming` never appear — `set_option` silently dropped them
+rather than applying them. Cross-checked against Gowin's own `SUG550-2.0.1E
+GowinSynthesis User Guide`: it documents no such `set_option` flags for this synthesis
+engine at all. `gw_sh` gives no warning when an unrecognized option is passed, so all
+four trials completing cleanly with no errors is not evidence the options worked — it's
+evidence they were no-ops. The `iob`/`retime` experiment was never actually run; see
+`CLAUDE.md` for what a real version of it would need (a documented synthesis attribute
+constraint or GSC file, not a `set_option` flag). No new bitstream from this sweep.
