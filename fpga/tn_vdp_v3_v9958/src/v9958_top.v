@@ -372,13 +372,26 @@ module v9958_top(
         .hs             ( VideoHS_n     ),
         .vs             ( VideoVS_n     ),
 
-        // osd_u8g2 centres on the total line/frame period, blanking included,
-        // so it lands off-centre in the visible picture. The correction is
-        // (back - front - sync)/2 horizontally and (sync + back - front)/2
-        // vertically, from the CEA-861 timings for each mode:
-        //   480p (VIC 2):  H 60/720/16/62 -> -9    V 6/30/480/9  -> +14
-        //   576p (VIC 17): H 68/720/12/64 -> -4    V 5/39/576/5  -> +20
-        .x_offset       ( pal_mode ? -12'sd4  : -12'sd9  ),
+        // osd_u8g2 centres on the measured total line period, so it lands
+        // off-centre in the visible picture and has to be corrected.
+        //
+        // The correction must come from the VDP's timing, not the HDMI
+        // encoder's -- the OSD measures VideoHS_n, which the VDP generates, and
+        // the VDP has its own counters (vdp_cx/vdp_cy) separate from hdmi.sv's
+        // cx/cy. Deriving it from the CEA porches gave -9 and left the overlay
+        // about 100 px right of centre.
+        //
+        // From vdp_hvcounter.vhd and vdp_vga.vhd:
+        //   line = CLOCKS_PER_HALF_LINE (858 NTSC, 864 PAL), active DISP_WIDTH 720
+        //   hsync low at HCOUNTERIN 0, high at 40; active starts at DISP_START_X = 0
+        // hcnt resets at the rising edge, i.e. 40 clocks after active video began,
+        // so active spans hcnt (line-40) .. wrap .. 680 and centres at 320, while
+        // the module targets line/2. Correction = 320 - line/2.
+        //   NTSC: 320 - 429 = -109      PAL: 320 - 432 = -112
+        .x_offset       ( pal_mode ? -12'sd112 : -12'sd109 ),
+        // Vertical was not reported as visibly wrong, so the earlier value stands
+        // for now; it was derived on the same mistaken basis and may need the
+        // same treatment.
         .y_offset       ( pal_mode ?  10'sd20 :  10'sd14 ),
         .r_in           ( VideoR        ),
         .g_in           ( VideoG        ),
