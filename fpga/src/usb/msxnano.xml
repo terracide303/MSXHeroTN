@@ -25,7 +25,6 @@
   <actions>
     <!-- run as soon as this file is parsed; keep the machine in reset -->
     <action name="init">
-      <load file="msxhero.ini"/>
       <set id="R" value="1"/>
     </action>
 
@@ -34,8 +33,14 @@
       <set id="R" value="0"/>
     </action>
 
+    <!-- Save: the core writes the settings into its own flash, the same six-byte
+         block the on-MSX S menu has always used. <save file=".."/> is NOT used:
+         it goes through the companion's FatFS, which reaches the card via the
+         FPGA's SD target, and that target is not implemented here. -->
     <action name="save">
-      <save file="msxhero.ini"/>
+      <set id="W" value="1"/>
+      <delay ms="10"/>
+      <set id="W" value="0"/>
     </action>
 
     <action name="reset">

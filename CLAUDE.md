@@ -160,7 +160,7 @@ renders the FPGA-Companion OSD on F12 -- centred, named MSXHero, with turbo, vol
 scanlines, aspect, stereo, second-SCC, Reset and Cold Boot all verified working on hardware.
 The boot menu is English, titled MSXHero TN 1.0.
 
-Phase 1 is complete apart from persistence.
+Phase 1 is complete apart from persistence, which is written and awaiting its first build.
 
 **Do not reset `fpga_companion` from `~bus_reset_n`.** It is reset from PLL lock
 (`~clock_locked`) deliberately, because `sysctrl` lives inside it and holds the OSD's values —
@@ -169,9 +169,18 @@ impossible: as a level it boot-loops the machine, and through a one-shot it give
 at all. Two builds were lost to this before checking that NanoMig uses `!pll_lock` for the
 same thing. See `docs/FINDINGS.md`.
 
-**Settings do not persist.** Save writes `msxnano.ini` through the companion's FatFS, which
-reaches the card via the FPGA's SD target, and `mcu_sdc_din` is tied to zero here.
-Implementing that target is the outstanding Phase 1 item.
+**Settings persistence is written but never built.** It goes into the FPGA flash, reusing the
+six-byte block at `0x280000` the on-MSX `S` menu has always used -- byte 5 was written as
+`0xFF` and never read, and now carries volume, DB9 port and autofire. A new sysctrl id `W`
+triggers the write. The OSD's `<save file=".."/>` is deliberately NOT used: it goes through
+the companion's FatFS, which needs an SD target the core does not implement.
+
+**This build is the first test of it.** Watch for: CLS and `clock_54m` (the change is small,
+but this design's timing is congestion-sensitive), and whether `config_save_byte` and the
+`af_limit` case synthesize without complaint. Report numbers either way.
+
+The same commit connects `system_turbo_boot` and `system_autofire`, which were wired to
+sysctrl and read by nobody -- the OSD's Boot-in-turbo and Autofire entries did nothing.
 
 Full status is in [README.md](README.md), the roadmap in [docs/ROADMAP.md](docs/ROADMAP.md),
 and everything established about the hardware, the shield, the companion protocol and

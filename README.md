@@ -14,7 +14,7 @@ port and MIDI sockets — actually works, instead of sitting unconnected.
 
 **It runs on real hardware.** The core synthesizes, boots to the file browser, loads and
 plays games, takes a DB9 joystick, and brings up the FPGA-Companion OSD on F12 with working
-video, audio and turbo settings. One thing is missing: settings do not persist.
+video, audio and turbo settings. Settings persistence is written but not yet built or tested.
 
 | | State |
 |---|---|
@@ -25,7 +25,7 @@ video, audio and turbo settings. One thing is missing: settings do not persist.
 | **OSD overlay (F12)** | **yes** — centred, named MSXHero, settings reach the core |
 | **Turbo** | works from the OSD; applied via reset. F11 no longer intercepted, and the crash is gone with it |
 | Video and audio settings from the OSD | scanlines, aspect, stereo, second SCC+, volume |
-| **Saving settings** | **no** — the companion cannot reach the SD card. See known issues |
+| **Saving settings** | **yes** — into the FPGA's flash. Not yet verified on hardware |
 | Boot menu | English, titled MSXHero TN 1.0 |
 | **OSD Reset / Cold Boot** | **yes** — verified on hardware |
 | Boot logo | own logo works; the v1.9 pack ships the slot blank |
@@ -42,14 +42,17 @@ chased and, more usefully, what did not work.
 
 ### Known issues
 
-**Settings do not persist.** The menu's Save writes `msxhero.ini` through the companion's
-FatFS, which reaches the SD card via the FPGA's SD target — and `mcu_sdc_din` is tied to zero
-here, so the companion cannot see the card at all. Settings apply immediately but are lost at
-power-off. This is the outstanding Phase 1 item.
+**The OSD shows defaults after a power cycle, even when saved settings are in use.**
+sysctrl's CMD 4 is one-way, companion to core, so the core has no way to tell the OSD what it
+restored from flash. Set the volume to 50%, save, power cycle: the machine plays at 50% and
+the menu says 100% until you touch that entry. Cosmetic, but it looks like a bug.
 
-When it does work, note that the filename is board-neutral like the menu itself: a card moved
-between this build and the ECP5 one would carry its settings across, which is convenient if
-the two machines agree on the ids and confusing if they diverge.
+Fixing it properly means letting the *companion* own the settings file, which is how
+MiSTeryNano does it — see [Saving settings](#saving-settings) below.
+
+**Video std and Keyboard in the OSD are decoded but not acted on.** `system_pal` and
+`system_keyboard` arrive from the companion and go nowhere. The machine's video standard
+still comes from the boot menu.
 
 **Turbo is applied by resetting into the new speed**, not switched live — changing CPU
 cadence while running hangs the machine. The F11 shortcut is gone: keys belong to the MSX,
@@ -265,6 +268,59 @@ drives through I/O ports. Those two were done first because they touch only the 
 and the joystick mux, not the boot config path.
 
 ---
+
+### Saving settings
+
+Written, not yet built or tested on hardware.
+
+Settings go into the **FPGA's flash**, not onto the SD card. There has been a six-byte block
+at `0x280000` since upstream — `'A'`, `'B'`, `config1`, `config2`, boot-turbo, and a sixth
+byte written as `0xFF` and never read. The on-MSX `S` menu's Save has always used it. The
+sixth byte is now ours:
+
+```
+[7] 0 = written by us   [6] spare   [5:4] autofire   [3] DB9 port   [2:0] volume
+```
+
+Bit 7 clear is the marker, so a board that has never saved reads `0xFF`, fails the test and
+falls back to defaults. At `config_init` the block is read back and the values seeded; from
+then on they follow the OSD.
+
+That "follow the OSD" part is change-triggered rather than continuous, and the reason matters.
+At start-up the companion pushes every value from the XML. If the core simply took whatever
+the companion last said, those defaults would immediately overwrite what was just restored
+from flash. Because the core only reacts to a value *changing*, and the XML defaults are
+identical to `sys_ctrl.v`'s reset values, start-up produces no change and the saved settings
+survive. **Keep those two sets of defaults in step or saving silently stops working.**
+
+Save is triggered by a new sysctrl id `W`, raised and dropped by the OSD's `save` action the
+way `R` is for reset. The core edge-detects it and pulses the same `config_flash_write_ff`
+the MSX sets through port `&H42` bit 6. No reset is requested — the old menu offered Save &
+Exit as well as Save & Reset, and this is the former.
+
+Saving *during a game* is new; the `S` menu could only do it from the browser. It is safe:
+the flash state machine parks in `STATE_IDLE` after boot and never reads again, and
+`warm_reset_pending` drops the CPU to 3.58 MHz for the duration of the write and restores it
+afterwards, at a clean cadence boundary. Expect a brief hiccup, not a crash.
+
+**Why not a file on the SD card**, which is what `<save file="msxhero.ini"/>` in the XML was
+attempting: nothing in the FPGA understands FAT. `sd_reader.sv` can already write a sector —
+that part was never missing — but turning a filename into a sector number is filesystem work.
+MiSTeryNano solves it by making the companion the filesystem owner: FatFS runs on the MCU and
+the FPGA is a block device beneath it, via `sd_card.v`'s CMD 3 / CMD 5. Its core has no
+filesystem at all and asks for sectors *within a mounted image*, which the MCU translates.
+
+Ours has two filesystem owners already — Nextor and the Z80 boot menu — so adopting that
+design here means a second master on the SD path plus a lock against Nextor, and a mistake
+corrupts the card rather than a setting. At 87% CLS the timing risk is real too. The flash
+route costs almost nothing and touches none of that. The companion route is the better
+long-term answer, and the sensible place to prove it is the ECP5 build, which has room; the
+OSD is shared between the two, so it would come back here once it works.
+
+**Also fixed here:** the OSD's **Boot in turbo** and **Autofire** entries did nothing at all.
+`system_turbo_boot` and `system_autofire` were declared and wired to sysctrl but read by no
+one — autofire ran at a hardwired 10 Hz. Both are connected now.
+
 
 ## Plan
 

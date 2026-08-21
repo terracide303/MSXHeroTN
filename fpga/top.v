@@ -116,6 +116,16 @@ module top
     wire [1:0] system_keyboard_sel;
     wire       system_db9_port;
     wire [1:0] system_autofire;
+    wire       system_save;
+
+    // Settings that live only in the OSD (the S menu has no equivalent) and so
+    // have no bit in config1/config2. They are held here rather than used
+    // straight from sysctrl, because sysctrl is reset by PLL lock and knows
+    // nothing about what was saved; these are seeded from flash at config_init
+    // and then follow the OSD.
+    reg [2:0] volume_ff   = 3'd4;   // full
+    reg       db9_port_ff = 1'b0;   // MSX port 1
+    reg [1:0] autofire_ff = 2'd1;   // 5 Hz
 
     // change detectors for the OSD settings above (see the config block)
     reg osd_scan_d   = 1'b0;
@@ -567,22 +577,36 @@ end
 // Ported from the goauld+RP2040 fork (there it lived in firmware; here, no
 // RP2040 -> it lives in the FPGA on the PSG joystick-injection path).
 //   54 MHz * 0.050 s = 2,700,000 cycles per half period.
+// OSD "F" picks the rate: the half period is what the counter measures, so
+// 5 Hz is 100 ms, 10 Hz 50 ms (the original hardwired value) and 20 Hz 25 ms.
+// Off stops the pulsing entirely rather than just slowing it, so buttons 3/4
+// go back to doing nothing. autofire_ff crosses from clk_27m without a
+// synchroniser, as the other OSD settings on this path already do -- it is a
+// rate select that changes when a human moves a menu entry, never mid-press.
 reg        af_phase = 1'b0;
-reg [21:0] af_cnt   = 22'd0;
+reg [22:0] af_cnt   = 23'd0;
+reg [22:0] af_limit = 23'd2700000;
 always @(posedge clk_54m) begin
-    if (af_cnt >= 22'd2700000) begin
-        af_cnt   <= 22'd0;
+    case (autofire_ff)
+        2'd1:    af_limit <= 23'd5400000;   //  5 Hz
+        2'd2:    af_limit <= 23'd2700000;   // 10 Hz
+        2'd3:    af_limit <= 23'd1350000;   // 20 Hz
+        default: af_limit <= 23'd2700000;   // off: value unused, phase is gated
+    endcase
+    if (af_cnt >= af_limit) begin
+        af_cnt   <= 23'd0;
         af_phase <= ~af_phase;
     end else begin
-        af_cnt   <= af_cnt + 22'd1;
+        af_cnt   <= af_cnt + 23'd1;
     end
 end
+wire af_on = af_phase & (autofire_ff != 2'd0);
 // fire = manual press OR (autofire button held AND square-wave high). If the pad
 // has no button 3/4 (bits 6/7 stay 0) this reduces to the original behaviour.
-wire af_fa0 = joystick0[4] | (joystick0[6] & af_phase);   // joy0 TrigA: manual + btn3 turbo
-wire af_fb0 = joystick0[5] | (joystick0[7] & af_phase);   // joy0 TrigB: manual + btn4 turbo
-wire af_fa1 = joystick1[4] | (joystick1[6] & af_phase);   // joy1 TrigA
-wire af_fb1 = joystick1[5] | (joystick1[7] & af_phase);   // joy1 TrigB
+wire af_fa0 = joystick0[4] | (joystick0[6] & af_on);   // joy0 TrigA: manual + btn3 turbo
+wire af_fb0 = joystick0[5] | (joystick0[7] & af_on);   // joy0 TrigB: manual + btn4 turbo
+wire af_fa1 = joystick1[4] | (joystick1[6] & af_on);   // joy1 TrigA
+wire af_fb1 = joystick1[5] | (joystick1[7] & af_on);   // joy1 TrigB
 
 // Companion joy byte (active-high): bit0=Right, bit1=Left, bit2=Down, bit3=Up, bit4=A, bit5=B
 // MSX PSG Port A (active-low):      bit0=Up,    bit1=Down,  bit2=Left, bit3=Right, bit4=TrigA, bit5=TrigB
@@ -604,8 +628,8 @@ wire [7:0] joy1_msx = {2'b11, ~af_fb1, ~af_fa1, ~joystick1[0], ~joystick1[1], ~j
 // OSD "J": which MSX joystick port the shield's DB9 answers on. The DB9 is
 // mixed into joy0_msx above; when port 2 is selected the two ports are simply
 // swapped, so the stick appears on port 2 and the USB pad on port 1.
-wire [7:0] port1_msx = system_db9_port ? joy1_msx : joy0_msx;
-wire [7:0] port2_msx = system_db9_port ? joy0_msx : joy1_msx;
+wire [7:0] port1_msx = db9_port_ff ? joy1_msx : joy0_msx;
+wire [7:0] port2_msx = db9_port_ff ? joy0_msx : joy1_msx;
 
 wire [7:0] psg_joy_data = (!psg_reg15_joy_sel[0]) ? port1_msx :
                           (!psg_reg15_joy_sel[1]) ? port2_msx :
@@ -2048,8 +2072,8 @@ memory_ctrl mem1 (
                 mix_l <= { 2'b0 , psgSound3 , 6'b000000 } + { 2'b0 , psg2Sound3 , 6'b000000 } + scc_term + { scc2x_wav, 1'b0 } + jt2413_wav;
                 mix_r <= { 2'b0 , psgSound3 , 6'b000000 } + { 2'b0 , psg2Sound3 , 6'b000000 } + scc_term + { scc2x_wav, 1'b0 } + jt2413_wav;
             end
-            audio_sample   <= apply_volume(mix_l, system_volume);
-            audio_sample_r <= apply_volume(mix_r, system_volume);
+            audio_sample   <= apply_volume(mix_l, volume_ff);
+            audio_sample_r <= apply_volume(mix_r, volume_ff);
         end
     end
 
@@ -2135,6 +2159,14 @@ memory_ctrl mem1 (
     wire config_enable_16_9;
     reg config_reset_ff;
     reg config_flash_write_ff;
+    // Seeded to sysctrl's own reset values so that no spurious "changed" edge
+    // fires at power-on, which would otherwise stamp the default over whatever
+    // config_init had just restored from flash.
+    reg       osd_db9_d    = 1'b0;
+    reg [1:0] osd_af_d     = 2'd1;
+    reg       osd_tboot_d  = 1'b0;
+    reg [2:0] osd_vol_prev = 3'd4;
+    reg       osd_save_d   = 1'b0;
     reg config_update;
     wire config_enable_scanlines;
     wire [1:0] config_mapper_slot;
@@ -2160,6 +2192,13 @@ memory_ctrl mem1 (
         config_reset_ff <= 0;
         config_flash_write_ff <= 0;
         config_update <= 0;
+        // OSD "Save settings": the same flash write the S menu triggers through
+        // port #42 bit 6. Edge-triggered, so it saves once however long the
+        // companion leaves the value at 1. No reset is requested -- the S menu
+        // offered Save & Exit as well as Save & Reset, and this is the former.
+        osd_save_d <= system_save;
+        if (system_save && !osd_save_d)
+            config_flash_write_ff <= 1;
         if (clk_enable_3m6_27 == 1 ) begin
             if (config0_req == 1 ) begin
                 config0_ff <= ~cpu_dout;
@@ -2202,11 +2241,28 @@ memory_ctrl mem1 (
                 config1_ff <= CONFIG1_DEFAULT;
                 config2_ff <= CONFIG2_DEFAULT;
                 config_turbo_boot_ff <= 0;      // rescate S2: boot turbo off
+                volume_ff   <= 3'd4;            // S2 rescue: OSD settings to defaults too
+                db9_port_ff <= 1'b0;
+                autofire_ff <= 2'd1;
             end
             else begin
                 config1_ff <= config_sig[2];
                 config2_ff <= config_sig[3];
                 config_turbo_boot_ff <= (config_sig[4] == 8'h54) ? 1'b1 : 1'b0;
+                // Byte 5 of the flash block, which upstream wrote as 0xFF and
+                // never read. Bit 7 clear marks it as ours: an erased or
+                // pre-existing 0xFF therefore falls through to the defaults,
+                // so a board that has never saved still boots sanely.
+                if (config_sig[5][7] == 1'b0) begin
+                    volume_ff   <= config_sig[5][2:0];
+                    db9_port_ff <= config_sig[5][3];
+                    autofire_ff <= config_sig[5][5:4];
+                end
+                else begin
+                    volume_ff   <= 3'd4;
+                    db9_port_ff <= 1'b0;
+                    autofire_ff <= 2'd1;
+                end
             end
         end
         // escritura del puerto #45 (menu): mismo bloque que la carga init para un
@@ -2237,6 +2293,22 @@ memory_ctrl mem1 (
         if (system_second_scc  != osd_scc2_d)   config1_ff[2] <= system_second_scc;
         if (system_wide_screen != osd_wide_d)   config2_ff[4] <= system_wide_screen;
         if (system_stereo      != osd_stereo_d) config2_ff[5] <= system_stereo;
+
+        // Same pattern for the settings with no config1/config2 bit, plus boot
+        // turbo, which does have one (flash byte 4) but was never connected to
+        // the OSD. Change-triggered rather than continuous, which is what makes
+        // the flash seeding survive: at start-up the companion pushes its XML
+        // defaults, and those match sysctrl's reset values, so nothing changes
+        // and nothing overwrites what config_init just loaded. Keep the XML
+        // defaults and sys_ctrl.v's reset values in step or this breaks.
+        osd_vol_prev <= system_volume;
+        osd_db9_d    <= system_db9_port;
+        osd_af_d     <= system_autofire;
+        osd_tboot_d  <= system_turbo_boot;
+        if (system_volume      != osd_vol_prev) volume_ff   <= system_volume;
+        if (system_db9_port    != osd_db9_d)    db9_port_ff <= system_db9_port;
+        if (system_autofire    != osd_af_d)     autofire_ff <= system_autofire;
+        if (system_turbo_boot  != osd_tboot_d)  config_turbo_boot_ff <= system_turbo_boot;
     end
 
 
@@ -2357,6 +2429,11 @@ memory_ctrl mem1 (
     wire[7:0] flash_dout;
     wire flash_data_ready;
     wire flash_busy;
+    // Flash block byte 5. Bit 7 is the "written by us" marker and must stay 0;
+    // an erased byte reads 0xFF and is rejected by config_init above.
+    //   [7] 0 = valid   [6] spare   [5:4] autofire   [3] DB9 port   [2:0] volume
+    wire [7:0] config_save_byte = { 2'b00, autofire_ff, db9_port_ff, volume_ff };
+
     wire [7:0] flash_write_din;
     wire flash_write_busy;
     wire [7:0] flash_write_counter;
@@ -2366,7 +2443,8 @@ memory_ctrl mem1 (
                         `ifdef ENABLE_CONFIG
                              (flash_write_counter == 8'd02) ? config1_ff :
                              (flash_write_counter == 8'd03) ? config2_ff :
-                             (flash_write_counter == 8'd04) ? (config_turbo_boot_ff ? 8'h54 : 8'h00) : 8'hff;
+                             (flash_write_counter == 8'd04) ? (config_turbo_boot_ff ? 8'h54 : 8'h00) :
+                             (flash_write_counter == 8'd05) ? config_save_byte : 8'hff;
                         `else
                              (flash_write_counter == 8'd02) ? CONFIG1_DEFAULT :
                              (flash_write_counter == 8'd03) ? CONFIG2_DEFAULT : 8'hff;
@@ -2990,7 +3068,8 @@ memory_ctrl mem1 (
         .system_pal         (system_pal),
         .system_keyboard    (system_keyboard_sel),
         .system_db9_port    (system_db9_port),
-        .system_autofire    (system_autofire)
+        .system_autofire    (system_autofire),
+        .system_save        (system_save)
     );
 
     usb_keyboard_msx usb_keyboard_msx
