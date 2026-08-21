@@ -24,7 +24,7 @@ video, audio and turbo settings. One thing is missing: settings do not persist.
 | **Turbo** | works from the OSD; applied via reset. F11 no longer intercepted, and the crash is gone with it |
 | Video and audio settings from the OSD | scanlines, aspect, stereo, second SCC+, volume |
 | **Saving settings** | **no** — the companion cannot reach the SD card. See known issues |
-| Boot menu | English, titled MSXHero v1.0 |
+| Boot menu | English, titled MSXHero TN 1.0 |
 | **OSD Reset / Cold Boot** | **yes** — verified on hardware |
 | Boot logo | own logo works; the v1.9 pack ships the slot blank |
 | On-board BL616 HID | removed by design — HID comes from the shield's Pico |
@@ -185,7 +185,7 @@ cannot drift out of step with the core it configures. Regenerate it with
 `osd_u8g2.v` is vendored unchanged from MiSTeryNano (GPLv3), which is the reference
 implementation of this protocol.
 
-The menu is titled **MSXHero** and carries System (turbo, boot turbo, video standard,
+The menu is titled **MSXHero TN** and carries System (turbo, boot turbo, video standard,
 keyboard layout), Input (DB9 port, autofire), Video (scanlines, aspect), Audio (stereo,
 second SCC+, volume), and Reset and Cold Boot at the bottom.
 
@@ -234,7 +234,7 @@ everything else.** Nothing from Phase 2 starts before Phase 1 boots.
 | 3 | OSD overlay on F12 | done, verified on hardware |
 | 4 | Wire the OSD settings to the core | done for reset, turbo, volume, scanlines, aspect, stereo, second SCC+, DB9 port |
 | 5 | Persist settings (Save) | **the one outstanding item** — needs the FPGA's SD target so the companion can reach the card |
-| 6 | Translate the on-screen menu to English | done, and renamed MSXHero v1.0 |
+| 6 | Translate the on-screen menu to English | done, and renamed MSXHero TN 1.0 |
 | 7 | Own boot logo | tooling done; the v1.9 pack ships the slot blank |
 | 8 | Fix the 115-file browser limit | not started |
 

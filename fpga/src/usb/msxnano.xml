@@ -24,7 +24,7 @@
   with mapper auto-detection, which the companion's selector cannot match.
   Loading stays in the core; this menu is for settings and reset.
 -->
-<config name="MSXHero" version="0">
+<config name="MSXHero TN" version="0">
 
   <actions>
     <!-- run as soon as this file is parsed; keep the machine in reset -->
@@ -66,7 +66,7 @@
     </action>
   </actions>
 
-  <menu label="MSXHero">
+  <menu label="MSXHero TN">
 
     <menu label="System">
       <!-- Applied by resetting into the new speed: switching CPU cadence while

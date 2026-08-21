@@ -156,9 +156,9 @@ repeated. Do not re-sweep place/route effort, and note that
 `-oreg_in_iob`/`-ireg_in_iob`/`-retiming` do not exist in this synthesis engine.
 
 The core builds, boots, browses the SD card, runs games, reads the shield's DB9 joystick, and
-renders the FPGA-Companion OSD on F12 -- centred, named MSXHero, with turbo, volume,
+renders the FPGA-Companion OSD on F12 -- centred, named MSXHero TN, with turbo, volume,
 scanlines, aspect, stereo, second-SCC, Reset and Cold Boot all verified working on hardware.
-The boot menu is English, titled MSXHero v1.0.
+The boot menu is English, titled MSXHero TN 1.0.
 
 Phase 1 is complete apart from persistence.
 
