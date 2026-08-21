@@ -459,3 +459,46 @@ are rewritten here, the more conflicts a future `git merge upstream/main` produc
 weighing before translating files upstream is still actively changing.
 
 ---
+
+---
+
+## OSD behaviour, for later
+
+Both noted from hardware use; neither is a fault, and the machine is usable as it stands.
+
+### Reset should relaunch the ROM, Cold Boot should return to the browser
+
+Today both take you back to the file browser. That is deliberate upstream behaviour, not an
+oversight — the menu's startup path wipes the `H.STKE` hook a launched game leaves behind,
+with the comment that otherwise *"Boot system after a manual reset would relaunch the game
+instead of DOS"*. Reset is being treated as an escape hatch from a hung game, which is a fair
+choice when you cannot pull the cartridge.
+
+But real MSX hardware restarts the cartridge on reset, and with two buttons in the OSD there
+is room for both behaviours:
+
+- **Reset** — warm: relaunch the ROM sitting in the megaram
+- **Cold Boot** — full restart, back to the browser
+
+The mechanism already exists on the core side: `system_reset` carries 1 for reset and 3 for
+cold boot, and `boot_done` distinguishes cold from warm. The work is menu-side — recognising
+"warm reset with a ROM still loaded" and continuing the boot rather than showing the browser,
+which is close to what `second_pass_boot` already does for a pending launch.
+
+The trade-off to keep in mind: whatever is done must not make `ESC` (Boot system) relaunch the
+game instead of booting DOS. That is the exact failure the hook-wipe exists to prevent.
+
+### Changing Turbo should not reset immediately
+
+The Turbo entry carries `action="reset"`, so selecting a speed resets the machine there and
+then — which is abrupt if you are only browsing the menu, and loses whatever was running.
+
+Better would be to let the setting be *chosen* without acting, and apply it on an explicit
+**Save & Exit** or **Save & Reset**, the way the on-MSX `S` screen already works. That also
+matches how the setting behaves: it cannot be switched live, because `clk_54m` is the domain
+the cadence mux lives in and it has little timing margin.
+
+This is a menu-definition change rather than RTL: the value would be set without an action,
+and a separate button would carry `action="reset"`. Worth checking whether FPGA-Companion's
+XML can defer a `set` that way, or whether it needs a second id that the core latches on
+reset.
