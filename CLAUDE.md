@@ -71,7 +71,7 @@ Owns, and may commit freely:
 Does **not** edit:
 
 - `fpga/` — RTL, constraints, `.sdc`, `.tcl`, the menu XML
-- `README.md`, `docs/FINDINGS.md`, `docs/ROADMAP.md`, `docs/BOM.md`
+- `README.md`, `docs/FINDINGS.md`, `docs/BOM.md`, and `docs/ROADMAP.md` on `dev`
 - this file
 
 **If a build is blocked by something in the source** — a missing file, a constraint
@@ -248,7 +248,7 @@ but this design's timing is congestion-sensitive), and whether `config_save_byte
 The same commit connects `system_turbo_boot` and `system_autofire`, which were wired to
 sysctrl and read by nobody -- the OSD's Boot-in-turbo and Autofire entries did nothing.
 
-Full status is in [README.md](README.md), the roadmap in [docs/ROADMAP.md](docs/ROADMAP.md),
+Full status is in [README.md](README.md), the roadmap on the `dev` branch,
 and everything established about the hardware, the shield, the companion protocol and
 upstream's quirks in [docs/FINDINGS.md](docs/FINDINGS.md) — **read that before re-deriving
 anything**.

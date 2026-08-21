@@ -35,22 +35,11 @@ the keyboard at once.
 | 10 | 1 | **USB gamepad** | XInput (Xbox-style) recommended. Works alongside the DB9 stick on the same MSX port. |
 | 11 | 1 | **USB hub** | Only if you want two USB gamepads. Player 2 is the second XInput device enumerated. |
 
-## WiFi _(optional — MSX UNAPI, not yet wired)_
+## WiFi
 
-| # | Qty | Component | Notes |
-|---|-----|-----------|-------|
-| 12 | 1 | **ESP-01S** | Not wired up yet, but there is somewhere to put it — see below. |
-
-Upstream attaches the ESP-01S to pins **27 and 28**, and those are the shield's DB9 Fire 1 and
-Down lines, so that exact wiring is impossible here. That is not the same as having nowhere to
-put it: the shield breaks out **J3, an expansion header carrying FPGA pins 31, 49, 73, 74, 75
-and 77**, and all six are unassigned in `tang9k.cst`. An ESP-01S needs two of them.
-
-What has not been checked is whether J3 also carries 3V3 and ground, and whether the Tang's
-regulator is happy with the ESP's transmit peaks — see the [roadmap](ROADMAP.md).
-
-Reaching WiFi another way — through the companion rather than a separate module — is
-recorded as a research item in the [roadmap](ROADMAP.md).
+**Not part of 1.0.** Upstream wires an ESP-01S to pins 27 and 28; on this shield those are the
+joystick's Fire 1 and Down lines, so upstream's wiring cannot be used here. Bringing WiFi back
+another way is being worked on — see the `dev` branch.
 
 ## Enclosure
 
@@ -91,3 +80,33 @@ own repository.
 
 Supporting the dual-DB9 variant is a roadmap item; this fork currently mixes its single DB9
 into one MSX port, selectable between port 1 and port 2 from the overlay.
+
+## Without the shield: a Pico on a breadboard
+
+The shield is the tidy way to do this, but the parts it provides are not magic. FPGA-Companion
+runs on a **bare Raspberry Pi Pico**, and its pinout is published, so a breadboard build is
+possible: a Pico, a USB-A socket for the keyboard, and six wires to the Tang's `m0s` header.
+
+From [FPGA-Companion's RP2040 notes](https://github.com/MiSTle-Dev/FPGA-Companion/tree/main/src/rp2040):
+
+| Pico pin | Signal | Goes to |
+|---|---|---|
+| GP2 / GP3 | USB D+ / D− | the USB-A socket for the keyboard |
+| GP16 | MISO | FPGA |
+| GP17 | CSn | FPGA |
+| GP18 | SCK | FPGA |
+| GP19 | MOSI | FPGA |
+| GP22 | IRQn | FPGA |
+| GP4 / GP5 / GP6 | LEDs | optional — mouse, keyboard, joystick indicators |
+
+GP0 is a serial debug output at 921600 baud, which is worth bringing out if you are wiring
+this yourself.
+
+**What you lose.** The DB9 joystick port on this core is wired to the *shield's* pins, so a
+breadboard build has no joystick socket unless you replicate that too — six lines to FPGA
+pins 25, 26, 27, 28, 29 and 30, active-low to ground with pull-ups. The MIDI sockets likewise.
+A USB gamepad still works, because that comes through the Pico.
+
+If you would rather have the board made properly, the shield is open hardware:
+[MiSTle-Dev/Boards](https://github.com/MiSTle-Dev/Boards/tree/main/misteryshield20k_rpipico)
+has the KiCad sources.
