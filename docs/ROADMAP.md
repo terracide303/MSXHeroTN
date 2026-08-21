@@ -4,6 +4,17 @@ The detail behind the two phases summarised in the [README](../README.md). Phase
 working port; Phase 2 is everything else. Each item records what is known, what is decided,
 and what was deliberately rejected, so the same ground is not covered twice.
 
+## Status: 1.0 released
+
+**Phase 1 is complete.** DB9 joystick, the F12 overlay, the English boot menu and settings
+persistence are all done and verified on hardware, and `main` carries them as the 1.0 release.
+
+The one Phase 1 item that did not make it is the browser's 115-file limit, which moved to
+Phase 2 — a real limitation, but not a reason to hold a release, and it is documented rather
+than hidden.
+
+Everything below Phase 1 is what comes next.
+
 ## Which board gets which feature
 
 There are now two MSXHero machines: this one on the Tang Nano 20K, and
@@ -139,7 +150,9 @@ Reference implementation to work from: openMSX's
 [`MSXYamahaSFG.cc`](https://github.com/openMSX/openMSX/blob/master/src/sound/MSXYamahaSFG.cc)
 and [`YM2148.cc`](https://github.com/openMSX/openMSX/blob/master/src/serial/YM2148.cc).
 
-*[Phase 1]* **3. Remove the 115-file limit in the browser** — not started.
+*[Phase 2]* **3. Remove the 115-file limit in the browser** — not started. Moved out of Phase 1
+for the 1.0 release: it is a genuine limitation but not a blocker, and it is documented in the
+README rather than hidden.
 
 The file browser silently shows only the **first 115 entries of any directory**. On a card
 with a few hundred ROMs in the root, everything past 115 is invisible with no warning that
@@ -248,11 +261,15 @@ Upstream's `fpga/GRAPHICAL_FRONTEND_DESIGN.md` explores a richer version of this
 art, a full framebuffer) but targets the Console 60K. The plain 128×64 overlay is the modest,
 achievable version of the same thing.
 
-*[Phase 1]* **5. Translate the on-screen menu to English** — not started, and the most user-visible item
-on this list.
+*[Phase 1]* **5. Translate the on-screen menu to English** — **done, and shipping in 1.0.**
 
-The entire boot menu UI is in Spanish — the status bar, the help screen, every prompt and
-error message:
+The boot menu, its help screen, every prompt and every error message are English, and the
+title reads `MSXHero TN 1.0`. The build toolchain and the technique used to splice the
+assembled menu back into the ROM are written up in
+[`fpga/src/msxnano_menu/BUILDING.md`](../fpga/src/msxnano_menu/BUILDING.md).
+
+What it looked like before, kept because the width constraints below still apply to anyone
+editing these strings:
 
 ```
 "R/D/A=Filtro  ESC=Boot  S=Set  W=WiFi  TAB=Part  H=Ayuda"

@@ -1,6 +1,6 @@
 # Case (3D-printable enclosure)
 
-3D-printable enclosure for the MSXnano (Tang Nano 20K based MSX2+).
+3D-printable enclosure inherited from upstream MSXnano (Tang Nano 20K based MSX2+).
 
 > **Does not fit this fork as-is.** These parts are upstream's, designed around a bare Tang
 > Nano 20K. MSXHeroTN stacks a MiSTeryShield20k on top of the board, which changes the

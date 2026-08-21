@@ -1,6 +1,6 @@
 ![MSXHeroTN](docs/img/banner.png)
 
-# MSXHeroTN
+# MSXHeroTN 1.0
 
 **An MSX2+ home computer, in an FPGA, on a Tang Nano 20K.**
 
@@ -15,9 +15,10 @@ sockets are wired to something instead of sitting inert.
 
 ---
 
-## It works
+## Release 1.0
 
-Everything here has been confirmed by hand on a real board, not by reading the code.
+The first finished release. Everything in this table has been confirmed by hand on a real
+board — not by reading the code, and not merely by compiling.
 
 | | |
 |---|---|
@@ -29,22 +30,28 @@ Everything here has been confirmed by hand on a real board, not by reading the c
 | Turbo — 5.37 MHz, the real Panasonic WSX speed | yes |
 | Scanlines, aspect, stereo, second SCC+, volume | yes |
 | Reset and Cold Boot from the overlay | yes |
-| Remembering your settings | yes — volume, joystick port, and the rest |
+| Remembering your settings | yes — kept in the FPGA's own flash |
 | MIDI | not yet — the sockets are there, the wiring isn't |
 | WiFi | not yet — planned, and the pins for it exist |
 
-Settings survive a power cycle. They are written into the FPGA's own flash rather than onto
-the SD card, so the card stays purely for games.
+### Known limitations
 
-One quirk worth knowing: after a power cycle the machine *uses* your saved settings, but the
-overlay still *displays* the defaults until you touch each entry. The core has no way to tell
-the overlay what it loaded. It looks like a bug and isn't one.
+Small things, written down rather than hidden.
 
-**MIDI and WiFi are both planned rather than abandoned.** Upstream MSXnano supports WiFi
-through an ESP-01S module, and this fork dropped it because the module's pins became the
-joystick's. It is coming back: the shield breaks out an expansion header with six free FPGA
-pins, and the code was deleted rather than rewritten, so restoring it is mostly a revert. See
-[docs/ROADMAP.md](docs/ROADMAP.md).
+**The overlay shows defaults after a power cycle**, even though the machine is using your
+saved settings. Touch an entry and it catches up. The core has no way to tell the overlay what
+it loaded, so this is a display quirk rather than a fault.
+
+**The browser lists only the first 115 files in a directory.** Anything past that is invisible
+with no warning. Use folders. Being fixed — see [docs/ROADMAP.md](docs/ROADMAP.md).
+
+**Turbo is applied by resetting into it.** Changing CPU speed while the machine is running
+hangs it, so the overlay resets instead.
+
+**MIDI and WiFi are planned, not abandoned.** Upstream supports WiFi through an ESP-01S, and
+this fork dropped it because that module's pins became the joystick's. It is coming back: the
+shield breaks out an expansion header with six free FPGA pins, and the code was deleted rather
+than rewritten, so restoring it is close to a revert.
 
 ---
 
@@ -160,8 +167,9 @@ The BIOS pack does not need reflashing. Details in
 
 ## Branches
 
-**`main` is the one that works.** It only moves when a build has been confirmed running on a
-real board — not merely when it compiles, and not merely when it meets timing.
+**`main` is the one that works**, and it is currently **1.0**. It only moves when a build has
+been confirmed running on a real board — not merely when it compiles, and not merely when it
+meets timing.
 
 **`dev`** is where the work happens: half-finished features, builds that failed, and the notes
 that go with them. If you want a machine rather than a project, stay on `main`.
