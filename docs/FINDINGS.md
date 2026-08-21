@@ -517,25 +517,24 @@ is straightforward but touches five sites, so it has been left alone deliberatel
 
 ## 6g. Two traps in this core's own structure
 
-**The OSD cannot drive the core reset.** `sysctrl` holds the OSD's config values and lives
-inside `fpga_companion`, which is reset by `~bus_reset_n`. Anything it drives into that net
-fights itself, and both obvious approaches fail on hardware:
+**The OSD can only drive the core reset if the companion is not reset by it.** `sysctrl`
+holds the OSD's config values and lives inside `fpga_companion`. Reset that from
+`~bus_reset_n` and anything it drives into the reset net fights itself:
 
 - **Level directly into `bus_reset_n`** — boot loop. Asserting reset clears the register that
   was asserting it, so reset releases and it happens again. The companion's startup
   guarantees it: its `init` action sets `R=1`, `ready` sets `R=0`.
-- **Through a `monostable` one-shot**, as `config_reset` does — no picture at all. The
-  companion re-runs `init` after each reset, so `R=1` returns and retriggers the pulse
-  indefinitely, holding the machine down permanently.
+- **Through a `monostable` one-shot** — no picture at all. The companion re-runs `init` after
+  each reset, so `R=1` returns and retriggers the pulse indefinitely.
 
-The OSD reset is therefore **not wired**, and the Reset and Cold Boot buttons were removed
-from the menu rather than left as dead controls. Making it work needs `sysctrl` held out of
-the core reset domain — a power-on reset of its own — which is a bigger change than the
-button is worth.
+The fix is to reset the companion from **PLL lock** instead, which is what NanoMig does
+(`sysctrl .reset(!pll_lock)`). `sysctrl` then survives MSX resets, `system_reset` persists,
+and the level can drive `bus_reset_n` directly. A worthwhile side effect: the companion link
+and the OSD's settings now survive a reset, which is the right behaviour for a peripheral.
 
-The general rule: **anything driven from `sysctrl` into a reset or clock-enable path has this
-problem.** Settings that merely select behaviour are fine; settings that reset or gate the
-logic feeding them are not.
+The general rule: **check what resets the block holding a setting before letting that setting
+drive a reset or clock enable.** Two builds were lost to this before checking how the
+reference core wired the same thing.
 
 **A 29-deep priority mux on the CPU read path.** `cpu_din` selected among ~29 sources as a
 serial priority chain, and it was the endpoint of two paths missing timing. Restructuring it

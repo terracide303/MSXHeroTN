@@ -262,16 +262,13 @@ end
     PINFILTER dn3(
         .clk(clk_54m),
         .reset_n(1),
-        // NOTE: the OSD's Reset button (sysctrl CMD 4, id "R") is deliberately
-        // NOT wired in here. sysctrl lives inside fpga_companion, which is reset
-        // by ~bus_reset_n, so anything it drives into this net fights itself.
-        // Driving the level directly boot-loops the machine (the reset clears the
-        // register asserting it); routing it through a monostable one-shot gives
-        // no picture at all, because the companion re-runs its init action -- which
-        // sets R=1 -- after each reset, retriggering the pulse indefinitely.
-        // Making it work needs sysctrl held out of the core reset domain, which is
-        // a bigger change than the button is worth. See docs/FINDINGS.md.
-        .din(ex_bus_reset_n & ~config_reset),
+        // OSD reset (sysctrl CMD 4, id "R"): 1 = reset, 3 = cold boot, 0 = run.
+        // Safe to use as a level now that fpga_companion is reset from PLL lock
+        // rather than from this net -- sysctrl no longer clears the register that
+        // is asserting the reset. Two earlier attempts with the companion still on
+        // the core reset boot-looped the machine and then killed the picture
+        // entirely; see docs/FINDINGS.md before changing this.
+        .din(ex_bus_reset_n & ~config_reset & ~(|system_reset)),
         .dout(bus_reset_n)
     );
 
@@ -2955,7 +2952,14 @@ memory_ctrl mem1 (
     fpga_companion fpga_companion_inst
     (
         .clk (clk_27m),
-        .reset (~bus_reset_n),
+        // Reset from PLL lock, NOT from the core reset. sysctrl lives in here and
+        // holds the OSD's settings, so resetting it whenever the MSX resets makes
+        // an OSD-driven reset impossible -- it would clear the very register
+        // asserting it. NanoMig does the same (sysctrl .reset(!pll_lock)).
+        // A side effect worth knowing: the companion link and the OSD's settings
+        // now survive an MSX reset, which is the correct behaviour for a
+        // peripheral anyway.
+        .reset (~clock_locked),
 
         .m0s (m0s),
 
