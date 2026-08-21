@@ -9,13 +9,23 @@ top-level `CLAUDE.md` (build instructions for this machine).
 (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88). Synthesis and
 place & route both completed with no errors.
 
-**A newer build (commit `28c916d`) was attempted and is NOT here** — it missed
-`clock_54m` timing badly (50.425 MHz vs the 54.000 MHz constraint, worse than
-any build so far) on CPU-to-memory-controller paths. That source includes real
-fixes worth having eventually (OSD centring offsets, signed-volume fix, more
-OSD settings wired through), but the bitstream itself isn't safe to flash. It's
-kept at `compiled/failed/msxnano-mistle_tangnano20k_28c916d.fs` with details in
-`compiled/failed/README.md` and `docs/UTILISATION.md`, for reference only.
+**Two newer builds were attempted and are NOT here.** Both missed `clock_54m`
+timing on the same CPU-to-memory-controller paths, so the bitstream in this
+folder is still `fb6bea0`.
+
+- `28c916d` (OSD centring offsets, signed-volume fix, more OSD settings wired
+  through): Fmax 50.425 MHz vs 54.000 MHz, worst regression so far.
+- `0cf00b7` (`28c916d` + `3dddae4` "compile out the unreachable WiFi", aimed
+  specifically at freeing CLS to fix the regression above, + a same-day fix to
+  two dangling `Z80_goauld.sdc` constraints left over from that WiFi removal —
+  without the fix PnR errors out and produces no bitstream at all): Fmax
+  53.217 MHz vs 54.000 MHz. Much closer — TNS down from -3.452 ns/13 endpoints
+  to -0.464 ns/5 — but still failing, so the WiFi removal wasn't quite enough
+  on its own.
+
+Both are kept at `compiled/failed/msxnano-mistle_tangnano20k_<sha>.fs` with
+details in `compiled/failed/README.md` and `docs/UTILISATION.md`, for
+reference only. `clock_54m` still needs more headroom before the next attempt.
 
 ## Things worth knowing before/while testing on hardware
 

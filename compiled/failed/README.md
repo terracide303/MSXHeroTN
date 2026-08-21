@@ -29,3 +29,26 @@ CPU<->memory path over, rather than any single change being obviously at fault. 
 
 Do not flash this one — it's kept only so a later build (once `clock_54m` is closed
 again) has something to diff against.
+
+## msxnano-mistle_tangnano20k_0cf00b7.fs
+
+Built from commit `0cf00b7` (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target
+GW2AR-18C QFN88), 2026-08-21. Includes `3dddae4` ("compile out the unreachable
+WiFi", intended specifically to relieve the CLS pressure behind the `28c916d`
+failure above) plus a same-day fix (`0cf00b7`) commenting out two `set_false_path`
+lines in `Z80_goauld.sdc` that referenced `uwifi/*` pins no longer present once
+`` `ENABLE_WIFI`` was disabled — without that fix PnR errors out
+(`TA2003: Can't set timing constraint to object`) and never produces a bitstream.
+
+Much closer than the `28c916d` attempt, but still fails: `clock_54m` Fmax
+53.217 MHz against 54.000 MHz — TNS -0.464 ns across only 5 endpoints (down from
+-3.452 ns / 13 endpoints). Worst offenders, same CPU/memory-controller boundary
+as before:
+
+- `cpu1/IORQ_n_i_s0/Q` -> `wait_io_ff_s2/CE` (-0.136 ns)
+- `cpu1/u0/IStatus_0_s15/DO[8]` -> `cpu_din_0_s0/D` (-0.119 ns)
+- `cpu1/u0/IStatus_0_s15/DO[8]` -> `mem1/sdram_addr_7_s0/D` (-0.110 ns)
+
+CLS only dropped slightly (9124/10368 -> 9100/10368, still 88%) — less relief than
+the commit's reasoning expected, so WiFi removal alone isn't quite enough to close
+this domain. All other clocks pass comfortably. Do not flash; kept for comparison.
