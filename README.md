@@ -87,7 +87,8 @@ That is the part that bites. A screen drawn by the MSX can only exist when the M
 being an MSX — it needs the video chip, and once a game has started, the game owns the video
 chip. The settings screen and your game cannot both be on screen, ever.
 
-In practice:
+**This fork fixes all of the following.** Each one is what you get with upstream; each one
+works here, because the overlay is drawn by the FPGA rather than by the MSX.
 
 - **You cannot change anything while playing.** Want scanlines off, or stereo on, or the second
   SCC+ enabled? Reset back to the browser, change it, reload the game. Every time.
@@ -97,11 +98,13 @@ In practice:
   takes a key away from the machine to work around having no menu.
 - **There is no reset or cold boot in software.** You reach for the button on the board.
 
-This fork composites the overlay in the FPGA, between the video chip and the HDMI encoder.
-Because it never asks the MSX for permission, `F12` works anywhere — mid-game, mid-load, in the
-browser — and turbo, volume, video and audio settings, reset and cold boot are all reachable
-without losing what you are doing. `F11` goes back to being an ordinary key that belongs to the
-MSX.
+The fix is to draw the overlay in the FPGA itself, between the video chip and the HDMI encoder.
+It is painted onto the picture on its way out to the screen, so it never asks the MSX for
+permission and never needs the game to stop.
+
+That is why `F12` works anywhere — mid-game, mid-load, in the browser — with turbo, volume,
+video and audio settings, reset and cold boot all reachable without losing what you are doing.
+And `F11` goes back to being an ordinary key that belongs to the MSX.
 
 ### The shield
 
