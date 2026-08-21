@@ -48,7 +48,7 @@ module sysctrl (
   output reg	    system_pal,          // "P" 60Hz NTSC(0) or 50Hz PAL(1)
   output reg [1:0]  system_keyboard,     // "K" int(0), japanese(1), spanish(2)
   output reg	    system_db9_port,     // "J" DB9 on MSX port 1(0) or 2(1)
-  output reg [1:0]  system_autofire,     // "F" off(0), 5Hz(1), 10Hz(2), 20Hz(3)
+  output reg [1:0]  system_autofire,     // "F" off(0), 3Hz(1), 6Hz(2), 13Hz(3)
   output reg	    system_save          // "W" 1 = write the settings to flash
 );
 
@@ -220,7 +220,7 @@ always @(posedge clk) begin
                     if(id == "K") system_keyboard <= data_in[1:0];
                     // Value "J": DB9 answers on MSX joystick port 1(0) or 2(1)
                     if(id == "J") system_db9_port <= data_in[0];
-                    // Value "F": autofire off(0), 5Hz(1), 10Hz(2), 20Hz(3)
+                    // Value "F": autofire off(0), 3Hz(1), 6Hz(2), 13Hz(3)
                     if(id == "F") system_autofire <= data_in[1:0];
                     // Value "W": 1 asks the core to write the settings to
                     // flash. The XML raises it and drops it again like "R";

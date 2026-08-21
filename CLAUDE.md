@@ -40,7 +40,29 @@ here and in `docs/FINDINGS.md` precisely so they are not re-litigated.
 something is ready, so make results easy to find: a clear commit subject and the numbers in
 `docs/UTILISATION.md` rather than only in the session transcript.
 
-## Build this next: `db4ac25`
+## Build this next: the autofire rewrite on top of `db4ac25`
+
+`0b3f629` compiled clean but missed `clock_54m` — TNS -0.555 ns over 6 endpoints, CLS
+9054 -> 9102. Thank you for checking the TNS table rather than trusting the 54.367 MHz
+Fmax; that distinction is now recorded in `docs/UTILISATION.md` and is worth applying to
+every future build here.
+
+The +48 CLS was almost entirely one block, and it was in `clk_54m`: the OSD autofire rate
+had been built as a 23-bit counter plus a 23-bit limit register plus a variable
+comparator. That has been replaced with a free-running counter whose square wave is
+simply one of its bits — **no comparator at all**, which is cheaper than the fixed-rate
+code that was there before this feature existed (it compared 22 bits against a constant
+every cycle). The rates move from 5/10/20 Hz to 3/6/13 Hz as a result, which is why the
+menu labels changed.
+
+Expectation: CLS should land at or below the 9054 of the last good build, and `clock_54m`
+should return to closing. If it still misses, say so and stop — do not start trimming;
+the next step is the design side's call and the fallback is dropping the autofire rate
+control entirely, keeping only persistence.
+
+Everything else from the previous brief still applies:
+
+## Previous brief: `db4ac25`
 
 Settings persistence, plus two OSD entries that were connected to nothing. No new source
 files, so `build_files.tcl` and the `.gprj` are unchanged — it is edits to `top.v`,

@@ -576,31 +576,38 @@ end
 // press AND release is sampled; 50 ms = 2.5-3 frames is safe even on PAL.
 // Ported from the goauld+RP2040 fork (there it lived in firmware; here, no
 // RP2040 -> it lives in the FPGA on the PSG joystick-injection path).
-//   54 MHz * 0.050 s = 2,700,000 cycles per half period.
-// OSD "F" picks the rate: the half period is what the counter measures, so
-// 5 Hz is 100 ms, 10 Hz 50 ms (the original hardwired value) and 20 Hz 25 ms.
-// Off stops the pulsing entirely rather than just slowing it, so buttons 3/4
-// go back to doing nothing. autofire_ff crosses from clk_27m without a
-// synchroniser, as the other OSD settings on this path already do -- it is a
-// rate select that changes when a human moves a menu entry, never mid-press.
-reg        af_phase = 1'b0;
-reg [22:0] af_cnt   = 23'd0;
-reg [22:0] af_limit = 23'd2700000;
-always @(posedge clk_54m) begin
+//
+// OSD "F" picks the rate, and the rates are deliberately powers of two apart so
+// that NO COMPARATOR IS NEEDED: the counter free-runs and the square wave is
+// simply one of its bits. A bit toggles every 2^n cycles, so at 54 MHz
+//   bit 23 -> 155 ms half period ->  3.2 Hz
+//   bit 22 ->  78 ms             ->  6.4 Hz
+//   bit 21 ->  39 ms             -> 12.9 Hz
+// This is cheaper than the fixed-rate version it replaces, which compared 22
+// bits against a constant on every clk_54m edge -- and clk_54m is the domain
+// with no timing margin, so the odd-looking rates are worth it. An earlier
+// attempt here (a 23-bit limit register plus a variable comparator, giving a
+// tidy 5/10/20 Hz) cost 48 CLS and pushed clock_54m to -0.555 ns TNS.
+//
+// Every half period stays above 39 ms, comfortably longer than one MSX PSG scan
+// at 50 Hz (20 ms), so each press and release is still sampled -- which is the
+// constraint the original 50 ms was chosen to satisfy.
+//
+// autofire_ff crosses from clk_27m without a synchroniser, as the other OSD
+// settings on this path already do: it is a rate select that changes when a
+// human moves a menu entry, never mid-press.
+reg [23:0] af_cnt = 24'd0;
+always @(posedge clk_54m) af_cnt <= af_cnt + 24'd1;
+
+reg af_on;
+always @(*) begin
     case (autofire_ff)
-        2'd1:    af_limit <= 23'd5400000;   //  5 Hz
-        2'd2:    af_limit <= 23'd2700000;   // 10 Hz
-        2'd3:    af_limit <= 23'd1350000;   // 20 Hz
-        default: af_limit <= 23'd2700000;   // off: value unused, phase is gated
+        2'd1:    af_on = af_cnt[23];   //  3 Hz
+        2'd2:    af_on = af_cnt[22];   //  6 Hz
+        2'd3:    af_on = af_cnt[21];   // 13 Hz
+        default: af_on = 1'b0;         // off: buttons 3/4 do nothing again
     endcase
-    if (af_cnt >= af_limit) begin
-        af_cnt   <= 23'd0;
-        af_phase <= ~af_phase;
-    end else begin
-        af_cnt   <= af_cnt + 23'd1;
-    end
 end
-wire af_on = af_phase & (autofire_ff != 2'd0);
 // fire = manual press OR (autofire button held AND square-wave high). If the pad
 // has no button 3/4 (bits 6/7 stay 0) this reduces to the original behaviour.
 wire af_fa0 = joystick0[4] | (joystick0[6] & af_on);   // joy0 TrigA: manual + btn3 turbo
