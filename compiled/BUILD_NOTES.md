@@ -3,41 +3,45 @@
 Read this alongside `docs/UTILISATION.md` (full resource/timing report) and the
 top-level `CLAUDE.md` (build instructions for this machine).
 
-## Current bitstream
+## Branch note
 
-`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `85729ad`
-(Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88). Synthesis and
-place & route both completed with no errors.
+This repo now splits `main` (only advances once a build is verified on
+hardware) from `dev` (where build-machine work happens). `85729ad` — the
+SDRAM-sequencer fix below — **was verified on hardware**, is tagged
+`known-good-85729ad`-equivalent (check `git tag` for the exact name) and
+pinned in `compiled/known-good/`, which this machine never writes to. `main`
+now points at it. The bitstream below is built from `dev`, one commit past
+that, and is **not yet verified on hardware**.
 
-**`clock_54m` closes for real this time: Fmax 56.588 MHz against 54.000 MHz,
-zero negative slack confirmed via the TNS table** (not just a passing-looking
-Fmax number — see below for why that distinction matters here). All six
-clocks pass. CLS 9074/10368 (88%).
+## Current bitstream (on `dev`, not yet hardware-verified)
 
-This ends a run of three failed builds (`0b3f629`, `aa52343`, `c2fcec4`, all
-in `compiled/failed/`) that circled the actual cause without finding it. The
-last of those, `c2fcec4`, had the lowest CLS of any build (9008, below the
-9054 of the last good build `6389ac0`) and touched nothing in `clk_54m` at
-all — yet still failed. That ruled out both "resource count" and "which
-domain the change lands in" as the explanation, and pointed at the one path
-that had never been restructured: every failing build's worst endpoints were
-on `cpu1/RD -> mem1/sdram_*`. The `ram_req`/`ram_read`/`ram_write` chains
-feeding `memory_ctrl` (instantiated on `clk_54m` despite its `clk_27m` port
-name) were serial `?:` chains up to nine levels deep — one had no real
-priority to preserve (every branch just returned its own condition, an OR
-written the long way), the other had nine branches all returning the
-identical value. Flattened to balanced OR trees, exact by construction since
-every term is one bit wide, verified across all 544 input combinations of
-the compiled configuration with zero mismatches.
+`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `25f80b8`
+on `dev` (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88).
+Synthesis and place & route both completed with no errors.
 
-**Persistence (from `db4ac25`) and the reverted autofire (from `c2fcec4`)
-both ride along unchanged in this build** — `c2fcec4` already proved
-persistence wasn't the cause, so nothing there needs re-testing. Same OSD
-reset/Cold Boot fix, centring correction and MSXHero rename as `6389ac0`;
-the new thing to confirm on hardware specifically is that settings actually
-persist across power cycles (volume, DB9 port, autofire — though autofire's
-rate control is gone from the menu, fixed at ~10 Hz) and that Boot-in-Turbo
-now works.
+Fixes a real bug found when `85729ad` was tested on hardware: **the machine
+booted muted and stayed muted after saving.** `config_sig[5]` (volume) is
+latched in the same cycle `config_init` reads it while seeding settings from
+flash, one cycle before that byte is actually valid — so every boot read a
+stale `8'd0` and seeded volume to zero, silently, since the old validity
+test (bit 7 clear) accepted the stale zero as legitimate. Scanlines (byte 2)
+landed earlier and were unaffected, which is why they already persisted
+correctly. Fixed by seeding one cycle later and tightening the marker to
+`[7:6] == 01`, rejecting both an erased `0xFF` and a stale `0x00`.
+
+**`clock_54m` still passes, but the margin thinned noticeably: Fmax 54.306 MHz
+against 54.000 MHz (was 56.588 MHz in `85729ad`), zero negative slack
+confirmed.** The commit describes this as a `clk_27m`-only change "nowhere
+near the paths that were failing," and explicitly asked for the margin to be
+reported if it moved — it did move, by a meaningful amount, from a change
+that shouldn't have touched the critical domain. Worth flagging plainly
+rather than assuming it's noise, per the commit's own request. All other
+clocks pass comfortably; CLS 9069/10368 (88%).
+
+**Worth confirming on hardware specifically**: volume now persists correctly
+across power cycles (previously silently reset to mute on every boot), and
+nothing else regressed. Once confirmed, this is the build to fast-forward
+`main` to and tag.
 
 **`clock_54m` passes with a healthy margin again: Fmax 56.973 MHz against the
 54.000 MHz constraint**, zero negative slack, all six clocks pass. CLS ticked

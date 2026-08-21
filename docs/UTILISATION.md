@@ -1,15 +1,15 @@
 # Utilisation (Gowin place & route, GW2AR-18C QFN88)
 
-Built from commit `85729ad` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
-`build.tcl`, `set_option -place_option 2 -route_option 2`).
+Built from commit `25f80b8` on the `dev` branch, Windows/Gowin machine (Gowin EDA
+1.9.11.03, `build.tcl`, `set_option -place_option 2 -route_option 2`).
 
 ## Resource usage
 
 | Resource | Usage | Utilization |
 |---|---|---|
-| Logic (LUT/ALU/ROM16) | 14200/20736 (12120 LUT, 2080 ALU) | 68% |
-| Register | 7444/15915 | 47% |
-| CLS | 9074/10368 | 88% |
+| Logic (LUT/ALU/ROM16) | 14273/20736 (12193 LUT, 2080 ALU) | 69% |
+| Register | 7445/15915 | 47% |
+| CLS | 9069/10368 | 88% |
 | I/O Port | 43/66 | 66% |
 | IOLOGIC | 6/121 | 5% |
 | BSRAM | 15/46 | 33% |
@@ -22,18 +22,41 @@ place/route effort at level 2.
 
 | Clock | Constraint | Actual Fmax | Logic level | Status |
 |---|---|---|---|---|
-| clock_audio | 3.600 MHz | 405.845 MHz | - | pass |
-| clock_27m | 27.000 MHz | 70.479 MHz | - | pass |
-| clock_54m | 54.000 MHz | 56.588 MHz | - | pass |
-| clock_108m | 108.000 MHz | 156.163 MHz | - | pass |
-| clock_108i | 108.000 MHz | 156.163 MHz | - | pass |
-| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 123.140 MHz | - | pass |
+| clock_audio | 3.600 MHz | 443.020 MHz | - | pass |
+| clock_27m | 27.000 MHz | 66.210 MHz | - | pass |
+| clock_54m | 54.000 MHz | 54.306 MHz | - | pass (thin) |
+| clock_108m | 108.000 MHz | 175.776 MHz | - | pass |
+| clock_108i | 108.000 MHz | 175.776 MHz | - | pass |
+| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 225.312 MHz | - | pass |
 
-All clocks pass, **zero negative slack anywhere** — a genuine, TNS-confirmed pass,
-not a look-alike Fmax number. See "SDRAM sequencer flattened" below — this is the
-build that finally addresses the actual recurring critical path after three misses.
+All clocks pass, zero negative slack anywhere — a genuine pass. **But `clock_54m`'s
+margin shrank noticeably** — 56.588 MHz (`85729ad`, verified on hardware) to
+54.306 MHz here — from a change the commit itself describes as "entirely within
+`clk_27m` and nowhere near the paths that were failing." The commit explicitly asked
+for this to be reported if it moved, "because that would mean the placement
+sensitivity is worse than we think" — so: it moved, by a meaningful amount, from a
+change that shouldn't have touched the critical domain at all. Worth taking that at
+face value rather than assuming it's noise.
 
-## SDRAM sequencer flattened (commit `85729ad`, currently flashable) — the current build
+## Settings-load fix, but clock_54m margin thinned unexpectedly (commit `25f80b8`, dev, verify on hardware before promoting to main)
+
+Fixed a real bug found on hardware in `85729ad`: the machine booted muted and stayed
+muted after saving. Cause: `config_sig[5]` (volume) is latched in the cycle
+`last_bytes_cnt` leaves 1, while `config_init` — which seeds settings from the saved
+flash byte — runs *during* that same cycle, so it read a stale `8'd0` instead of the
+real value, and the old validity test (bit 7 clear) accepted that stale zero as a
+legitimate saved setting. Bytes 2-4 (scanlines, etc.) landed earlier and were
+unaffected, which is why scanlines already persisted correctly. Fixed by seeding one
+cycle later, once the byte is actually valid, and tightening the marker to `[7:6] ==
+01` so a stale `0x00` is rejected the same as an erased `0xFF`.
+
+`clock_54m` still passes — 54.306 MHz against 54.000 MHz, zero negative slack — but
+per above, the margin thinning is worth the design side's attention even though this
+was meant to be timing-neutral. All other clocks pass comfortably. CLS 9069/10368
+(88%). This has **not yet been verified on hardware** — per the branch policy, `main`
+only advances once a `dev` build is confirmed working on the board.
+
+## SDRAM sequencer flattened (commit `85729ad`, verified on hardware, tagged and on `main`)
 
 Three failed builds (`0b3f629`, `aa52343`, `c2fcec4`) all missed `clock_54m` on
 `cpu1/RD -> mem1/sdram_*` paths, and `c2fcec4` — lowest CLS of any build (9008,
