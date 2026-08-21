@@ -1,42 +1,66 @@
 # Utilisation (Gowin place & route, GW2AR-18C QFN88)
 
-Built from commit `8e6a5e9` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
+Built from commit `6389ac0` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
 `build.tcl`, `set_option -place_option 2 -route_option 2`).
 
 ## Resource usage
 
 | Resource | Usage | Utilization |
 |---|---|---|
-| Logic (LUT/ALU/ROM16) | 14488/20736 (12011 LUT, 2075 ALU) | 70% |
-| Register | 7425/15915 | 47% |
-| CLS | 8977/10368 | 87% |
+| Logic (LUT/ALU/ROM16) | 14091/20736 (12016 LUT, 2075 ALU) | 68% |
+| Register | 7427/15915 | 47% |
+| CLS | 9054/10368 | 88% |
 | I/O Port | 43/66 | 66% |
 | IOLOGIC | 6/121 | 5% |
 | BSRAM | 15/46 | 33% |
 | DSP | 2.5/24 | 11% |
 
-CLS is still the tightest resource at 87%, which is why `build.tcl` keeps
-place/route effort at level 2.
+CLS ticked back up to 88% (from 87%), still the tightest resource, why
+`build.tcl` keeps place/route effort at level 2.
 
 ## Max frequency summary
 
 | Clock | Constraint | Actual Fmax | Logic level | Status |
 |---|---|---|---|---|
-| clock_audio | 3.600 MHz | 415.895 MHz | - | pass |
-| clock_27m | 27.000 MHz | 70.613 MHz | - | pass |
-| clock_54m | 54.000 MHz | 54.138 MHz | - | pass (thin) |
-| clock_108m | 108.000 MHz | 184.178 MHz | - | pass |
-| clock_108i | 108.000 MHz | 184.178 MHz | - | pass |
-| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 220.554 MHz | - | pass |
+| clock_audio | 3.600 MHz | 492.285 MHz | - | pass |
+| clock_27m | 27.000 MHz | 67.703 MHz | - | pass |
+| clock_54m | 54.000 MHz | 56.973 MHz | - | pass |
+| clock_108m | 108.000 MHz | 141.901 MHz | - | pass |
+| clock_108i | 108.000 MHz | 141.901 MHz | - | pass |
+| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 284.338 MHz | - | pass |
 
-All clocks pass, zero negative slack anywhere. **`clock_54m`'s margin dropped sharply**
-— 57.049 MHz (previous build) to 54.138 MHz (this one), about 0.25% headroom — despite
-this build containing *less* logic (14488 vs 14695 total), not more. Worth watching:
-margin on this domain has not tracked logic size predictably build-to-build, so if a
-future change regresses it again, don't assume the same congestion story that explained
-the earlier `28c916d`/`0cf00b7` failures without checking.
+All clocks pass, zero negative slack anywhere. **`clock_54m` margin recovered** —
+54.138 MHz (previous build) to 56.973 MHz (this one). Five commits landed together
+this round (OSD reset fixed properly, OSD centring corrected, menu translated and
+renamed to MSXHero), so no single change is isolated as the reason; nothing here
+looks fragile.
 
-## OSD-reset-wiring removal (commit `8e6a5e9`, currently flashable) — the current build
+## OSD reset done right, centring fixed, menu translated (commit `6389ac0`, currently flashable)
+
+**Reset and Cold Boot work again, by fixing the actual cause instead of retrying
+either broken approach** (`c52c1ac`). `fpga_companion` — which holds sysctrl, and
+therefore the OSD's `system_reset` value — was reset from `~bus_reset_n`, the same
+core reset the OSD's own reset drove into; that's why a level self-cleared (boot
+loop, `ca77609`/`6bf45e1`) and a monostable retriggered forever (no picture,
+`b903b2f`/`69791f9`). Fix: reset `fpga_companion` from `~clock_locked` (PLL lock)
+instead, matching NanoMig's reference firmware, so sysctrl survives MSX resets and
+`system_reset` can drive `bus_reset_n` directly. Side effect: an MSX reset no longer
+resets the companion link or OSD state — correct for a peripheral, not a bug.
+
+**OSD centring corrected** (`093bb4c`) — prior offsets were derived from HDMI encoder
+porch timings, the wrong coordinate system; the OSD actually measures against the
+VDP's own `hcnt`/`vcnt`. Recomputed from the VDP's real constants, fixing what the
+user reported as ~8cm off-centre on a ~60cm picture. Vertical left alone (not
+reported as off) but flagged as derived the same mistaken way, possibly needing the
+same fix later.
+
+**Menu translated to English and renamed to MSXHero v1.0** (`ac9e539`, `2bd2e32`) —
+boot menu and OSD both now read "MSXHero", every user-facing string translated, WiFi
+entry removed from the menu (compiled out on this fork, previously led to a dead
+config screen). Both ROMs (boot menu and OSD `msxnano_xml`) extracted/loaded cleanly
+in this build, no missing-file or size warnings.
+
+## OSD-reset-wiring removal (commit `8e6a5e9`, superseded by `6389ac0` above)
 
 The previous build (`b903b2f`, below) closed timing (57.049 MHz) but **showed no
 picture at all** on hardware — worse than the boot loop before it. Root cause per

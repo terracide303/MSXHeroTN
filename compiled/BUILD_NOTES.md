@@ -5,43 +5,52 @@ top-level `CLAUDE.md` (build instructions for this machine).
 
 ## Current bitstream
 
-`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `8e6a5e9`
+`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `6389ac0`
 (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88). Synthesis and
 place & route both completed with no errors.
 
-**`clock_54m` passes, but only just: Fmax 54.138 MHz against the 54.000 MHz
-constraint** — about 0.25% margin, down sharply from the previous build's
-57.049 MHz despite this build containing *less* logic, not more. Zero
-negative slack, all six clocks pass, CLS 8977/10368 (87%, essentially flat).
-Worth flagging to whoever tests next: this is a real pass, not a fluke, but
-the margin is thin enough that a small unrelated change could tip it back
-into failing. If a future build regresses `clock_54m` again, don't assume
-it's the same congestion story as the earlier `28c916d`/`0cf00b7` saga —
-check what actually changed, since margin has been noisy build-to-build in
-ways not fully explained by logic size alone.
+**`clock_54m` passes with a healthy margin again: Fmax 56.973 MHz against the
+54.000 MHz constraint**, zero negative slack, all six clocks pass. CLS ticked
+up slightly to 9054/10368 (88%, from 87%). This is a real recovery from the
+previous build's thin 54.138 MHz — five commits landed together this round,
+so no single one is isolated as the reason margin came back, but nothing
+here looks fragile.
 
-**The previous build (`b903b2f`) closed timing (57.049 MHz) but showed no
-picture at all on hardware** — worse than the build before it, which at
-least boot-looped with a flash of picture. Root cause per `69791f9`: routing
-the OSD reset through a monostable (the fix in `b903b2f`) stopped the
-immediate self-clearing boot loop, but the companion re-runs its init action
-(which sets `R=1`) after every reset, so the one-shot pulse retriggered
-indefinitely and the machine never got past reset at all. The actual fix in
-this build removes the OSD reset wiring entirely — Reset and Cold Boot are
-gone from the OSD menu, and Turbo no longer applies via reset (takes effect
-on next power cycle instead). **Do not re-add OSD-driven reset wiring** —
-both prior attempts (level into `bus_reset_n`, and through a monostable)
-broke the machine in different ways, and the commit's own conclusion is that
-fixing it properly needs sysctrl held out of the core reset domain with its
-own power-on reset, which is a real design decision, not a build-side fix.
+**Reset and Cold Boot are back, and this time by fixing the actual cause**
+(`c52c1ac`), not by retrying either of the two approaches that already broke
+the machine (level into `bus_reset_n` -> boot loop; through a monostable ->
+no picture). `fpga_companion` — which holds sysctrl, and therefore the OSD's
+values including `system_reset` — was reset from `~bus_reset_n`, the same
+core reset the OSD's own reset was driving; hence the earlier self-clearing
+problem. The fix resets `fpga_companion` from `~clock_locked` (PLL lock)
+instead, the same pattern NanoMig's reference firmware uses, so sysctrl
+survives MSX resets and `system_reset` can drive `bus_reset_n` directly as
+originally intended. Side effect worth knowing: an MSX reset no longer
+resets the companion link or the OSD's own state (previously it did) — that
+is now correct behaviour for a peripheral, not a regression, per the commit.
+Turbo again applies via `action="reset"` rather than waiting for a power
+cycle. **Worth testing on hardware first**: Reset and Cold Boot both work as
+expected, and nothing regresses on a plain MSX reset (companion link stays
+up, OSD settings survive).
 
-Menu XML (`msxnano.xml`) and its generated `.hex` changed to drop the two
-menu items — extraction into RAM succeeded with no missing-file warnings in
-this build's log. Worth confirming visually that the OSD menu no longer
-shows Reset/Cold Boot, and that the machine now boots to a picture and stays
-up, before testing anything else. Signed volume, scanlines/aspect/stereo/
-second-SCC wiring, and the OSD centring offsets are all still unconfirmed on
-hardware per the commit — nothing here changes that.
+**OSD centring was also corrected** (`093bb4c`) — the previous offsets were
+derived from the wrong coordinate system (HDMI encoder porch timings instead
+of the VDP's own `hcnt`/`vcnt`), leaving the overlay about 100px right of
+centre, matching what the user reported (~8cm off on a ~60cm picture).
+Horizontal is recomputed from the VDP's actual constants; vertical was left
+alone since it wasn't reported as off, though the commit flags it as
+possibly needing the same fix later. Worth confirming the overlay is now
+visually centred, especially horizontally.
+
+**Menu ROM was regenerated for both a full English translation and a rename**
+(`ac9e539`, `2bd2e32`): boot menu and OSD both now read "MSXHero v1.0"
+instead of "MSXnano", every user-facing string is in English (status bar,
+help screen, launch/mount/error screens), and the WiFi entry is gone from
+the menu since it's compiled out on this fork and previously led to a dead
+configuration screen. `msxnano_xml` (OSD) and the boot menu's own ROM both
+extracted/loaded cleanly, no missing-file or size warnings in this build's
+log — worth visually confirming text renders correctly and nothing got cut
+off, since several strings were fit to fixed column counts.
 
 ## Flashing
 
