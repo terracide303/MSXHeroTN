@@ -74,6 +74,32 @@ room overall. Kept at `compiled/failed/msxnano-mistle_tangnano20k_aa52343.fs`, n
 flashed; reported rather than trimmed further, per `CLAUDE.md`. The table at the top
 of this document still reflects the current flashable build (`6389ac0`).
 
+## Persistence-only attempt: clock_54m still fails, and this change doesn't touch it (not flashed)
+
+`c2fcec4` reverted both autofire attempts back to byte-for-byte what shipped in
+`6389ac0`; what remains is settings persistence, whose entire delta is 12 flip-flops
+in `clk_27m`, one extra mux leg on `flash_write_din`, and two signal renames —
+**nothing touches `clk_54m`**, per the commit's own accounting.
+
+**`clock_54m` still fails.** Fmax 51.309 MHz against 54.000 MHz (a real fail, flagged
+red), TNS -1.583 ns across 7 Setup endpoints. CLS is 9008/10368 (87%) — *lower* than
+the last good build's 9054, and lower even than `aa52343`'s 9028, which also failed.
+Failing paths:
+
+- `cpu1/RD_s0/Q` -> `mem1/sdram_seq_1_s1/CE` / `sdram_seq_2_s1/CE` (worst -0.486 ns)
+- `cpu1/RD_s0/Q` -> `state_wait_0_s4/CE` / `state_wait_1_s2/CE` (-0.196 ns)
+- `cpu1/RD_s0/Q` -> `mem1/sdram_seq_0_s4/D`, `mem1/sdram_addr_17_s0/D` (-0.128, -0.061 ns)
+- `cpu1/u0/IStatus_0_s15/DO[8]` -> `cpu_din_4_s0/D` (-0.032 ns)
+
+**Worth surfacing plainly: CLS has now been lower than the last-passing build's in two
+consecutive attempts (`aa52343` at 9028, this one at 9008), and both still fail
+`clock_54m` — one of them with a change that touches nothing in the failing clock
+domain at all.** Neither resource count nor "does the change touch clk_54m" predicts
+the outcome here; something else is driving the placer's behaviour on this specific
+netlist. All other clocks pass comfortably. Kept at
+`compiled/failed/msxnano-mistle_tangnano20k_c2fcec4.fs`, not flashed; the table at
+the top of this document still reflects the current flashable build (`6389ac0`).
+
 ## OSD reset done right, centring fixed, menu translated (commit `6389ac0`, currently flashable)
 
 **Reset and Cold Boot work again, by fixing the actual cause instead of retrying

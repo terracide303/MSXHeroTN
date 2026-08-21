@@ -9,7 +9,7 @@ top-level `CLAUDE.md` (build instructions for this machine).
 (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88). Synthesis and
 place & route both completed with no errors.
 
-**Two newer builds were attempted and are NOT here** — both missed `clock_54m`,
+**Three newer builds were attempted and are NOT here** — all missed `clock_54m`,
 so the bitstream in this folder is still `6389ac0`.
 
 - `0b3f629` (first compile of `db4ac25` — settings persistence to flash,
@@ -25,14 +25,22 @@ so the bitstream in this folder is still `6389ac0`.
   timing got **worse**, not better — Fmax 50.717 MHz (a real fail this time,
   not a look-alike), TNS -5.172 ns across 17 endpoints, now including the
   `cpu1/RD` -> `mem1/sdram_*` path family from the original `28c916d`
-  regression as well as the recurring `IStatus` -> `cpu_din` one. CLS coming
-  down while timing got worse means this isn't just a resource-count story —
-  something about where the placer landed this specific netlist hurt the
-  CPU/memory-controller boundary despite more room overall.
+  regression as well as the recurring `IStatus` -> `cpu_din` one.
+- `c2fcec4` (reverted both autofire attempts, byte-for-byte back to `6389ac0`'s
+  autofire block — the only remaining delta is persistence: 12 flip-flops in
+  `clk_27m`, one mux leg on `flash_write_din`, two signal renames, **nothing
+  touching `clk_54m`**): **still fails.** Fmax 51.309 MHz, TNS -1.583 ns
+  across 7 endpoints, CLS 9008/10368 (87%) — lower than both the last-passing
+  build (9054) and `aa52343` (9028), which also failed.
 
-Both kept at `compiled/failed/msxnano-mistle_tangnano20k_<sha>.fs` with full
-details in `compiled/failed/README.md` and `docs/UTILISATION.md`. Reported
-rather than trimmed further, per `CLAUDE.md` and the file-ownership
+**Worth surfacing plainly:** CLS has now been lower than the last-passing build's
+in two consecutive attempts, and both still failed `clock_54m` — one of them
+(`c2fcec4`) with a change that touches nothing in the failing clock domain at
+all. Neither resource count nor "does the change touch clk_54m" predicts the
+outcome here; something else is driving the placer's behaviour on this specific
+netlist. All three kept at `compiled/failed/msxnano-mistle_tangnano20k_<sha>.fs`
+with full details in `compiled/failed/README.md` and `docs/UTILISATION.md`.
+Reported rather than trimmed further, per `CLAUDE.md` and the file-ownership
 convention — this needs the design side's judgement now, not another
 build-side attempt.
 
