@@ -562,3 +562,4 @@ upstream's hardware claims against the tree rather than trusting them.
 | README lists ColecoVision and SG-1000 | Removed in v1.9 |
 | BIOS pack "not distributed here" | It ships in `bin/` and as a release asset |
 | `SPI.md` tile-address description | Contradicted by `osd_u8g2.c`; trust the code |
+| README: "Turbo mode toggled by F11 (full speed, ~116% / 4.13 MHz)" | Pre-v1.9. That turbo was the per-M1 wait state being released, so 4.13 MHz was an effective figure, not a clock. v1.9 replaced it with a real **5.369318 MHz** Panasonic-WSX cadence (`top.v` "v1.9 Panasonic-WSX turbo"), driven from the MSX's own port `&H41` as the T9769 does, with the M1 wait *still applied* — so ~150% of a stock MSX with authentic timing, not 116% with the brake off |
