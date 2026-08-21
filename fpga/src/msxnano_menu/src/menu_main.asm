@@ -286,6 +286,11 @@ BR_OLD		equ	#C029			; 1 byte: previously-selected index (partial repaint)
 BR_OLDTOP	equ	#C02A			; 1 byte: BR_TOP before ensure_visible (scroll detect)
 ENT_ARRAY	equ	#C300			; entry array: ENT_SIZE bytes each (type,cluster,name)
 ENT_SIZE	equ	80				; record: type(1)+cluster(2)+size(4)+name(73 ASCIIZ)
+; ENT_ARRAY spans C300..E6F0 (115*80). E6F0..E800 is free; PART_TBL starts at E800.
+SORT_IDX	equ	#E6F0			; MAX_ENT bytes: display order -> physical entry index
+SORT_KEY	equ	#E76A			; 1 byte: insertion-sort key being placed
+SORT_I		equ	#E76B			; 1 byte: outer loop position
+SORT_J		equ	#E76C			; 1 byte: elements still to the left of the hole
 NAME_OFF	equ	9				; name offset inside a record (type1+cluster4+size4)
 SIZE_OFF	equ	5				; file-size dword offset inside a record
 NAME_MAX	equ	70				; max name chars stored (+ NUL) -> longer than the
@@ -1145,7 +1150,10 @@ scan_current:
 	call scan_next_cluster			; subdir spanning >1 cluster: follow FAT chain
 	jp   c, .scr_sec				; CF=1 -> a new cluster is ready, keep scanning
 .scr_done:
-	ret
+	jp   sort_entries				; order the listing before anything reads it.
+									; Must run on EVERY exit from the scan: ent_addr
+									; now goes through SORT_IDX, so leaving it stale
+									; would show the previous directory's order.
 
 ; scan_next_cluster: advance the directory scan to the next cluster of the current
 ; subdirectory by following the FAT chain. Returns CF=1 if a new valid cluster was
@@ -3385,17 +3393,173 @@ draw_sel_name_window:
 	ld   b, NAME_WIN
 	jp   print_name_win				; padded -> size column survives
 
-; ent_addr: A = index -> HL = ENT_ARRAY + index*ENT_SIZE (44, not a power of 2).
+; ent_addr: A = DISPLAY index -> HL = record, via SORT_IDX.
+; Every caller that shows or selects an entry comes through here, while the scan
+; writes through ARR_PTR instead -- so one indirection here sorts the whole
+; browser without touching the render path or the scan.
 ent_addr:
+	push de
+	ld   hl, SORT_IDX
+	ld   e, a
+	ld   d, 0
+	add  hl, de
+	ld   a, (hl)					; A = physical index
+	pop  de
+	; fall through
+; ent_addr_raw: A = PHYSICAL index -> HL = ENT_ARRAY + index*ENT_SIZE.
+; Preserves DE. The original destroyed it, but only when A was non-zero -- and
+; with sorting, display index 0 can map to a non-zero physical index, so a caller
+; that happened to rely on DE surviving the A=0 case would break in a way that
+; only showed up on some directories. Cheaper to preserve it than to audit eight
+; call sites.
+ent_addr_raw:
 	ld   hl, ENT_ARRAY
 	or   a
 	ret  z
+	push de
 	ld   b, a
 	ld   de, ENT_SIZE
 .ea_mul:
 	add  hl, de
 	djnz .ea_mul
+	pop  de
 	ret
+
+; ---------------------------------------------------------------------------
+; upcase: A -> uppercase if it is a lowercase letter.
+upcase:
+	cp   'a'
+	ret  c
+	cp   'z'+1
+	ret  nc
+	sub  32
+	ret
+
+; cmp_entries: A = physical index 1, B = physical index 2.
+; CY set if entry 1 sorts AFTER entry 2. Directories first, then name,
+; case-insensitively. Name is at offset 7 (type 1 + cluster 2 + size 4).
+; Destroys AF, BC, DE, HL -- the caller preserves what it needs.
+; NOTE: ent_addr_raw itself destroys DE and B, which is why record 1 goes on
+; the stack rather than into DE across the second call.
+cmp_entries:
+	push bc							; B = index 2
+	call ent_addr_raw				; HL = record 1
+	pop  bc
+	push hl							; keep record 1 on the stack
+	ld   a, b
+	call ent_addr_raw				; HL = record 2
+	pop  de							; DE = record 1
+	; B = 0 for a directory else 1, from record 1; C the same from record 2
+	ld   a, (de)
+	or   a
+	jr   z, .ce_t1
+	ld   a, 1
+.ce_t1:
+	ld   b, a
+	ld   a, (hl)
+	or   a
+	jr   z, .ce_t2
+	ld   a, 1
+.ce_t2:
+	ld   c, a
+	ld   a, b
+	cp   c
+	jr   z, .ce_name
+	jr   c, .ce_before				; directory sorts before file
+	jr   .ce_after
+.ce_name:
+	ld   bc, 7
+	add  hl, bc						; HL = name 2
+	ex   de, hl						; DE = name 2, HL = record 1
+	add  hl, bc						; HL = name 1
+	ld   b, 73						; ASCIIZ, so the terminator ends it first
+.ce_loop:
+	ld   a, (de)
+	call upcase
+	ld   c, a
+	ld   a, (hl)
+	call upcase
+	cp   c
+	jr   c, .ce_before
+	jr   nz, .ce_after
+	or   a
+	jr   z, .ce_before				; both names ended together
+	inc  hl
+	inc  de
+	djnz .ce_loop
+.ce_before:
+	or   a							; CY = 0
+	ret
+.ce_after:
+	scf
+	ret
+
+; sort_entries: fill SORT_IDX with the display order. Insertion sort over the
+; INDEX table, never over the 80-byte records -- 115 entries is roughly 6600
+; swaps, and moving a byte per swap instead of eighty is the difference between
+; imperceptible and about three seconds on a 3.58 MHz Z80.
+sort_entries:
+	ld   a, (ENT_COUNT)
+	or   a
+	ret  z
+	ld   hl, SORT_IDX				; identity order first, so ent_addr is always valid
+	ld   b, a
+	xor  a
+.so_fill:
+	ld   (hl), a
+	inc  hl
+	inc  a
+	djnz .so_fill
+	ld   a, (ENT_COUNT)
+	cp   2
+	ret  c							; 0 or 1 entries: nothing to order
+	ld   a, 1
+	ld   (SORT_I), a
+.so_outer:
+	ld   a, (SORT_I)
+	ld   c, a
+	ld   a, (ENT_COUNT)
+	cp   c
+	ret  z							; i == count -> done
+	ld   a, c
+	ld   (SORT_J), a				; J = i: how many entries sit left of the hole
+	ld   hl, SORT_IDX
+	ld   b, 0
+	add  hl, bc						; HL = the hole, at position i
+	ld   a, (hl)
+	ld   (SORT_KEY), a
+.so_inner:
+	ld   a, (SORT_J)
+	or   a
+	jr   z, .so_place
+	dec  hl							; HL -> the entry left of the hole
+	ld   a, (hl)
+	ld   b, a
+	ld   a, (SORT_KEY)
+	ld   c, a
+	ld   a, b						; A = left neighbour
+	ld   b, c						; B = key
+	push hl
+	call cmp_entries				; CY: neighbour sorts after key -> shift it right
+	pop  hl
+	jr   nc, .so_place_up
+	ld   a, (hl)
+	inc  hl
+	ld   (hl), a					; neighbour moves into the hole
+	dec  hl							; the hole moves left
+	ld   a, (SORT_J)
+	dec  a
+	ld   (SORT_J), a
+	jr   .so_inner
+.so_place_up:
+	inc  hl
+.so_place:
+	ld   a, (SORT_KEY)
+	ld   (hl), a
+	ld   a, (SORT_I)
+	inc  a
+	ld   (SORT_I), a
+	jr   .so_outer
 
 ; cls_browser: SCREEN 0 + clear the TEXT2 blink colour table (removes the white bar).
 cls_browser:
@@ -4665,11 +4829,11 @@ helpTitleStr:
 	ds   #A000-$
 	.org #A010
 help1Str:
-	.db "Up/Down               : move (Left/Right = page)",0
+	.db "Up/Down or joystick   : move (Left/Right = page)",0
 help2Str:
-	.db "RETURN / Button A     : open folder or launch ROM",0
+	.db "RETURN / joy fire 1   : open folder or launch ROM",0
 help3Str:
-	.db "BACKSPACE / Button B  : parent folder",0
+	.db "BACKSPACE / joy fire 2: parent folder",0
 help4Str:
 	.db "TAB                   : change partition",0
 help5Str:
@@ -4703,9 +4867,9 @@ mapUnkStr:
 loadingStr:
 	.db "Loading ROM into megaram..",0
 launch2Str:
-	.db "RETURN=RUN  M=MAPPER S=SRAM ESC ",0
+	.db "RETURN/FIRE=RUN M=MAP S=SRAM ESC",0
 launch2bStr:						; sin S=SRAM (no-ASCII); padded al largo de arriba
-	.db "RETURN=RUN  M=MAPPER ESC        ",0
+	.db "RETURN/FIRE=RUN M=MAP ESC       ",0
 sramStr:
 	.db "SRAM:",0
 srchStr:
@@ -4717,7 +4881,7 @@ dskMountStr:
 dskFragStr:
 	.db "DSK fragmented: copy it again. Press key      ",0
 dskAskStr:
-	.db "RETURN=mount and run     ESC=back  ",0
+	.db "RETURN/FIRE=mount+run    ESC=back  ",0
 dskNoEmuStr:
 	.db "NEXTOR.EMU (>=512B) missing in root. Key   ",0
 dskWrErrStr:
