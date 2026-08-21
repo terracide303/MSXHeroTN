@@ -8,9 +8,10 @@ It boots to its own file browser, runs your ROMs off an SD card, takes a real jo
 puts everything on HDMI. A USB keyboard plugs straight into the shield. Press `F12` at any
 time — in the browser or mid-game — for settings.
 
-**Both binaries you need are in this repository**: the FPGA bitstream in
-[`compiled/`](compiled/) and the Raspberry Pi Pico firmware in [`firmware/`](firmware/). No
-toolchain, no compiler, no build step — copy two files onto two chips and fill an SD card.
+**Everything you need is in this repository**: the FPGA bitstream in [`compiled/`](compiled/),
+the MSX BIOS pack in [`bin/`](bin/), and the Raspberry Pi Pico firmware in
+[`firmware/`](firmware/). No toolchain, no compiler, no build step — flash three files and fill
+an SD card.
 
 It is a fork of [MSXnano](https://github.com/Papipapito/MSXnano), retargeted to run on the
 **MiSTeryShield20k RPi Pico USB** — an open-hardware shield from the
@@ -142,8 +143,8 @@ for.
 
 Plus the usual cables — USB-C for power and HDMI for the display.
 
-Nothing else needs downloading. The bitstream and the Pico firmware are both in this
-repository, ready to flash.
+Nothing else needs downloading. The bitstream, the BIOS pack and the Pico firmware are all in
+this repository, ready to flash.
 
 The full list, with the reasoning and the places the original project's own parts list is
 wrong, is in [docs/BOM.md](docs/BOM.md). It also covers building this **without the shield**, on a
@@ -188,12 +189,16 @@ a bare Tang you would need a powered hub and an OTG adapter; the shield is what 
 openFPGALoader -b tangnano20k -f compiled/msxnano-mistle_tangnano20k.fs
 
 # the BIOS pack — only needed once
-openFPGALoader -b tangnano20k --external-flash -o 0x200000 --file-type raw goauld_rom_int.bin
+openFPGALoader -b tangnano20k --external-flash -o 0x200000 --file-type raw bin/goauld_rom_int.bin
 ```
 
 **[`compiled/msxnano-mistle_tangnano20k.fs`](compiled/) is the file to flash** — the 1.0
 release, verified on hardware. It is the only bitstream in that folder, so there is nothing to
 choose between, and you do not need an FPGA toolchain unless you want to change something.
+
+The BIOS pack is **[`bin/goauld_rom_int.bin`](bin/)** — a single 512 KB image holding the MSX2+
+BIOS, the sub-ROM, the logo/FM menu, Nextor 2.1.4 and the boot browser. It only changes if the
+boot menu changes, so flashing it once is normally enough.
 
 **On Windows**, openFPGALoader officially supports the platform and ships Windows builds, but
 getting it to see the board is often the sticking point: Windows binds its own FTDI driver to
