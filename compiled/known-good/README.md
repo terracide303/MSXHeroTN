@@ -22,10 +22,10 @@ Not present in this build: settings persistence. Volume and DB9 port are lost at
 
 ## Going back to it
 
-Flashing the bitstream is enough to get a working machine — the source only matters if you
-want to build from that point again.
+**Stay on `main` and flash the file in this folder. Do not check the tag out first.**
 
 ```sh
+git checkout main
 openFPGALoader -b tangnano20k -f compiled/known-good/msxnano-mistle_tangnano20k_6389ac0.fs
 ```
 
@@ -33,13 +33,32 @@ openFPGALoader -b tangnano20k -f compiled/known-good/msxnano-mistle_tangnano20k_
 but JTAG fails with `ftdi_usb_reset failed (-6)`.
 
 The BIOS pack at `0x200000` is independent of the core and has not changed, so it does not
-need reflashing.
+need reflashing. Flashing the bitstream alone gets you a working machine.
 
-To build from this point:
+### Why not to check the tag out
+
+**In this repository a commit's `compiled/*.fs` is the build of an *earlier* commit.** The Mac
+commits source; the PC builds it and commits the bitstream afterwards. So the two are always
+one step out of phase.
+
+Concretely: `compiled/msxnano-mistle_tangnano20k.fs` at tag `known-good-6389ac0` is the build
+of `8e6a5e9`, not of `6389ac0`. The build of `6389ac0` arrived later, in `ae7926c`. Checking
+out the tag and flashing what you find in `compiled/` gives you the wrong bitstream, with no
+error to tell you so.
+
+This folder exists precisely so that the fallback is not subject to that. The file here is
+pinned to a SHA-256 and is never rebuilt or replaced.
+
+To find which bitstream belongs to a given source commit, look for the commit whose message
+reads *"built from `<sha>`"*.
+
+### Building from this point
 
 ```sh
 git checkout known-good-6389ac0
 ```
+
+That is the only reason to check the tag out.
 
 ## Ownership
 
