@@ -45,7 +45,7 @@ another way is being worked on — see the `dev` branch.
 
 | # | Qty | Component | Notes |
 |---|-----|-----------|-------|
-| 14 | 1 | **3D-printed case** | STLs in [`../case/`](../case), white PETG recommended. **Designed for a bare Tang Nano 20K and will not fit with the shield attached** — see [`../case/README.md`](../case/README.md). |
+| 14 | 1 | **A case** | None is provided. Upstream's enclosure is designed around a bare Tang Nano 20K and does not fit once the shield is stacked on top — the height is wrong and every connector has moved. A shield-aware case has not been designed. |
 | 15 | — | Screws / standoffs | Depends on the case revision. |
 
 ## Notes

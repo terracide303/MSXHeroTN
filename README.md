@@ -122,8 +122,9 @@ openFPGALoader -b tangnano20k -f compiled/msxnano-mistle_tangnano20k.fs
 openFPGALoader -b tangnano20k --external-flash -o 0x200000 --file-type raw goauld_rom_int.bin
 ```
 
-A prebuilt bitstream is in [`compiled/`](compiled/), so you do not need an FPGA toolchain
-unless you want to change something.
+**[`compiled/msxnano-mistle_tangnano20k.fs`](compiled/) is the file to flash** — the 1.0
+release, verified on hardware. It is the only bitstream in that folder, so there is nothing to
+choose between, and you do not need an FPGA toolchain unless you want to change something.
 
 **On Windows**, openFPGALoader officially supports the platform and ships Windows builds, but
 getting it to see the board is often the sticking point: Windows binds its own FTDI driver to
@@ -135,9 +136,13 @@ pack.
 
 ### 2. Flash the Pico
 
-Hold BOOTSEL, plug it into a computer, and drop `fpga_companion.uf2` — the `BOARD=PICO` build
-from [FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion) — onto the `RPI-RP2` drive
-that appears. Stock firmware; nothing custom is needed.
+Hold BOOTSEL, plug it into a computer, and drag **[`firmware/fpga_companion.uf2`](firmware/)**
+onto the `RPI-RP2` drive that appears. That is the whole procedure.
+
+It is stock [FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion/tree/main/src/rp2040),
+unmodified, kept here because upstream does not publish a Pico binary in every release — the
+latest ships none at all. Provenance and licence are in
+[`firmware/README.md`](firmware/README.md).
 
 > Do **not** flash companion firmware onto the Tang's own BL616 chip. It replaces the
 > programmer, and afterwards you cannot talk to the board at all. This fork does not use that
@@ -145,7 +150,15 @@ that appears. Stock firmware; nothing custom is needed.
 
 ### 3. Fill the SD card
 
-Copy `.rom` and `.dsk` files onto it, in folders if you like, and put it in the Tang.
+Copy `.rom` and `.dsk` files onto it and put it in the Tang.
+
+**Use folders.** The browser shows only the **first 115 entries of any one directory**, and
+anything past that is silently invisible — no warning, no error, the files simply are not
+listed. This catches people out with a big collection dumped in the root.
+
+The fix is easy and it is worth doing before you fill the card: split the collection
+alphabetically, `A-E`, `F-J`, `K-O`, `P-U`, `V-Z`, and no folder comes close to the limit.
+Subdirectories nest as deep as you like, so by publisher or by year works just as well.
 
 Power up, and you should be looking at the browser.
 
@@ -174,16 +187,18 @@ A cartridge is loaded into slot 3-3. This is the layout the MSX sees:
 
 ## If something goes wrong
 
-The last bitstream verified working on hardware is kept in
-[`compiled/known-good/`](compiled/known-good/), where no later build can overwrite it. One
-command puts you back:
+Every release on this branch is tagged and carries the matching bitstream, so going back to an
+earlier one is a checkout and a flash:
 
 ```sh
-openFPGALoader -b tangnano20k -f compiled/known-good/msxnano-mistle_tangnano20k_6389ac0.fs
+git checkout msxherotn-1.0
+openFPGALoader -b tangnano20k -f compiled/msxnano-mistle_tangnano20k.fs
 ```
 
-The BIOS pack does not need reflashing. Details in
-[that folder's README](compiled/known-good/README.md).
+The BIOS pack does not need reflashing — it is independent of the core and unchanged.
+
+`main` only ever advances to a build that has been confirmed working on a real board, so
+whatever is on it should not need reverting in the first place.
 
 ---
 
@@ -209,8 +224,6 @@ The engineering detail lives in `docs/`, and it is written to be read rather tha
 - **[docs/UTILISATION.md](docs/UTILISATION.md)** — resource and timing figures for every build,
   including the failures and what each one taught.
 - **[docs/BOM.md](docs/BOM.md)** — the parts list.
-- **[case/](case/)** — a 3D-printable enclosure inherited from upstream. It does **not** fit
-  with the shield attached.
 
 Building it yourself needs **Gowin EDA**, which has no macOS version. If you are curious how
 full the chip is, the short answer is 88%, and that has shaped most of the decisions here.
