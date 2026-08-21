@@ -99,25 +99,14 @@ browser — and turbo, volume, video and audio settings, reset and cold boot are
 without losing what you are doing. `F11` goes back to being an ordinary key that belongs to the
 MSX.
 
-### The BL616 has its own problems
+### The shield
 
-- **On many recent boards the keyboard simply does not work.** Tang Nano 20Ks made since about
-  February 2024 — marked `3921` or `3923` — have the BL616's secure boot in a different state
-  and often cannot run the companion firmware at all. Upstream's own README documents this and
-  recommends buying an **external M0S Dock** to work around it.
-- **Flashing it costs you the programmer.** The BL616 ships as the board's FTDI-compatible
-  debugger, `20K's FRIEND`. Put companion firmware on it and `openFPGALoader` has nothing left
-  to talk to, on any host, until you restore the factory image.
-- **One USB-C, no USB-A.** The single connector has to carry power *and* the keyboard, which in
-  practice means an OTG adapter and a powered hub backfeeding the board.
+The shield brings its own RP2040 with a proper USB host port, so the keyboard plugs straight in
+and the Tang's USB-C does nothing but power. The on-board BL616 is left untouched — this fork
+never flashes it.
 
-The shield removes all of that. It brings its own RP2040 with a proper USB host port, so the
-keyboard plugs straight in, the Tang's USB-C does nothing but power, and the on-board BL616 is
-left untouched — this fork never flashes it. It also carries a **DB9 joystick port** and **MIDI
-sockets**, connectors upstream constrains no pins for, so on that shield they sit dead.
-
-Against a powered hub plus an OTG adapter — two mains outlets and a tangle of adapters — the
-shield is not the expensive option it first appears.
+It also carries a **DB9 joystick port** and **MIDI sockets**, connectors upstream constrains no
+pins for, so on that shield they sit dead. Wiring them up is what this fork is for.
 
 ## What you need
 
