@@ -156,8 +156,11 @@ repeated. Do not re-sweep place/route effort, and note that
 `-oreg_in_iob`/`-ireg_in_iob`/`-retiming` do not exist in this synthesis engine.
 
 The core builds, boots, browses the SD card, runs games, reads the shield's DB9 joystick, and
-renders the FPGA-Companion OSD on F12 with turbo, volume, scanlines, aspect, stereo and
-second-SCC settings reaching the core.
+renders the FPGA-Companion OSD on F12 -- centred, named MSXHero, with turbo, volume,
+scanlines, aspect, stereo, second-SCC, Reset and Cold Boot all verified working on hardware.
+The boot menu is English, titled MSXHero v1.0.
+
+Phase 1 is complete apart from persistence.
 
 **The OSD cannot drive the core reset**, and the Reset/Cold Boot buttons were removed rather
 than left dead. `sysctrl` lives inside `fpga_companion`, which is reset by `~bus_reset_n`, so
