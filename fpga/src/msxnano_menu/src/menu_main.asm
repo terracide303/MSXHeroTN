@@ -70,7 +70,7 @@ main_menu_entry:
 	.dw  #4002
 .no_logo:
 	; premontar la SD BAJO el logo (montaje silencioso): si va bien, el
-	; navegador se salta el "Leyendo SD..." y aparece ya con contenido
+	; navegador se salta el "Reading SD..." y aparece ya con contenido
 	ld   a, 2						; FILTER = ALL ANTES de escanear: select_partition
 	ld   (FILTER), a				; -> scan_root aplica FILTER; en frio era basura y
 									; filtraba los ficheros (solo se veian carpetas
@@ -397,7 +397,7 @@ main_action_sdrom:
 	call cls_browser				; show feedback (the SD init can pause a moment)
 	ld   hl, #0103
 	call POSIT
-	ld   hl, readingStr				; "Leyendo SD..."
+	ld   hl, readingStr				; "Reading SD..."
 	call print_string
 	; --- read sector 0 (MBR with partition table) ---
 	xor  a
@@ -2182,7 +2182,7 @@ browse:
 	jp   z, .br_key					; lista vacia
 	ld   hl, #0100
 	call POSIT
-	ld   hl, srchStr				; "Buscar: "
+	ld   hl, srchStr				; "Search: "
 	call print_string
 	ld   hl, SRCH_BUF
 	ld   b, 0						; longitud actual
@@ -2342,7 +2342,7 @@ browse_enter:						; global: el auto-lanzado de File-Hunter entra aqui
 	call cls_browser
 	ld   hl, #0101
 	call POSIT
-	ld   hl, romInfoStr				; "Fichero:" (fila 1)
+	ld   hl, romInfoStr				; "File:   " (fila 1)
 	call print_string
 	ld   hl, #0103
 	call POSIT
@@ -2351,7 +2351,7 @@ browse_enter:						; global: el auto-lanzado de File-Hunter entra aqui
 	add  hl, de
 	ld   b, 76
 	call print_string_max
-	ld   hl, #0108					; "Cargando ROM en megaram..." (fila 8) YA visible
+	ld   hl, #0108					; "Loading ROM into megaram.." (fila 8) YA visible
 	call POSIT
 	ld   hl, loadingStr
 	call print_string
@@ -2392,7 +2392,7 @@ browse_enter:						; global: el auto-lanzado de File-Hunter entra aqui
 	call CHPUT
 	ld   hl, #0101
 	call POSIT
-	ld   hl, romInfoStr				; "Fichero:"  (fila 1)
+	ld   hl, romInfoStr				; "File:   "  (fila 1)
 	call print_string
 	ld   hl, #0103
 	call POSIT
@@ -2403,7 +2403,7 @@ browse_enter:						; global: el auto-lanzado de File-Hunter entra aqui
 	call print_string_max
 	ld   hl, #0105
 	call POSIT
-	ld   hl, romClusStr				; "Tamano: "  (fila 5)
+	ld   hl, romClusStr				; "Size:   "  (fila 5)
 	call print_string
 	call print_rom_kb
 	ld   a, 'K'
@@ -2412,7 +2412,7 @@ browse_enter:						; global: el auto-lanzado de File-Hunter entra aqui
 	call print_string
 	call print_mapper_name
 	call .bsr_sprint				; "SRAM: On/Off" (fila 6)
-	ld   hl, #0108					; "Cargando ROM en megaram..."  (fila 8)
+	ld   hl, #0108					; "Loading ROM into megaram.."  (fila 8)
 	call POSIT
 	ld   hl, loadingStr
 	call print_string
@@ -2549,7 +2549,7 @@ browse_enter:						; global: el auto-lanzado de File-Hunter entra aqui
 	call print_string				; .dsk name
 	ld   hl, #0105
 	call POSIT
-	ld   hl, dskAskStr				; "RETURN=montar y lanzar   ESC=volver"
+	ld   hl, dskAskStr				; "RETURN=mount and run     ESC=back  "
 	call print_string
 .bsd_ask:
 	call browse_getkey
@@ -2561,7 +2561,7 @@ browse_enter:						; global: el auto-lanzado de File-Hunter entra aqui
 .bsd_go:
 	ld   hl, #0107
 	call POSIT
-	ld   hl, dskMountStr			; "Montando disco (Nextor) y arrancando..."
+	ld   hl, dskMountStr			; "Mounting disk (Nextor) and booting...  "
 	call print_string
 	; 1) the image must be unfragmented (Nextor maps a linear sector range)
 	call dsk_check_contig
@@ -3090,7 +3090,7 @@ draw_browser:
 	; --- header row 1: title + build (left), live clock (right) ---
 	ld   hl, #0101					; X=1, Y=1
 	call POSIT
-	ld   hl, hdrTitleStr			; "MSX Nano  v1.9"
+	ld   hl, hdrTitleStr			; "MSXHero  v1.0 "
 	call print_string
 	call draw_tabs					; row 2: filter tabs (active inverse)
 	ld   a, 22
@@ -4635,7 +4635,7 @@ tagRomStr:
 tagDskStr:
 	.db "[DSK] ",0
 hdrTitleStr:
-	.db "MSX Nano  v1.9",0
+	.db "MSXHero  v1.0 ",0
 tabRStr:
 	.db "[R]OM",0
 tabDStr:
@@ -4643,9 +4643,9 @@ tabDStr:
 tabAStr:
 	.db "[A]LL",0
 footerStr:
-	.db "R/D/A=Filtro  ESC=Boot  S=Set  W=WiFi  TAB=Part  H=Ayuda",0
+	.db "R/D/A=Filter ESC=Boot S=Save F12=Setup TAB=Part H=Help  ",0
 helpTitleStr:
-	.db "MSXnano - AYUDA",0
+	.db "MSXHero - HELP",0
 ; ============================== DATOS (>= A010) ==============================
 ; El codigo debe quedar por debajo de #A000; cadenas y tablas viven a partir de
 ; #A010, dejando #A000-#A00F como hueco para el registro NEXTOR_EMU_DATA que
@@ -4657,27 +4657,27 @@ helpTitleStr:
 	ds   #A000-$
 	.org #A010
 help1Str:
-	.db "Arriba/Abajo          : mover (Izq/Der = pagina)",0
+	.db "Up/Down               : move (Left/Right = page)",0
 help2Str:
-	.db "RETURN / Boton A      : abrir carpeta o lanzar ROM",0
+	.db "RETURN / Button A     : open folder or launch ROM",0
 help3Str:
-	.db "BACKSPACE / Boton B   : carpeta anterior",0
+	.db "BACKSPACE / Button B  : parent folder",0
 help4Str:
-	.db "TAB                   : cambiar de particion",0
+	.db "TAB                   : change partition",0
 help5Str:
-	.db "ESC                   : arrancar el sistema (MSX-DOS)",0
+	.db "ESC                   : boot the system (MSX-DOS)",0
 help6Str:
-	.db "S                     : Ajustes (configuracion goauld)",0
+	.db "S                     : Save settings to flash",0
 help7Str:
-	.db "W                     : configuracion WiFi (ESP)",0
+	.db "F12                   : Setup overlay (OSD)     ",0
 help8Str:
-	.db "H                     : esta ayuda",0
+	.db "H                     : this help",0
 helpEndStr:
-	.db "Pulsa una tecla para volver...",0
+	.db "Press any key to return...",0
 romInfoStr:
-	.db "Fichero:",0
+	.db "File:   ",0
 romClusStr:
-	.db "Tamano: ",0
+	.db "Size:   ",0
 romSpcStr:
 	.db "  Mapper: ",0
 mapPlainStr:
@@ -4691,29 +4691,29 @@ mapA8Str:
 mapA16Str:
 	.db "ASCII16",0
 mapUnkStr:
-	.db "? (desconocido)",0
+	.db "? (unknown)",0
 loadingStr:
-	.db "Cargando ROM en megaram...",0
+	.db "Loading ROM into megaram..",0
 launch2Str:
-	.db "RETURN=LANZA M=MAPPER S=SRAM ESC",0
+	.db "RETURN=RUN  M=MAPPER S=SRAM ESC ",0
 launch2bStr:						; sin S=SRAM (no-ASCII); padded al largo de arriba
-	.db "RETURN=LANZA M=MAPPER ESC       ",0
+	.db "RETURN=RUN  M=MAPPER ESC        ",0
 sramStr:
 	.db "SRAM:",0
 srchStr:
-	.db "Buscar: ",0
+	.db "Search: ",0
 dskInfoStr:
-	.db "Disco:",0
+	.db "Disk: ",0
 dskMountStr:
-	.db "Montando disco (Nextor) y arrancando...",0
+	.db "Mounting disk (Nextor) and booting...  ",0
 dskFragStr:
-	.db "DSK fragmentado: copialo de nuevo. Pulsa tecla",0
+	.db "DSK fragmented: copy it again. Press key      ",0
 dskAskStr:
-	.db "RETURN=montar y lanzar   ESC=volver",0
+	.db "RETURN=mount and run     ESC=back  ",0
 dskNoEmuStr:
-	.db "Falta NEXTOR.EMU (>=512B) en la raiz. Tecla",0
+	.db "NEXTOR.EMU (>=512B) missing in root. Key   ",0
 dskWrErrStr:
-	.db "Error escribiendo en la SD. Pulsa una tecla",0
+	.db "Error writing to the SD card. Press a key  ",0
 ; Nextor disk-emulation "one-time" signature (16-byte field: 15 chars + NUL)
 emuSig:
 	.db "NEXTOR_EMU_DATA",0
@@ -4721,14 +4721,14 @@ emuSig:
 emuFileName:
 	.db "NEXTOR  EMU"
 readingStr:
-	.db "Leyendo SD...",0
+	.db "Reading SD...",0
 noSdStr:
-	.db "No se detecta la tarjeta SD.",0
+	.db "No SD card detected.        ",0
 noSdStr2:
-	.db "RETURN=Boot MSX   S=Settings   W=WiFi",0
+	.db "RETURN=Boot MSX   F12=Setup          ",0
 
 menuTitleStr:
-	.db "MSXnano - Ajustes",0
+	.db "MSXHero - Save   ",0
 slot1GhostStr:
 	.db "Second SCC",0			; config1 bit2 (former ghost SCC): SCC+ nr.2 in the free slot
 enableScanlinesStr:
@@ -4736,7 +4736,7 @@ enableScanlinesStr:
 stereoStr:
 	.db "Stereo Sound",0
 aspectStr:
-	.db "Pantalla 16:9",0
+	.db "Screen 16:9  ",0
 bootTurboStr:
 	.db "Boot Turbo",0			; arrancar siempre a 5.37 MHz (flash byte[4]='T')
 saveExitStr:

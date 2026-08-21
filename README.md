@@ -24,6 +24,7 @@ video, audio and turbo settings. One thing is missing: settings do not persist.
 | **Turbo** | works from the OSD; applied via reset. F11 no longer intercepted, and the crash is gone with it |
 | Video and audio settings from the OSD | scanlines, aspect, stereo, second SCC+, volume |
 | **Saving settings** | **no** — the companion cannot reach the SD card. See known issues |
+| Boot menu | English, titled MSXHero v1.0 |
 | Boot logo | own logo works; the v1.9 pack ships the slot blank |
 | On-board BL616 HID | removed by design — HID comes from the shield's Pico |
 | ESP-01S WiFi, WS2812 LED | given up: their pins are the DB9 lines |
@@ -302,8 +303,10 @@ The boot menu matches the three extension bytes literally, so a `.mx2` file — 
 for MSX2 cartridge dumps, and byte-identical to a `.rom` — is **invisible** until renamed.
 
 The file browser starts before the OS. Arrows and RETURN navigate and launch, BS goes back,
-`R`/`D`/`A` filter by type, TAB switches partition, `S` opens settings, `W` opens WiFi, and
-ESC boots straight to Nextor/MSX-DOS. Turbo is set from the OSD, not a keyboard shortcut; F12 is consumed by the companion
+`R`/`D`/`A` filter by type, TAB switches partition, `H` opens help, and ESC boots straight to
+Nextor/MSX-DOS. **`F12` opens the OSD** for machine settings; `S` keeps a reduced on-MSX
+screen whose only unique job is saving settings to flash, since the OSD's own Save cannot
+reach the SD card. The WiFi entry is gone — WiFi is compiled out on this fork. Turbo is set from the OSD, not a keyboard shortcut; F12 is consumed by the companion
 firmware and never reaches the MSX.
 
 ---
