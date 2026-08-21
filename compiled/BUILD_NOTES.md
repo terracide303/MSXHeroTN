@@ -9,6 +9,14 @@ top-level `CLAUDE.md` (build instructions for this machine).
 (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88). Synthesis and
 place & route both completed with no errors.
 
+**A newer build (commit `28c916d`) was attempted and is NOT here** — it missed
+`clock_54m` timing badly (50.425 MHz vs the 54.000 MHz constraint, worse than
+any build so far) on CPU-to-memory-controller paths. That source includes real
+fixes worth having eventually (OSD centring offsets, signed-volume fix, more
+OSD settings wired through), but the bitstream itself isn't safe to flash. It's
+kept at `compiled/failed/msxnano-mistle_tangnano20k_28c916d.fs` with details in
+`compiled/failed/README.md` and `docs/UTILISATION.md`, for reference only.
+
 ## Things worth knowing before/while testing on hardware
 
 - **`clock_54m` timing violation is fixed.** Previous build (from `5da94ae`)
