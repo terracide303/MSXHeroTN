@@ -60,7 +60,7 @@ bitstream (built from `<sha>`)"*. The Mac side flashes from there with `openFPGA
   relative to the synthesis working directory. Regenerate it with
   `fpga/src/usb/make_menu_rom.sh` if `msxnano.xml` changes; never edit it by hand.
 - **`clock_54m` misses its constraint** — 53.798 MHz against 54.000. It predates this fork,
-  it is why turbo is applied via reset rather than live, and it is the first suspect for
+  it is why turbo cannot be switched live, and it is the first suspect for
   anything timing-sensitive. If a change makes it worse, say so; CLS is at 88% and the design
   is close to its routing limit.
 - Report the utilisation and timing after each build so `docs/UTILISATION.md` stays current.
@@ -156,8 +156,16 @@ repeated. Do not re-sweep place/route effort, and note that
 `-oreg_in_iob`/`-ireg_in_iob`/`-retiming` do not exist in this synthesis engine.
 
 The core builds, boots, browses the SD card, runs games, reads the shield's DB9 joystick, and
-renders the FPGA-Companion OSD on F12 with reset, turbo, volume, scanlines, aspect, stereo
-and second-SCC settings reaching the core.
+renders the FPGA-Companion OSD on F12 with turbo, volume, scanlines, aspect, stereo and
+second-SCC settings reaching the core.
+
+**The OSD cannot drive the core reset**, and the Reset/Cold Boot buttons were removed rather
+than left dead. `sysctrl` lives inside `fpga_companion`, which is reset by `~bus_reset_n`, so
+anything it drives into that net fights itself: a level boot-loops the machine, and a
+monostable one-shot gives no picture at all because the companion re-runs its `init` action
+(which sets `R=1`) after each reset. Do not try this again without first giving `sysctrl` a
+power-on reset of its own. The same caution applies to any OSD setting driven into a reset or
+clock-enable path — see `docs/FINDINGS.md`.
 
 **Settings do not persist.** Save writes `msxnano.ini` through the companion's FatFS, which
 reaches the card via the FPGA's SD target, and `mcu_sdc_din` is tied to zero here.
