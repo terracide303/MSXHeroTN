@@ -25,6 +25,20 @@ When a `dev` build is confirmed working on the board, `main` fast-forwards to it
 `known-good-<sha>` tag is cut, and the bitstream is pinned into `compiled/known-good/`
 alongside the previous one — never replacing it.
 
+## Keeping dev's shared docs current
+
+`docs/BOM.md`, `docs/FINDINGS.md`, `CLAUDE.md`, `firmware/` and `compiled/README.md` are the
+same on both branches and are edited on `main`. When they change there, pull them across:
+
+```sh
+git checkout dev
+git checkout main -- docs/BOM.md docs/FINDINGS.md CLAUDE.md firmware compiled/README.md
+```
+
+Skipping this is not cosmetic. Promotion takes dev's tree wholesale, so a stale doc on `dev`
+would silently overwrite the newer one on `main`. `dev` keeps its own `README.md` and
+`docs/ROADMAP.md`; those two are deliberately different.
+
 ## Promoting dev to main — do NOT use `git merge`
 
 When a `dev` build is confirmed working on the board, `main` is updated by **taking dev's
@@ -71,7 +85,7 @@ Owns, and may commit freely:
 Does **not** edit:
 
 - `fpga/` — RTL, constraints, `.sdc`, `.tcl`, the menu XML
-- `README.md`, `docs/FINDINGS.md`, `docs/ROADMAP.md`, `docs/BOM.md`
+- `README.md`, `docs/FINDINGS.md`, `docs/BOM.md`, `docs/ROADMAP.md`, `firmware/`
 - this file
 
 **If a build is blocked by something in the source** — a missing file, a constraint
@@ -90,25 +104,21 @@ here and in `docs/FINDINGS.md` precisely so they are not re-litigated.
 something is ready, so make results easy to find: a clear commit subject and the numbers in
 `docs/UTILISATION.md` rather than only in the session transcript.
 
-## Build this next: stale-read fix for the saved settings byte
+## Current release: 1.0 on `main`
 
-`85729ad` **closed timing and works on hardware** — 56.588 MHz, zero negative slack, and the
-machine boots, runs games and saves scanlines. The `ram_req` flattening was the right fix;
-nothing about timing needs revisiting.
+`25f80b8` is verified on hardware and tagged `known-good-25f80b8`; `main` carries it as the
+**1.0 release**. Phase 1 is complete: DB9 joystick, the F12 overlay, the English boot menu and
+settings persistence all work on the board.
 
-One bug found on hardware: the machine boots **muted**, and stays muted after saving.
+Nothing is queued for building right now. When something is, it will be described here.
 
-`config_sig[5]` is latched in the cycle `last_bytes_cnt` leaves 1, and `config_init` is
-asserted *while* it equals 1 — so byte 5 is stale for that entire window, reading `8'd0` out
-of reset. The old test treated bit 7 clear as "valid", `0x00` passed it, and volume was seeded
-to zero on every boot. Bytes 2 to 4 land earlier, which is why scanlines persisted fine.
-
-Fixed two ways: seed one cycle after `config_init` drops, and change the marker to `[7:6] ==
-01` so that both an erased `0xFF` and a stale `0x00` are rejected.
-
-Small change, entirely in `clk_27m`, nothing near the paths that were failing. Timing should
-be unaffected — but report it as usual, and if it has moved, say so, because that would mean
-the placement sensitivity is worse than we think.
+**Timing to keep an eye on.** 1.0 passes at `clock_54m` 54.306 MHz against 54.000 with zero
+negative slack — a genuine pass, but thin. The previous release had 55.626 MHz, and the margin
+narrowed on a `clk_27m`-only change nowhere near the failing paths. This design's timing is
+governed by placement rather than by resource count, which three builds established the hard
+way (`aa52343` came in *under* the passing build's CLS and was far worse). Report Fmax and TNS
+after every build, and read the TNS table rather than the Max Frequency Summary — the two
+disagree, and the Fmax number reported a pass on a build that was failing six endpoints.
 
 ## What to build
 
@@ -252,7 +262,7 @@ but this design's timing is congestion-sensitive), and whether `config_save_byte
 The same commit connects `system_turbo_boot` and `system_autofire`, which were wired to
 sysctrl and read by nobody -- the OSD's Boot-in-turbo and Autofire entries did nothing.
 
-Full status is in [README.md](README.md), the roadmap in [docs/ROADMAP.md](docs/ROADMAP.md),
+Full status is in [README.md](README.md), the roadmap on the `dev` branch,
 and everything established about the hardware, the shield, the companion protocol and
 upstream's quirks in [docs/FINDINGS.md](docs/FINDINGS.md) — **read that before re-deriving
 anything**.
