@@ -22,13 +22,26 @@ something instead of sitting inert.
 
 ## Release 1.1
 
-Everything in this table has been confirmed by hand on a real board — not by reading the code,
-and not merely by compiling.
+**What the machine does.** Everything here has been confirmed by hand on a real board — not by
+reading the code, and not merely by compiling.
 
-### New in 1.1
+| | |
+|---|---|
+| Boots, browses the SD card, runs games | yes |
+| DB9 joystick | yes — all directions, both fire buttons |
+| USB keyboard and gamepad | yes, through the shield |
+| HDMI video and audio | yes |
+| `F12` settings overlay | yes |
+| Turbo — 5.37 MHz, the real Panasonic WSX speed | yes |
+| Scanlines, aspect, stereo, second SCC+, volume | yes |
+| Reset and Cold Boot from the overlay | yes |
+| Remembering your settings | yes — kept in the FPGA's own flash |
 
-A release about the file browser. The core itself is unchanged from 1.0, so **this one only
-needs the BIOS pack reflashed**, not the FPGA.
+### What changed in 1.1
+
+Everything above already worked in 1.0. This release is about the **file browser** only, and
+the core itself is unchanged — so upgrading from 1.0 **only needs the BIOS pack reflashed**,
+not the FPGA.
 
 - **The listing is sorted.** Alphabetically, ignoring capitals, folders first. It never was
   before — entries appeared in raw filesystem order, which is the order they happened to be
@@ -44,18 +57,6 @@ needs the BIOS pack reflashed**, not the FPGA.
 - **Dead keys removed.** `S`, `W`, `U` and `F` are gone. `S` saved settings, which the `F12`
   overlay does now; the other three needed WiFi hardware this fork does not have, so they were
   live keys leading nowhere.
-
-| | |
-|---|---|
-| Boots, browses the SD card, runs games | yes |
-| DB9 joystick | yes — all directions, both fire buttons |
-| USB keyboard and gamepad | yes, through the shield |
-| HDMI video and audio | yes |
-| `F12` settings overlay | yes |
-| Turbo — 5.37 MHz, the real Panasonic WSX speed | yes |
-| Scanlines, aspect, stereo, second SCC+, volume | yes |
-| Reset and Cold Boot from the overlay | yes |
-| Remembering your settings | yes — kept in the FPGA's own flash |
 
 ### Known limitations
 
