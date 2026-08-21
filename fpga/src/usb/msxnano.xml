@@ -69,11 +69,10 @@
   <menu label="MSXHero">
 
     <menu label="System">
-      <!-- No action="reset": the core does not act on the OSD reset (see
-           docs/FINDINGS.md), so a reset action would do nothing. Turbo takes
-           effect on the next power cycle, or immediately if the machine is
-           reset by other means. -->
-      <list label="Turbo:" id="T" default="0">
+      <!-- Applied by resetting into the new speed: switching CPU cadence while
+           running hangs the machine, since clk_54m is the domain the cadence mux
+           lives in and it has little timing margin. -->
+      <list label="Turbo:" id="T" default="0" action="reset">
         <listentry label="3.58 MHz" value="0"/>
         <listentry label="5.37 MHz" value="1"/>
       </list>
@@ -135,6 +134,8 @@
     </menu>
 
     <button label="Save settings" action="save"/>
+    <button label="Reset" action="reset_hide"/>
+    <button label="Cold Boot" action="cold_reset_hide"/>
   </menu>
 
 </config>
