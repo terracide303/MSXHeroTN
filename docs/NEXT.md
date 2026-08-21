@@ -32,22 +32,22 @@ carried `.Trashes`, `.fseventsd`, `._*` and `System Volume Information` into the
 slots against the 115 limit. Four instructions. Also hides Nextor's own `NEXTOR.EMU`, which is
 created hidden+system precisely so it stays out of sight.
 
-**Sort the listing — next.** There is no sort anywhere in the file; entries appear in raw FAT
-directory order, which is the order they happened to be written. This is the biggest single
-usability win, and it makes the 115-file limit hurt less because you can predict where a name
-falls.
+**Sort the listing — done, verified on hardware.** Alphabetical, case-insensitive, directories
+first, via an index table in `SORT_IDX` that `ent_addr` reads through — so one indirection at
+the single choke point sorts the whole browser.
 
-Do **not** sort the 80-byte records in place: 115 entries insertion-sorted means roughly 6,600
-swaps of 80 bytes each, which is around three seconds on a 3.58 MHz Z80. Sort a 115-byte index
-table instead and have the render path read through it — same algorithm, a byte moved per swap
-instead of eighty.
+The bug worth remembering: the name is at offset **9**, not 7. `ENT_SIZE`'s comment claimed
+`type(1)+cluster(2)+size(4)`, but the scan writes four cluster bytes because FAT32 keeps the
+cluster's high word in the directory entry. Comparing from 7 read the file size's high bytes,
+which are zero under 16 MB, so every comparison returned equal and the sort silently did
+nothing. **The comment was wrong; the code was right.**
 
-**Remember the position.** After a reset you are back at the top of the root. Keeping the last
-directory and cursor position matters more once A3 stops resets landing here at all.
+**Remember the position — still to do.** After a reset you are back at the top of the root.
+Keeping the last directory and cursor position matters more once A5 stops resets landing here.
 
 **Then the 115-file limit** (was A4), which is the same routine again.
 
-### A2. Tidy the keys
+### A2. Tidy the keys — **done, verified on hardware**
 
 **Three keys are dead.** The browser's dispatch still handles `W` (WiFi config), `U` (UNAPI
 test) and `F` (File-Hunter, the online ROM search). All three need the ESP-01S, which this fork
