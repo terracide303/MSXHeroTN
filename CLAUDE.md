@@ -4,6 +4,27 @@ This repo is developed across two machines: a Mac (editing, flashing, research) 
 with **Gowin EDA**, which is the only place it can be synthesized — Gowin has no macOS build.
 If you are the instance on the PC, this file is for you.
 
+## Which branch to build
+
+**Build `dev`, not `main`.**
+
+```
+git checkout dev && git pull
+```
+
+`main` is the branch that is allowed to be trusted: it only moves when a build has been
+verified **on hardware**, not merely when one closes timing. Everything in progress lives on
+`dev`, and bitstreams built from `dev` are committed to `dev`.
+
+This split exists because three consecutive builds missed `clock_54m`, which left `main`
+carrying RTL that had never produced a working machine while its README said the core runs on
+hardware. Both statements were true of different things, which is precisely the confusion to
+avoid.
+
+When a `dev` build is confirmed working on the board, `main` fast-forwards to it, a new
+`known-good-<sha>` tag is cut, and the bitstream is pinned into `compiled/known-good/`
+alongside the previous one — never replacing it.
+
 ## Division of labour
 
 This project runs across two machines and two Claude sessions. They cannot talk to each

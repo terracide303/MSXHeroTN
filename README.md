@@ -39,6 +39,12 @@ kept separately in [`compiled/known-good/`](compiled/known-good/) where no later
 overwrite it, and its source is tagged `known-good-6389ac0`. Flashing that file is enough to
 get back to a working MSX; see the README in that folder.
 
+### Branches
+
+`main` only moves when a build has been **verified on hardware**, not merely when one closes
+timing. Work in progress lives on **`dev`**, and that is the branch the build machine
+compiles. If you want the version that is known to run, you are on the right branch.
+
 **Timing closes.** `clock_54m` meets its 54.000 MHz constraint at **55.626 MHz with zero
 negative slack on every domain**, at 87% CLS. It had been missing for several builds — at
 worst 50.4 MHz — until the CPU read mux was restructured as a tree; there is now more margin
