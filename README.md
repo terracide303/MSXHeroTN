@@ -92,7 +92,6 @@ In practice:
 - **Turbo is a stolen keyboard key.** `F11` is intercepted before the MSX sees it, so the core
   takes a key away from the machine to work around having no menu.
 - **There is no reset or cold boot in software.** You reach for the button on the board.
-- **The settings screen is in Spanish**, as is the rest of the boot menu.
 
 This fork composites the overlay in the FPGA, between the video chip and the HDMI encoder.
 Because it never asks the MSX for permission, `F12` works anywhere — mid-game, mid-load, in the
