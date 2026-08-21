@@ -86,11 +86,30 @@ cartridges are mapped, not a dormant status block — and the likely saving is s
 (removing 693 lines of WiFi freed only 24 CLS). Breaking it would show up as games
 failing to load or loading corrupt.
 
-If the synthesis sweep also fails, stop and report rather than cutting features. The
-remaining options are a judgement call for the user: finish shortening the `cpu_din`
-mux (26 levels now, ~8 possible, but it does not touch the worst path), cut a feature,
-or stay on tag `known-good-fb6bea0` — the last build verified working on hardware,
-with timing closed at 58.929 MHz.
+**What has actually moved the needle is the `cpu_din` read mux.** It was a single
+priority chain feeding the register at the end of two of the failing paths. Shortening
+it 29 -> 26 levels in `c82e239` freed 127 CLS (9100 -> 8973) and took `clock_54m` from
+53.217 to 53.881 MHz — about five times the relief that removing 693 lines of WiFi
+bought, and most of the remaining gap.
+
+`12444a6` goes further: the mux is now a **tree**, five groups resolving in parallel
+and then against each other, **26 levels down to 11**. Priority is preserved by
+construction (contiguous groups, original order within and between) and was verified
+against the old form across 400,000 combinations of condition truth values, zero
+mismatches. **This is the build to try next.**
+
+One thing to watch: the new group wires reference signals declared later in `top.v`
+(`sd_busreq_w` at 2754, `config_req` at 2153). The old chain did too, but from inside a
+procedural `always` block rather than continuous assignments, and tools differ on how
+strict they are. If Gowin objects it will be a compile error, not silent misbehaviour —
+say so rather than working around it.
+
+If that still misses, stop and report rather than cutting features; that is the user's
+call. What remains is merging the nine `ram_dout` conditions into one test (~8 levels,
+but only valid if those decodes are provably mutually exclusive — `megarom_req` sits
+below `sd_busreq_w`/`sram_busreq_w` today, so merging flips which wins if they can
+overlap), cutting a feature, or staying on tag `known-good-fb6bea0` — the last build
+verified working on hardware, with timing closed at 58.929 MHz.
 
 ## Current state
 
