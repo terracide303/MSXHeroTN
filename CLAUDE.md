@@ -162,13 +162,12 @@ The boot menu is English, titled MSXHero v1.0.
 
 Phase 1 is complete apart from persistence.
 
-**The OSD cannot drive the core reset**, and the Reset/Cold Boot buttons were removed rather
-than left dead. `sysctrl` lives inside `fpga_companion`, which is reset by `~bus_reset_n`, so
-anything it drives into that net fights itself: a level boot-loops the machine, and a
-monostable one-shot gives no picture at all because the companion re-runs its `init` action
-(which sets `R=1`) after each reset. Do not try this again without first giving `sysctrl` a
-power-on reset of its own. The same caution applies to any OSD setting driven into a reset or
-clock-enable path — see `docs/FINDINGS.md`.
+**Do not reset `fpga_companion` from `~bus_reset_n`.** It is reset from PLL lock
+(`~clock_locked`) deliberately, because `sysctrl` lives inside it and holds the OSD's values —
+including the reset the OSD drives. Wiring the companion to the core reset makes an OSD reset
+impossible: as a level it boot-loops the machine, and through a one-shot it gives no picture
+at all. Two builds were lost to this before checking that NanoMig uses `!pll_lock` for the
+same thing. See `docs/FINDINGS.md`.
 
 **Settings do not persist.** Save writes `msxnano.ini` through the companion's FatFS, which
 reaches the card via the FPGA's SD target, and `mcu_sdc_din` is tied to zero here.
