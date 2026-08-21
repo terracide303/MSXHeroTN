@@ -87,14 +87,33 @@ suggests it is, which would open a second route that needs no module at all.
 non-zero — and the overlay sends 1 for Reset and 3 for Cold Boot. Both are non-zero, so both
 pull the same line for the same 10 ms. The distinction the protocol offers is thrown away.
 
-It should matter in at least one visible way. `boot_done` is set the first time the CPU leaves
-reset and never cleared, deliberately surviving warm resets, and boot-turbo is only applied
-when it is 0. So **choosing Cold Boot does not start the machine in turbo** — only cutting the
-power does. The XML's own comment on `cold_reset` claims otherwise.
+Two things should distinguish them, and neither does.
 
-The fix is small: have `system_reset[1]` clear `boot_done`, so a cold boot re-seeds turbo from
-flash the way a power-on does. Whether cold boot should also clear RAM is a separate question
-and probably wants answering at the same time.
+**The cartridge stays plugged in.** Found on hardware: load a game, choose Reset, land back in
+the browser, press ESC to boot the MSX — and the game runs again. That is not a fault. A ROM is
+copied into the megaram, which is SDRAM and survives a warm reset, so the MSX's slot scan finds
+a valid cartridge header in slot 3-3 and boots it, exactly as a real MSX boots a cartridge left
+in the slot. At power-on the megaram holds garbage, no `AB` header is found, and the machine
+goes to Nextor instead — which is why a power cycle behaves differently.
+
+**Boot-turbo never applies.** `boot_done` is set the first time the CPU leaves reset and never
+cleared, deliberately surviving warm resets, and boot-turbo is applied only when it is 0. So
+choosing Cold Boot does not start the machine in turbo; only cutting the power does. The XML's
+own comment on `cold_reset` claims otherwise.
+
+So the two should be:
+
+| | Behaviour |
+|---|---|
+| **Reset** | reboot with the cartridge still inserted — what happens today |
+| **Cold Boot** | reboot as if nothing were plugged in, and re-apply boot-turbo |
+
+For the cartridge half, the machine only needs to stop finding a header where one used to be:
+either clear `config1_ff[1]` so the megaram is not mapped for that boot, or invalidate the
+header bytes. Note the ordering — `config_init` reloads `config1_ff` from flash *during* the
+reset, so a cold-boot flag has to be applied after that, not before.
+
+For the turbo half, have `system_reset[1]` clear `boot_done`.
 
 Small, but it is RTL, so it belongs in this group rather than in A.
 
