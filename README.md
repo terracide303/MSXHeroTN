@@ -8,6 +8,10 @@ It boots to its own file browser, runs your ROMs off an SD card, takes a real jo
 puts everything on HDMI. A USB keyboard plugs straight into the shield. Press `F12` at any
 time — in the browser or mid-game — for settings.
 
+**Both binaries you need are in this repository**: the FPGA bitstream in
+[`compiled/`](compiled/) and the Raspberry Pi Pico firmware in [`firmware/`](firmware/). No
+toolchain, no compiler, no build step — copy two files onto two chips and fill an SD card.
+
 This is a fork of [Papipapito/MSXnano](https://github.com/Papipapito/MSXnano), retargeted to
 run on the **MiSTeryShield20k RPi Pico USB** — an open-hardware shield from the
 [MiSTle](https://github.com/MiSTle-Dev) project — so that the shield's own hardware is wired
@@ -69,12 +73,15 @@ The browser starts before the OS, so you pick a game before there is an MSX to r
 |---|---|
 | **Sipeed Tang Nano 20K** | the FPGA board |
 | **MiSTeryShield20k RPi Pico USB** | required — it carries the USB port and the joystick socket. Open hardware from the [MiSTle](https://github.com/MiSTle-Dev) project: [KiCad sources](https://github.com/MiSTle-Dev/Boards/tree/main/misteryshield20k_rpipico) |
-| **Raspberry Pi Pico** | sits on the shield and handles the keyboard |
+| **Raspberry Pi Pico** | sits on the shield and handles the keyboard. Firmware is [included here](firmware/) |
 | **microSD card** | FAT16 or FAT32, any size |
 | **USB keyboard** | plugs into the shield |
 | **A joystick** | optional — either a DB9 stick into the shield, or a USB controller |
 
 Plus the usual cables — USB-C for power and HDMI for the display.
+
+Nothing else needs downloading. The bitstream and the Pico firmware are both in this
+repository, ready to flash.
 
 The full list, with the reasoning and the places upstream's own BOM is wrong, is in
 [docs/BOM.md](docs/BOM.md). It also covers building this **without the shield**, on a
