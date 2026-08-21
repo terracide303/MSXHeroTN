@@ -32,13 +32,13 @@ video, audio and turbo settings. One thing is missing: settings do not persist.
 
 A prebuilt bitstream is in [`compiled/`](compiled/).
 
-### Known issues
+**Timing closes.** `clock_54m` meets its 54.000 MHz constraint at **55.626 MHz with zero
+negative slack on every domain**, at 87% CLS. It had been missing for several builds — at
+worst 50.4 MHz — until the CPU read mux was restructured as a tree; there is now more margin
+than any earlier build had. [docs/UTILISATION.md](docs/UTILISATION.md) records how that was
+chased and, more usefully, what did not work.
 
-**Timing closes again.** `clock_54m` had been missing its 54.000 MHz constraint for several
-builds, at worst 50.4 MHz. Restructuring the CPU read mux as a tree fixed it: the current
-build closes at **55.626 MHz with zero negative slack on every domain** — more margin than
-any earlier build had. See [docs/UTILISATION.md](docs/UTILISATION.md) for how that was
-chased, including what did not work.
+### Known issues
 
 **Settings do not persist.** The menu's Save writes `msxnano.ini` through the companion's
 FatFS, which reaches the SD card via the FPGA's SD target — and `mcu_sdc_din` is tied to zero
@@ -337,6 +337,12 @@ Files go in the root of the SD card, or in subdirectories.
 |---|---|
 | `.rom` | cartridge, into the megaram, with mapper auto-detection |
 | `.dsk` | disk image, through Nextor disk emulation |
+
+A cartridge lands in the megaram in slot 3-3, which is why a MIDI or FM cartridge would have
+to share the machine with it — the layout the core presents to the MSX is:
+
+![MSX slot map: BIOS in slot 0, mapper in 3-0, SubROM and FM logo in 3-1, disk ROM in 3-2,
+megaram/SCC in 3-3](docs/img/slot-map.png)
 
 **Only those two.** Upstream v1.9 removed ColecoVision and Sega SG-1000 support — the RTL,
 the SN76489 core and the menu's `.COL`/`.SG` handling all went — so this fork does not have
