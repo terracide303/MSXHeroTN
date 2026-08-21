@@ -3047,6 +3047,10 @@ help_screen:
 	call POSIT
 	ld   hl, help4Str
 	call print_string
+	ld   hl, #0209
+	call POSIT
+	ld   hl, help4bStr
+	call print_string
 	ld   hl, #020A
 	call POSIT
 	ld   hl, help5Str
@@ -4813,7 +4817,7 @@ tabDStr:
 tabAStr:
 	.db "[A]LL",0
 footerStr:
-	.db "BS/Left=Back  Right=Page  /=Find  ESC=Boot  F12=Setup  H=Help     ",0
+	.db "L/R=Page  BS=Back  /=Find  ESC=Boot  F12=Setup  H=Help            ",0
 helpTitleStr:
 	.db "MSXHeroTN HELP",0
 ; ============================== DATOS (>= A010) ==============================
@@ -4831,8 +4835,10 @@ help1Str:
 help2Str:
 	.db "RETURN / joy fire 1   : open folder or launch ROM",0
 help3Str:
-	.db "Left / BACKSPACE      : back a page, then out of the folder",0
+	.db "Left/Right            : page up / page down",0
 help4Str:
+	.db "BACKSPACE or Left     : leave the folder (Left at the top)",0
+help4bStr:
 	.db "TAB                   : change partition",0
 help5Str:
 	.db "ESC                   : boot the system (MSX-DOS)",0
