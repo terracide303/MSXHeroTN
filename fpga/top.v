@@ -116,15 +116,6 @@ module top
     wire [1:0] system_keyboard_sel;
     wire       system_db9_port;
     wire [1:0] system_autofire;
-    wire       system_save;
-
-    // Settings that live only in the OSD (the S menu has no equivalent) and so
-    // have no bit in config1/config2. They are held here rather than used
-    // straight from sysctrl, because sysctrl is reset by PLL lock and knows
-    // nothing about what was saved; these are seeded from flash at config_init
-    // and then follow the OSD.
-    reg [2:0] volume_ff   = 3'd4;   // full
-    reg       db9_port_ff = 1'b0;   // MSX port 1
 
     // change detectors for the OSD settings above (see the config block)
     reg osd_scan_d   = 1'b0;
@@ -576,17 +567,6 @@ end
 // Ported from the goauld+RP2040 fork (there it lived in firmware; here, no
 // RP2040 -> it lives in the FPGA on the PSG joystick-injection path).
 //   54 MHz * 0.050 s = 2,700,000 cycles per half period.
-//
-// The OSD's "F" rate control is PARKED, not forgotten. Two attempts to make this
-// rate selectable each cost clock_54m its margin: a 23-bit limit register plus a
-// variable comparator (0b3f629: TNS -0.555 ns over 6 endpoints), and then a
-// comparator-free free-running counter with the rates a power of two apart
-// (aa52343), which came in UNDER the CLS target at 9028 and still made timing
-// dramatically worse -- 50.7 MHz, -5.172 ns over 17 endpoints, with a second
-// failing family appearing at the CPU/SDRAM boundary that was not there before.
-// Resource count is not what governs this design; placement is. So this block is
-// back to exactly what shipped in the last build that closed, and
-// system_autofire is left unconnected.
 reg        af_phase = 1'b0;
 reg [21:0] af_cnt   = 22'd0;
 always @(posedge clk_54m) begin
@@ -624,8 +604,8 @@ wire [7:0] joy1_msx = {2'b11, ~af_fb1, ~af_fa1, ~joystick1[0], ~joystick1[1], ~j
 // OSD "J": which MSX joystick port the shield's DB9 answers on. The DB9 is
 // mixed into joy0_msx above; when port 2 is selected the two ports are simply
 // swapped, so the stick appears on port 2 and the USB pad on port 1.
-wire [7:0] port1_msx = db9_port_ff ? joy1_msx : joy0_msx;
-wire [7:0] port2_msx = db9_port_ff ? joy0_msx : joy1_msx;
+wire [7:0] port1_msx = system_db9_port ? joy1_msx : joy0_msx;
+wire [7:0] port2_msx = system_db9_port ? joy0_msx : joy1_msx;
 
 wire [7:0] psg_joy_data = (!psg_reg15_joy_sel[0]) ? port1_msx :
                           (!psg_reg15_joy_sel[1]) ? port2_msx :
@@ -1633,38 +1613,46 @@ assign keyboard_addr = ppi_port_c[3:0];
                 `endif
                         23'h7fffff; 
     
-    // Was a serial ?: chain of nine tests that all return the SAME value, so it
-    // was only ever asking "did anything request a read". Written as an OR the
-    // synthesiser can build a balanced tree instead of a nine-deep mux, which
-    // matters because this feeds memory_ctrl -- instantiated on clk_54m despite
-    // its port being named clk_27m -- and cpu1/RD -> mem1/sdram_* has been the
-    // worst failing path in every timing miss this project has had.
-    wire ram_any_read = `ifdef ENABLE_MAPPER  mapper_read       | `endif
-                        `ifdef ENABLE_SDCARD  megarom_req       | `endif
-                        `ifdef ENABLE_WIFI    wifi_req | logo_req | `endif
-                        bios_req | subrom_logo_req | megaram_req |
-                        kanji_driver_req | kanji_data_ram_req;
-    assign ram_read = (~flash_idle) ? 1'b0 : (ram_any_read & ~bus_rd_n);
+    assign ram_read = (~flash_idle) ? 0 : 
+                `ifdef ENABLE_MAPPER
+                      (mapper_read == 1) ? ~bus_rd_n :
+                `endif
+                      (bios_req == 1) ? ~bus_rd_n :
+                      (subrom_logo_req == 1) ? ~bus_rd_n :
+                `ifdef ENABLE_SDCARD
+                      (megarom_req == 1) ? ~bus_rd_n :
+                `endif
+                      (megaram_req == 1) ? ~bus_rd_n :
+                      (kanji_driver_req == 1) ? ~bus_rd_n :
+                      (kanji_data_ram_req == 1) ? ~bus_rd_n :
+                `ifdef ENABLE_WIFI
+                      (wifi_req == 1) ? ~bus_rd_n :
+                      (logo_req == 1) ? ~bus_rd_n :
+                `endif
+                      0;
     
-    // Same shape, same reasoning as ram_read above.
-    wire ram_any_write = `ifdef ENABLE_MAPPER mapper_write | `endif
-                         megaram_wrt;
-    assign ram_write = (~flash_idle) ? rom_write : (ram_any_write & ~bus_wr_n);
+    assign ram_write = (~flash_idle) ? rom_write : 
+                `ifdef ENABLE_MAPPER
+                      (mapper_write == 1 ) ? ~bus_wr_n :
+                `endif
+                      (megaram_wrt == 1) ? ~bus_wr_n :
+                      0; 
 
-    // Every branch of the old chain read (x == 1) ? x : ... -- each one returning
-    // its own condition -- so there was never any priority to preserve and the
-    // whole tail is simply an OR. All terms are one bit wide (checked), which
-    // makes this transformation exact, not an approximation.
-    //
-    // This is the same fix that e48a96f applied to cpu_din, on the other path
-    // family that keeps failing. ram_req drives sdram_seq's clock enable, and
-    // cpu1/RD_s0/Q -> mem1/sdram_seq_*/CE was the worst endpoint in c2fcec4
-    // (-0.486 ns) while the restructured cpu_din was down to -0.032 ns.
-    wire ram_any_req = `ifdef ENABLE_SDCARD megarom_req        | `endif
-                       `ifdef ENABLE_WIFI   wifi_req | logo_req | `endif
-                       mapper_req | bios_req | subrom_logo_req | megaram_req |
-                       kanji_driver_req | kanji_data_ram_req;
-    assign ram_req = (~flash_idle) ? rom_write : ram_any_req;
+    assign ram_req = (~flash_idle) ? rom_write : 
+                     (mapper_req == 1) ? mapper_req:
+                     (bios_req == 1) ? bios_req:
+                     (subrom_logo_req == 1) ? subrom_logo_req:
+                `ifdef ENABLE_SDCARD
+                     (megarom_req == 1) ? megarom_req:
+                `endif
+                     (megaram_req == 1) ? megaram_req:
+                     (kanji_driver_req == 1) ? kanji_driver_req:
+                     (kanji_data_ram_req == 1) ? kanji_data_ram_req:
+                `ifdef ENABLE_WIFI
+                     (wifi_req == 1) ? wifi_req:
+                     (logo_req == 1) ? logo_req:
+                `endif
+                      0;
 
     assign ram_din = (~flash_idle) ? { rom_dout, rom_dout }  : { cpu_dout, cpu_dout };
 
@@ -2060,8 +2048,8 @@ memory_ctrl mem1 (
                 mix_l <= { 2'b0 , psgSound3 , 6'b000000 } + { 2'b0 , psg2Sound3 , 6'b000000 } + scc_term + { scc2x_wav, 1'b0 } + jt2413_wav;
                 mix_r <= { 2'b0 , psgSound3 , 6'b000000 } + { 2'b0 , psg2Sound3 , 6'b000000 } + scc_term + { scc2x_wav, 1'b0 } + jt2413_wav;
             end
-            audio_sample   <= apply_volume(mix_l, volume_ff);
-            audio_sample_r <= apply_volume(mix_r, volume_ff);
+            audio_sample   <= apply_volume(mix_l, system_volume);
+            audio_sample_r <= apply_volume(mix_r, system_volume);
         end
     end
 
@@ -2147,13 +2135,6 @@ memory_ctrl mem1 (
     wire config_enable_16_9;
     reg config_reset_ff;
     reg config_flash_write_ff;
-    // Seeded to sysctrl's own reset values so that no spurious "changed" edge
-    // fires at power-on, which would otherwise stamp the default over whatever
-    // config_init had just restored from flash.
-    reg       osd_db9_d    = 1'b0;
-    reg       osd_tboot_d  = 1'b0;
-    reg [2:0] osd_vol_prev = 3'd4;
-    reg       osd_save_d   = 1'b0;
     reg config_update;
     wire config_enable_scanlines;
     wire [1:0] config_mapper_slot;
@@ -2179,13 +2160,6 @@ memory_ctrl mem1 (
         config_reset_ff <= 0;
         config_flash_write_ff <= 0;
         config_update <= 0;
-        // OSD "Save settings": the same flash write the S menu triggers through
-        // port #42 bit 6. Edge-triggered, so it saves once however long the
-        // companion leaves the value at 1. No reset is requested -- the S menu
-        // offered Save & Exit as well as Save & Reset, and this is the former.
-        osd_save_d <= system_save;
-        if (system_save && !osd_save_d)
-            config_flash_write_ff <= 1;
         if (clk_enable_3m6_27 == 1 ) begin
             if (config0_req == 1 ) begin
                 config0_ff <= ~cpu_dout;
@@ -2228,25 +2202,11 @@ memory_ctrl mem1 (
                 config1_ff <= CONFIG1_DEFAULT;
                 config2_ff <= CONFIG2_DEFAULT;
                 config_turbo_boot_ff <= 0;      // rescate S2: boot turbo off
-                volume_ff   <= 3'd4;            // S2 rescue: OSD settings to defaults too
-                db9_port_ff <= 1'b0;
             end
             else begin
                 config1_ff <= config_sig[2];
                 config2_ff <= config_sig[3];
                 config_turbo_boot_ff <= (config_sig[4] == 8'h54) ? 1'b1 : 1'b0;
-                // Byte 5 of the flash block, which upstream wrote as 0xFF and
-                // never read. Bit 7 clear marks it as ours: an erased or
-                // pre-existing 0xFF therefore falls through to the defaults,
-                // so a board that has never saved still boots sanely.
-                if (config_sig[5][7] == 1'b0) begin
-                    volume_ff   <= config_sig[5][2:0];
-                    db9_port_ff <= config_sig[5][3];
-                end
-                else begin
-                    volume_ff   <= 3'd4;
-                    db9_port_ff <= 1'b0;
-                end
             end
         end
         // escritura del puerto #45 (menu): mismo bloque que la carga init para un
@@ -2277,20 +2237,6 @@ memory_ctrl mem1 (
         if (system_second_scc  != osd_scc2_d)   config1_ff[2] <= system_second_scc;
         if (system_wide_screen != osd_wide_d)   config2_ff[4] <= system_wide_screen;
         if (system_stereo      != osd_stereo_d) config2_ff[5] <= system_stereo;
-
-        // Same pattern for the settings with no config1/config2 bit, plus boot
-        // turbo, which does have one (flash byte 4) but was never connected to
-        // the OSD. Change-triggered rather than continuous, which is what makes
-        // the flash seeding survive: at start-up the companion pushes its XML
-        // defaults, and those match sysctrl's reset values, so nothing changes
-        // and nothing overwrites what config_init just loaded. Keep the XML
-        // defaults and sys_ctrl.v's reset values in step or this breaks.
-        osd_vol_prev <= system_volume;
-        osd_db9_d    <= system_db9_port;
-        osd_tboot_d  <= system_turbo_boot;
-        if (system_volume      != osd_vol_prev) volume_ff   <= system_volume;
-        if (system_db9_port    != osd_db9_d)    db9_port_ff <= system_db9_port;
-        if (system_turbo_boot  != osd_tboot_d)  config_turbo_boot_ff <= system_turbo_boot;
     end
 
 
@@ -2411,11 +2357,6 @@ memory_ctrl mem1 (
     wire[7:0] flash_dout;
     wire flash_data_ready;
     wire flash_busy;
-    // Flash block byte 5. Bit 7 is the "written by us" marker and must stay 0;
-    // an erased byte reads 0xFF and is rejected by config_init above.
-    //   [7] 0 = valid   [6:4] reserved (autofire, parked)   [3] DB9 port   [2:0] volume
-    wire [7:0] config_save_byte = { 4'b0000, db9_port_ff, volume_ff };
-
     wire [7:0] flash_write_din;
     wire flash_write_busy;
     wire [7:0] flash_write_counter;
@@ -2425,8 +2366,7 @@ memory_ctrl mem1 (
                         `ifdef ENABLE_CONFIG
                              (flash_write_counter == 8'd02) ? config1_ff :
                              (flash_write_counter == 8'd03) ? config2_ff :
-                             (flash_write_counter == 8'd04) ? (config_turbo_boot_ff ? 8'h54 : 8'h00) :
-                             (flash_write_counter == 8'd05) ? config_save_byte : 8'hff;
+                             (flash_write_counter == 8'd04) ? (config_turbo_boot_ff ? 8'h54 : 8'h00) : 8'hff;
                         `else
                              (flash_write_counter == 8'd02) ? CONFIG1_DEFAULT :
                              (flash_write_counter == 8'd03) ? CONFIG2_DEFAULT : 8'hff;
@@ -3050,8 +2990,7 @@ memory_ctrl mem1 (
         .system_pal         (system_pal),
         .system_keyboard    (system_keyboard_sel),
         .system_db9_port    (system_db9_port),
-        .system_autofire    (system_autofire),
-        .system_save        (system_save)
+        .system_autofire    (system_autofire)
     );
 
     usb_keyboard_msx usb_keyboard_msx

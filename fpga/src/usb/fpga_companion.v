@@ -37,8 +37,7 @@ module fpga_companion (
     output       system_pal,
     output [1:0] system_keyboard,
     output       system_db9_port,
-    output [1:0] system_autofire,
-    output       system_save
+    output [1:0] system_autofire
 );
 
 wire mcu_hid_strobe;
@@ -172,8 +171,7 @@ sysctrl sysctrl (
         .system_pal(system_pal),
         .system_keyboard(system_keyboard),
         .system_db9_port(system_db9_port),
-        .system_autofire(system_autofire),
-        .system_save(system_save)
+        .system_autofire(system_autofire)
          );   
 
 endmodule

@@ -14,7 +14,11 @@ port and MIDI sockets — actually works, instead of sitting unconnected.
 
 **It runs on real hardware.** The core synthesizes, boots to the file browser, loads and
 plays games, takes a DB9 joystick, and brings up the FPGA-Companion OSD on F12 with working
-video, audio and turbo settings. Settings persistence is written but not yet built or tested.
+video, audio and turbo settings. One thing is missing: settings do not persist.
+
+Everything in that table has been confirmed by hand on a Tang Nano 20K in a MiSTeryShield20k.
+This branch is the source of `compiled/known-good/`, so what you build from it is what is
+known to run.
 
 | | State |
 |---|---|
@@ -25,7 +29,7 @@ video, audio and turbo settings. Settings persistence is written but not yet bui
 | **OSD overlay (F12)** | **yes** — centred, named MSXHero, settings reach the core |
 | **Turbo** | works from the OSD; applied via reset. F11 no longer intercepted, and the crash is gone with it |
 | Video and audio settings from the OSD | scanlines, aspect, stereo, second SCC+, volume |
-| **Saving settings** | **yes** — into the FPGA's flash. Not yet verified on hardware |
+| **Saving settings** | **no** — settings are lost at power-off. Being worked on, on `dev` |
 | Boot menu | English, titled MSXHero TN 1.0 |
 | **OSD Reset / Cold Boot** | **yes** — verified on hardware |
 | Boot logo | own logo works; the v1.9 pack ships the slot blank |
@@ -53,13 +57,17 @@ chased and, more usefully, what did not work.
 
 ### Known issues
 
-**The OSD shows defaults after a power cycle, even when saved settings are in use.**
+**Settings do not persist.** Volume, DB9 port and boot-turbo are lost at power-off. The
+work to fix that is on `dev` — see [Saving settings](#saving-settings--in-progress-on-dev-not-in-this-branch).
+
+**When persistence does land, the OSD will show defaults after a power cycle even though the
+saved settings are in use.**
 sysctrl's CMD 4 is one-way, companion to core, so the core has no way to tell the OSD what it
 restored from flash. Set the volume to 50%, save, power cycle: the machine plays at 50% and
 the menu says 100% until you touch that entry. Cosmetic, but it looks like a bug.
 
 Fixing it properly means letting the *companion* own the settings file, which is how
-MiSTeryNano does it — see [Saving settings](#saving-settings) below.
+MiSTeryNano does it — see [Saving settings](#saving-settings--in-progress-on-dev-not-in-this-branch) below.
 
 **Video std and Keyboard in the OSD are decoded but not acted on.** `system_pal` and
 `system_keyboard` arrive from the companion and go nowhere. The machine's video standard
@@ -121,9 +129,9 @@ InfoFrame — the display decides whether to pillarbox or stretch, and many igno
 ![Input settings](docs/img/osd-input.jpg)
 
 *The shield's DB9 joystick, and which MSX port it answers on. It is mixed into the same PSG
-lines as the USB gamepad, so either can drive a game. The Autofire entry visible here has
-since been removed — the rate is fixed in the core, and making it selectable would not close
-timing.*
+lines as the USB gamepad, so either can drive a game. The Autofire entry shown here is
+decorative: the rate is fixed at ~10 Hz in the core, and two attempts to make it selectable
+both failed to close timing, so it is removed on `dev`.*
 
 
 ---
@@ -285,11 +293,13 @@ and the joystick mux, not the boot config path.
 
 ---
 
-### Saving settings
+### Saving settings — in progress on `dev`, not in this branch
 
-Written, not yet built or tested on hardware.
+**Not implemented here.** The design below is being worked on and has not yet produced a
+build that closes timing; follow it on the `dev` branch. It is described here because the
+reasoning is worth keeping in one place.
 
-Settings go into the **FPGA's flash**, not onto the SD card. There has been a six-byte block
+The plan is to put settings into the **FPGA's flash**, not onto the SD card. There has been a six-byte block
 at `0x280000` since upstream — `'A'`, `'B'`, `config1`, `config2`, boot-turbo, and a sixth
 byte written as `0xFF` and never read. The on-MSX `S` menu's Save has always used it. The
 sixth byte is now ours:
@@ -333,8 +343,9 @@ route costs almost nothing and touches none of that. The companion route is the 
 long-term answer, and the sensible place to prove it is the ECP5 build, which has room; the
 OSD is shared between the two, so it would come back here once it works.
 
-**Also fixed here:** the OSD's **Boot in turbo** entry did nothing at all — `system_turbo_boot`
-was declared and wired to sysctrl but read by nobody. It is connected now.
+**Also on `dev`:** the OSD's **Boot in turbo** entry does nothing in this branch —
+`system_turbo_boot` is declared and wired to sysctrl but read by nobody. It is connected on
+`dev`.
 
 **Autofire is parked, and the menu entry has been removed rather than left decorative.**
 `system_autofire` had the same problem, but making the rate selectable cost `clock_54m` its
