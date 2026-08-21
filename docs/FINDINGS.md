@@ -515,6 +515,31 @@ is straightforward but touches five sites, so it has been left alone deliberatel
 
 ---
 
+## 6g. Two traps in this core's own structure
+
+**A reset that erases its own cause.** `sysctrl` holds the OSD's config values and lives
+inside `fpga_companion`, which is reset by `~bus_reset_n`. Wiring `system_reset` straight
+into `bus_reset_n` therefore boot-loops the machine: asserting reset clears the register
+that was asserting it, reset releases, and it happens again. The companion's own startup
+guarantees you hit it — its `init` action sets `R=1` and `ready` sets `R=0`.
+
+The fix is the pattern already in `top.v`: run the level through the `monostable` one-shot,
+as `config_reset` does, so the pulse outlives the register that triggered it. Anything else
+driven from `sysctrl` into a reset or clock-enable path needs the same treatment.
+
+**A 29-deep priority mux on the CPU read path.** `cpu_din` selected among ~29 sources as a
+serial priority chain, and it was the endpoint of two paths missing timing. Restructuring it
+as a tree — groups resolving in parallel, then against each other — took it to 11 levels,
+freed 127 CLS and moved `clock_54m` from 53.2 to 55.6 MHz, closing it for the first time in
+several builds.
+
+Worth knowing what that says about the device: **removing 693 lines of WiFi freed 24 CLS;
+restructuring one mux freed 127.** At 88% CLS the wins come from logic depth and placement
+pressure, not from deleting features. Chasing timing by cutting functionality was tried
+first and was the weaker lever by a wide margin.
+
+---
+
 ## 7. Upstream documentation errors
 
 Recorded because two of them cost real time, and because they are a reason to verify

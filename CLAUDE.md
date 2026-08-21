@@ -149,14 +149,19 @@ verified working on hardware, with timing closed at 58.929 MHz.
 
 ## Current state
 
-The core builds, boots, browses the SD card, runs games, reads the shield's DB9 joystick, and
-renders the FPGA-Companion OSD on F12 with working reset, turbo, volume, scanlines, aspect,
-stereo and second-SCC settings.
+`clock_54m` **closes** as of the `cpu_din` tree restructure (`12444a6`): 55.626 MHz against
+54.000, zero negative slack on all six domains, CLS 87%. That ended a run of builds that
+missed it; `docs/UTILISATION.md` records what was tried and what did not work, so it is not
+repeated. Do not re-sweep place/route effort, and note that
+`-oreg_in_iob`/`-ireg_in_iob`/`-retiming` do not exist in this synthesis engine.
 
-**Settings do not persist.** The menu's Save writes `msxnano.ini` through the companion's
-FatFS, which reaches the card via the FPGA's SD target — and `mcu_sdc_din` is tied to zero
-here, so the companion cannot see the SD card. Implementing that target is the outstanding
-Phase 1 item.
+The core builds, boots, browses the SD card, runs games, reads the shield's DB9 joystick, and
+renders the FPGA-Companion OSD on F12 with reset, turbo, volume, scanlines, aspect, stereo
+and second-SCC settings reaching the core.
+
+**Settings do not persist.** Save writes `msxnano.ini` through the companion's FatFS, which
+reaches the card via the FPGA's SD target, and `mcu_sdc_din` is tied to zero here.
+Implementing that target is the outstanding Phase 1 item.
 
 Full status is in [README.md](README.md), the roadmap in [docs/ROADMAP.md](docs/ROADMAP.md),
 and everything established about the hardware, the shield, the companion protocol and

@@ -32,26 +32,20 @@ A prebuilt bitstream is in [`compiled/`](compiled/).
 
 ### Known issues
 
-**One timing violation.** `clock_54m` closes at 53.798 MHz against a 54.000 MHz constraint —
-the CPU cadence domain, on a design at 88% CLS. It predates this fork. It is the reason turbo
-moved out of that domain and into the OSD, and it is the first suspect for anything
-timing-sensitive that misbehaves. Details in [docs/UTILISATION.md](docs/UTILISATION.md).
+**Timing closes again.** `clock_54m` had been missing its 54.000 MHz constraint for several
+builds, at worst 50.4 MHz. Restructuring the CPU read mux as a tree fixed it: the current
+build closes at **55.626 MHz with zero negative slack on every domain** — more margin than
+any earlier build had. See [docs/UTILISATION.md](docs/UTILISATION.md) for how that was
+chased, including what did not work.
+
+**Settings do not persist.** The menu's Save writes `msxnano.ini` through the companion's
+FatFS, which reaches the SD card via the FPGA's SD target — and `mcu_sdc_din` is tied to zero
+here, so the companion cannot see the card at all. Settings apply immediately but are lost at
+power-off. This is the outstanding Phase 1 item.
 
 **Turbo is applied via reset, not live.** Switching CPU cadence while running hung the
-machine. That is a timing problem, not a keyboard one: `clock_54m` closes at 53.798 MHz
-against a 54.000 MHz constraint, and the cadence mux lives in that domain. The Turbo menu
-entry therefore carries `action="reset"`, which is reliable — the boot-turbo path has always
-applied a cadence at reset without trouble, and MiSTeryNano handles machine-level settings the
-same way.
-
-The old **F11 shortcut is gone** and the crash with it: keys belong to the MSX, machine
-settings belong in the overlay. The underlying timing violation is untouched and remains the
-first suspect for anything else timing-sensitive; it predates this fork and is recorded in
-[docs/UTILISATION.md](docs/UTILISATION.md).
-
-**Save does not work.** The menu's Save writes `msxnano.ini` through the companion's FatFS,
-which reaches the SD card via the FPGA's SD target — and `mcu_sdc_din` is tied to zero here,
-so the companion cannot see the card at all. Settings apply immediately but do not persist.
+machine. The Turbo menu entry therefore carries `action="reset"`, which is reliable. The
+F11 shortcut is gone: keys belong to the MSX, machine settings belong in the overlay.
 
 ---
 
