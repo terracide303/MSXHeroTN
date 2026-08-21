@@ -1015,6 +1015,14 @@ scan_current:
 	ld   a, (ix+11)
 	and  #08
 	jp   nz, .scr_drop				; volume label -> skip
+	ld   a, (ix+11)
+	and  #06						; hidden (0x02) | system (0x04)
+	jp   nz, .scr_drop				; OS housekeeping: .Trashes, .fseventsd, ._*,
+									; System Volume Information, and Nextor's own
+									; NEXTOR.EMU (created attr #26 at .emu_mk).
+									; The '.' test below only sees the SHORT name,
+									; and ".Trashes" shortens to "TRASHE~1", so it
+									; never caught these.
 	ld   a, (ix+0)
 	cp   '.'
 	jp   z, .scr_drop				; "." and ".." entries -> skip
@@ -4635,7 +4643,7 @@ tagRomStr:
 tagDskStr:
 	.db "[DSK] ",0
 hdrTitleStr:
-	.db "MSXHero TN 1.0",0
+	.db "MSXHero TN 1.1",0
 tabRStr:
 	.db "[R]OM",0
 tabDStr:

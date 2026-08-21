@@ -20,7 +20,52 @@ the most time. It all happens on the Mac, and the toolchain is documented in
 [`../fpga/src/msxnano_menu/BUILDING.md`](../fpga/src/msxnano_menu/BUILDING.md). You do not even
 need the copyrighted BIOS dumps: the splice patches a pack you already have.
 
-### A1. Drive the browser with a joystick
+### A1. Make the browser behave — **in progress, 1.1**
+
+Four things, all in or near the routine that builds the listing (`scan_current`), so they are
+one piece of work rather than four passes through 6,000 lines of someone else's Z80.
+
+**Hide OS housekeeping — done.** The scan tested `ix+11` for volume label and directory but
+never for hidden (`0x02`) or system (`0x04`), and the `'.'` test only sees the *short* name, so
+`.Trashes` — short name `TRASHE~1` — sailed through. Every card formatted on a Mac or PC
+carried `.Trashes`, `.fseventsd`, `._*` and `System Volume Information` into the listing, eating
+slots against the 115 limit. Four instructions. Also hides Nextor's own `NEXTOR.EMU`, which is
+created hidden+system precisely so it stays out of sight.
+
+**Sort the listing — next.** There is no sort anywhere in the file; entries appear in raw FAT
+directory order, which is the order they happened to be written. This is the biggest single
+usability win, and it makes the 115-file limit hurt less because you can predict where a name
+falls.
+
+Do **not** sort the 80-byte records in place: 115 entries insertion-sorted means roughly 6,600
+swaps of 80 bytes each, which is around three seconds on a 3.58 MHz Z80. Sort a 115-byte index
+table instead and have the render path read through it — same algorithm, a byte moved per swap
+instead of eighty.
+
+**Remember the position.** After a reset you are back at the top of the root. Keeping the last
+directory and cursor position matters more once A3 stops resets landing here at all.
+
+**Then the 115-file limit** (was A4), which is the same routine again.
+
+### A2. Tidy the keys
+
+**Three keys are dead.** The browser's dispatch still handles `W` (WiFi config), `U` (UNAPI
+test) and `F` (File-Hunter, the online ROM search). All three need the ESP-01S, which this fork
+compiles out — at best they do nothing, at worst they hang on a missing UNAPI. Remove them
+until WiFi comes back (B2).
+
+**One key is undocumented.** `/` runs a working name search (`.br_search`) and the status bar
+never mentions it. Free feature nobody knows exists.
+
+**`S` goes too.** Its only remaining job was saving to flash, which the F12 overlay does as of
+1.0. Compatible Mode — the one setting that screen had which the overlay lacks — was deleted
+upstream in v1.9, so nothing is lost. Removing the settings screen also frees Z80 space the
+115-file fix needs.
+
+Note the status bar is width-padded: `"R/D/A=Filter ESC=Boot S=Save F12=Setup TAB=Part H=Help  "`
+must stay its exact width as entries come and go.
+
+### A3. Drive the browser with a joystick
 
 Read PSG register 14 and map the directions onto the keys the browser already handles, fire
 onto RETURN. The DB9 stick and a USB pad are mixed onto the same PSG lines in the core, so both
@@ -29,7 +74,7 @@ work from one implementation.
 Ordinary MSX programming, immediately useful every time you change game, and a mistake costs a
 reflash rather than a build cycle. **Start here.**
 
-### A2. Remove `S` from the menu
+### A4. (folded into A2)
 
 `S` opens a reduced on-MSX settings screen. Its only remaining job was saving to flash, and the
 F12 overlay does that now — so it is redundant as of 1.0.
@@ -40,7 +85,7 @@ to a fixed width and must stay that width when `S=Save` comes out.
 
 Worth doing before A4, because deleting the settings screen frees Z80 space that A4 needs.
 
-### A3. Reset should relaunch the game, not the browser
+### A5. Reset should relaunch the game, not the browser
 
 On a real MSX with a cartridge inserted, the reset button restarts the game. Here it lands in
 the browser, because the browser *is* the boot ROM and runs before the OS on every reset.
@@ -64,7 +109,7 @@ could in principle look like a header. The MSX's own slot scan already takes tha
 is not new, but a magic signature written by the loader would be sturdier than trusting two
 bytes. Worth deciding before writing the check.
 
-### A4. Remove the 115-file limit
+### A6. Remove the 115-file limit
 
 The browser silently lists only the first 115 entries of any directory — no warning, they simply
 are not there. The listing lives in a fixed array in MSX RAM, 80 bytes per record:
