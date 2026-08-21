@@ -110,7 +110,9 @@ InfoFrame — the display decides whether to pillarbox or stretch, and many igno
 ![Input settings](docs/img/osd-input.jpg)
 
 *The shield's DB9 joystick, and which MSX port it answers on. It is mixed into the same PSG
-lines as the USB gamepad, so either can drive a game.*
+lines as the USB gamepad, so either can drive a game. The Autofire entry visible here has
+since been removed — the rate is fixed in the core, and making it selectable would not close
+timing.*
 
 
 ---
@@ -320,9 +322,22 @@ route costs almost nothing and touches none of that. The companion route is the 
 long-term answer, and the sensible place to prove it is the ECP5 build, which has room; the
 OSD is shared between the two, so it would come back here once it works.
 
-**Also fixed here:** the OSD's **Boot in turbo** and **Autofire** entries did nothing at all.
-`system_turbo_boot` and `system_autofire` were declared and wired to sysctrl but read by no
-one — autofire ran at a hardwired 10 Hz. Both are connected now.
+**Also fixed here:** the OSD's **Boot in turbo** entry did nothing at all — `system_turbo_boot`
+was declared and wired to sysctrl but read by nobody. It is connected now.
+
+**Autofire is parked, and the menu entry has been removed rather than left decorative.**
+`system_autofire` had the same problem, but making the rate selectable cost `clock_54m` its
+timing twice over. First as a 23-bit limit register and a variable comparator (`0b3f629`:
+−0.555 ns across 6 endpoints). Then as a comparator-free free-running counter with the rates
+a power of two apart, which is genuinely less logic and **came in under the CLS target at
+9028** — and made timing dramatically worse anyway: 50.7 MHz, −5.172 ns across 17 endpoints,
+with a second failing family appearing at the CPU/SDRAM boundary that had not been there.
+
+That is the clearest evidence yet that **this design's timing is governed by placement, not
+by resource count** — you can hand the placer a smaller netlist and get a worse result. It is
+why the rule is to judge a feature by what it adds to `cpu_din`, and why anything touching
+`clk_54m` is now treated as expensive regardless of size. Autofire still runs at a fixed
+~10 Hz, exactly as it did before any of this.
 
 
 ## Plan

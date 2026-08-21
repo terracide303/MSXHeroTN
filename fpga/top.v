@@ -125,7 +125,6 @@ module top
     // and then follow the OSD.
     reg [2:0] volume_ff   = 3'd4;   // full
     reg       db9_port_ff = 1'b0;   // MSX port 1
-    reg [1:0] autofire_ff = 2'd1;   // 5 Hz
 
     // change detectors for the OSD settings above (see the config block)
     reg osd_scan_d   = 1'b0;
@@ -576,44 +575,34 @@ end
 // press AND release is sampled; 50 ms = 2.5-3 frames is safe even on PAL.
 // Ported from the goauld+RP2040 fork (there it lived in firmware; here, no
 // RP2040 -> it lives in the FPGA on the PSG joystick-injection path).
+//   54 MHz * 0.050 s = 2,700,000 cycles per half period.
 //
-// OSD "F" picks the rate, and the rates are deliberately powers of two apart so
-// that NO COMPARATOR IS NEEDED: the counter free-runs and the square wave is
-// simply one of its bits. A bit toggles every 2^n cycles, so at 54 MHz
-//   bit 23 -> 155 ms half period ->  3.2 Hz
-//   bit 22 ->  78 ms             ->  6.4 Hz
-//   bit 21 ->  39 ms             -> 12.9 Hz
-// This is cheaper than the fixed-rate version it replaces, which compared 22
-// bits against a constant on every clk_54m edge -- and clk_54m is the domain
-// with no timing margin, so the odd-looking rates are worth it. An earlier
-// attempt here (a 23-bit limit register plus a variable comparator, giving a
-// tidy 5/10/20 Hz) cost 48 CLS and pushed clock_54m to -0.555 ns TNS.
-//
-// Every half period stays above 39 ms, comfortably longer than one MSX PSG scan
-// at 50 Hz (20 ms), so each press and release is still sampled -- which is the
-// constraint the original 50 ms was chosen to satisfy.
-//
-// autofire_ff crosses from clk_27m without a synchroniser, as the other OSD
-// settings on this path already do: it is a rate select that changes when a
-// human moves a menu entry, never mid-press.
-reg [23:0] af_cnt = 24'd0;
-always @(posedge clk_54m) af_cnt <= af_cnt + 24'd1;
-
-reg af_on;
-always @(*) begin
-    case (autofire_ff)
-        2'd1:    af_on = af_cnt[23];   //  3 Hz
-        2'd2:    af_on = af_cnt[22];   //  6 Hz
-        2'd3:    af_on = af_cnt[21];   // 13 Hz
-        default: af_on = 1'b0;         // off: buttons 3/4 do nothing again
-    endcase
+// The OSD's "F" rate control is PARKED, not forgotten. Two attempts to make this
+// rate selectable each cost clock_54m its margin: a 23-bit limit register plus a
+// variable comparator (0b3f629: TNS -0.555 ns over 6 endpoints), and then a
+// comparator-free free-running counter with the rates a power of two apart
+// (aa52343), which came in UNDER the CLS target at 9028 and still made timing
+// dramatically worse -- 50.7 MHz, -5.172 ns over 17 endpoints, with a second
+// failing family appearing at the CPU/SDRAM boundary that was not there before.
+// Resource count is not what governs this design; placement is. So this block is
+// back to exactly what shipped in the last build that closed, and
+// system_autofire is left unconnected.
+reg        af_phase = 1'b0;
+reg [21:0] af_cnt   = 22'd0;
+always @(posedge clk_54m) begin
+    if (af_cnt >= 22'd2700000) begin
+        af_cnt   <= 22'd0;
+        af_phase <= ~af_phase;
+    end else begin
+        af_cnt   <= af_cnt + 22'd1;
+    end
 end
 // fire = manual press OR (autofire button held AND square-wave high). If the pad
 // has no button 3/4 (bits 6/7 stay 0) this reduces to the original behaviour.
-wire af_fa0 = joystick0[4] | (joystick0[6] & af_on);   // joy0 TrigA: manual + btn3 turbo
-wire af_fb0 = joystick0[5] | (joystick0[7] & af_on);   // joy0 TrigB: manual + btn4 turbo
-wire af_fa1 = joystick1[4] | (joystick1[6] & af_on);   // joy1 TrigA
-wire af_fb1 = joystick1[5] | (joystick1[7] & af_on);   // joy1 TrigB
+wire af_fa0 = joystick0[4] | (joystick0[6] & af_phase);   // joy0 TrigA: manual + btn3 turbo
+wire af_fb0 = joystick0[5] | (joystick0[7] & af_phase);   // joy0 TrigB: manual + btn4 turbo
+wire af_fa1 = joystick1[4] | (joystick1[6] & af_phase);   // joy1 TrigA
+wire af_fb1 = joystick1[5] | (joystick1[7] & af_phase);   // joy1 TrigB
 
 // Companion joy byte (active-high): bit0=Right, bit1=Left, bit2=Down, bit3=Up, bit4=A, bit5=B
 // MSX PSG Port A (active-low):      bit0=Up,    bit1=Down,  bit2=Left, bit3=Right, bit4=TrigA, bit5=TrigB
@@ -2170,7 +2159,6 @@ memory_ctrl mem1 (
     // fires at power-on, which would otherwise stamp the default over whatever
     // config_init had just restored from flash.
     reg       osd_db9_d    = 1'b0;
-    reg [1:0] osd_af_d     = 2'd1;
     reg       osd_tboot_d  = 1'b0;
     reg [2:0] osd_vol_prev = 3'd4;
     reg       osd_save_d   = 1'b0;
@@ -2250,7 +2238,6 @@ memory_ctrl mem1 (
                 config_turbo_boot_ff <= 0;      // rescate S2: boot turbo off
                 volume_ff   <= 3'd4;            // S2 rescue: OSD settings to defaults too
                 db9_port_ff <= 1'b0;
-                autofire_ff <= 2'd1;
             end
             else begin
                 config1_ff <= config_sig[2];
@@ -2263,12 +2250,10 @@ memory_ctrl mem1 (
                 if (config_sig[5][7] == 1'b0) begin
                     volume_ff   <= config_sig[5][2:0];
                     db9_port_ff <= config_sig[5][3];
-                    autofire_ff <= config_sig[5][5:4];
                 end
                 else begin
                     volume_ff   <= 3'd4;
                     db9_port_ff <= 1'b0;
-                    autofire_ff <= 2'd1;
                 end
             end
         end
@@ -2310,11 +2295,9 @@ memory_ctrl mem1 (
         // defaults and sys_ctrl.v's reset values in step or this breaks.
         osd_vol_prev <= system_volume;
         osd_db9_d    <= system_db9_port;
-        osd_af_d     <= system_autofire;
         osd_tboot_d  <= system_turbo_boot;
         if (system_volume      != osd_vol_prev) volume_ff   <= system_volume;
         if (system_db9_port    != osd_db9_d)    db9_port_ff <= system_db9_port;
-        if (system_autofire    != osd_af_d)     autofire_ff <= system_autofire;
         if (system_turbo_boot  != osd_tboot_d)  config_turbo_boot_ff <= system_turbo_boot;
     end
 
@@ -2438,8 +2421,8 @@ memory_ctrl mem1 (
     wire flash_busy;
     // Flash block byte 5. Bit 7 is the "written by us" marker and must stay 0;
     // an erased byte reads 0xFF and is rejected by config_init above.
-    //   [7] 0 = valid   [6] spare   [5:4] autofire   [3] DB9 port   [2:0] volume
-    wire [7:0] config_save_byte = { 2'b00, autofire_ff, db9_port_ff, volume_ff };
+    //   [7] 0 = valid   [6:4] reserved (autofire, parked)   [3] DB9 port   [2:0] volume
+    wire [7:0] config_save_byte = { 4'b0000, db9_port_ff, volume_ff };
 
     wire [7:0] flash_write_din;
     wire flash_write_busy;

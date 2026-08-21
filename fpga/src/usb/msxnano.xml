@@ -97,16 +97,11 @@
         <listentry label="Port 1" value="0"/>
         <listentry label="Port 2" value="1"/>
       </list>
-      <!-- Autofire on pad buttons 3 and 4. The rates are powers of two apart so
-           the core can take the square wave straight off a free-running counter
-           bit and needs no comparator in its tightest clock domain; the labels
-           are the real frequencies, not round numbers. -->
-      <list label="Autofire:" id="F" default="1">
-        <listentry label="Off" value="0"/>
-        <listentry label="3 Hz" value="1"/>
-        <listentry label="6 Hz" value="2"/>
-        <listentry label="13 Hz" value="3"/>
-      </list>
+      <!-- No Autofire entry: the rate is fixed at ~10 Hz in the core. Two
+           attempts to make it selectable both cost clock_54m its timing (see
+           the README), so id "F" is decoded by sysctrl but connected to
+           nothing, and showing a control that does nothing would be worse than
+           showing none. -->
     </menu>
 
     <menu label="Video">

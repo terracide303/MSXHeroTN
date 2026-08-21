@@ -40,48 +40,33 @@ here and in `docs/FINDINGS.md` precisely so they are not re-litigated.
 something is ready, so make results easy to find: a clear commit subject and the numbers in
 `docs/UTILISATION.md` rather than only in the session transcript.
 
-## Build this next: the autofire rewrite on top of `db4ac25`
+## Build this next: persistence alone, `clk_54m` untouched
 
-`0b3f629` compiled clean but missed `clock_54m` — TNS -0.555 ns over 6 endpoints, CLS
-9054 -> 9102. Thank you for checking the TNS table rather than trusting the 54.367 MHz
-Fmax; that distinction is now recorded in `docs/UTILISATION.md` and is worth applying to
-every future build here.
+Two failed builds, and the second is the informative one:
 
-The +48 CLS was almost entirely one block, and it was in `clk_54m`: the OSD autofire rate
-had been built as a 23-bit counter plus a 23-bit limit register plus a variable
-comparator. That has been replaced with a free-running counter whose square wave is
-simply one of its bits — **no comparator at all**, which is cheaper than the fixed-rate
-code that was there before this feature existed (it compared 22 bits against a constant
-every cycle). The rates move from 5/10/20 Hz to 3/6/13 Hz as a result, which is why the
-menu labels changed.
+| Build | CLS | clock_54m | TNS / endpoints |
+|---|---|---|---|
+| last good (`6389ac0`) | 9054 | 55.626 MHz | closes |
+| `0b3f629` | 9102 | 54.367 Fmax, actually fails | -0.555 ns / 6 |
+| `aa52343` | **9028** | 50.717 MHz | **-5.172 ns / 17** |
 
-Expectation: CLS should land at or below the 9054 of the last good build, and `clock_54m`
-should return to closing. If it still misses, say so and stop — do not start trimming;
-the next step is the design side's call and the fallback is dropping the autofire rate
-control entirely, keeping only persistence.
+`aa52343` came in *below* the last good build's CLS and was still far worse. So resource
+count is not the governing variable here — placement is — and the conclusion drawn is that
+anything landing in `clk_54m` is expensive regardless of how small it looks.
 
-Everything else from the previous brief still applies:
+**Both attempts at a selectable autofire rate have therefore been reverted**, and the block
+is byte-for-byte what shipped in the last build that closed. The OSD's Autofire entry is
+removed from the menu rather than left showing a control that does nothing.
 
-## Previous brief: `db4ac25`
+What remains is settings persistence, and the delta against `6389ac0` is now:
 
-Settings persistence, plus two OSD entries that were connected to nothing. No new source
-files, so `build_files.tcl` and the `.gprj` are unchanged — it is edits to `top.v`,
-`sys_ctrl.v`, `fpga_companion.v` and the menu XML (with `msxnano_xml.hex` already
-regenerated).
+- 12 flip-flops in `clk_27m` (the seeded values and their change detectors)
+- one extra leg on `flash_write_din`, which is a small mux and not `cpu_din`
+- two signal renames (`system_volume` -> `volume_ff`, `system_db9_port` -> `db9_port_ff`)
+  that change where a value comes from, not the structure around it
 
-It has **never been compiled** — there is no Verilog toolchain on the Mac side, so this build
-is the first thing that will parse it. Specifically worth reporting:
-
-- **`clock_54m` and CLS.** The change is small (a 23-bit counter compare against a register
-  instead of a constant, one 8-bit mux leg, a handful of flip-flops), but timing here is
-  congestion-dominated and has swung several MHz on changes this size before.
-- **Anything Gowin says about `config_save_byte`** — a continuous assignment placed just
-  above `flash_write_din`, referencing `volume_ff`/`db9_port_ff`/`autofire_ff` which are
-  declared near the top of the module.
-- **The `af_limit` case statement**, which is a clocked `case` on a 2-bit select inside the
-  existing autofire counter block in the `clk_54m` domain.
-
-If it does not parse, the fix is almost certainly mechanical — say what the error was.
+**Nothing touches `clk_54m`.** If this still misses, the problem is not this change and the
+design side needs to know that specifically — say so and stop.
 
 ## What to build
 
