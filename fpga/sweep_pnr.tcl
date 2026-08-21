@@ -15,22 +15,46 @@
 # Fmax across them and keep the winner -- then set those options permanently in
 # build.tcl and record which combination it was.
 #
+# NOTE: Gowin's add_file rejects a file already in the project, so build_files.tcl
+# cannot be re-sourced in a loop within one gw_sh process. Run ONE trial per
+# process instead:
+#
+#   for each row below:  gw_sh sweep_pnr.tcl <tag>
+#
 # If Gowin rejects an option in this version, note which and drop that row; the
 # accepted values differ between releases.
 
 # --- combinations to try -----------------------------------------------------
 # tag                place route  notes
+# Place/route effort was swept on 0cf00b7 and none closed; 2/2 was already the
+# best available, and place effort 1 and 2 gave identical results. So these rows
+# now vary the SYNTHESIS options instead, which that sweep never touched:
+#
+#   iob     pack registers next to pins into the IO blocks -- frees CLS and
+#           shortens IO paths, no functional change
+#   retime  let synthesis move registers across logic to balance path delays,
+#           which is aimed squarely at an imbalanced critical path
+#
+# tag        place route  iob  retime
 set trials {
-    {base            2     2      "current settings, as a baseline"}
-    {place1          1     2      "less place effort, different starting point"}
-    {place0          0     2      "default place effort"}
-    {route1          2     1      "less route effort"}
-    {p1r1            1     1      ""}
-    {p0r0            0     0      "fastest, sometimes lands better by luck"}
+    {base       2     2     0    0    "baseline, matches build.tcl"}
+    {iob        2     2     1    0    "IO register packing"}
+    {retime     2     2     0    1    "synthesis retiming"}
+    {both       2     2     1    1    "both"}
+}
+
+# one trial per process: pass the tag as an argument
+set want [lindex $argv 0]
+if {$want eq ""} {
+    puts "usage: gw_sh sweep_pnr.tcl <tag>"
+    puts "tags:"
+    foreach t $trials { puts "  [lindex $t 0]   [lindex $t 5]" }
+    exit 1
 }
 
 foreach t $trials {
-    lassign $t tag popt ropt note
+    lassign $t tag popt ropt iob retime note
+    if {$tag ne $want} { continue }
 
     puts "=========================================================="
     puts "sweep: $tag  (place_option $popt, route_option $ropt) $note"
@@ -43,6 +67,8 @@ foreach t $trials {
                -top_module top -verilog_std sysv2017 -include_path src
     set_option -place_option $popt
     set_option -route_option $ropt
+    if {$iob}    { set_option -oreg_in_iob 1 -ireg_in_iob 1 }
+    if {$retime} { set_option -retiming 1 }
     set_option -output_base_name "sweep_$tag"
 
     if {[catch {run syn} err]} { puts "  SYNTH FAILED: $err"; continue }

@@ -496,6 +496,25 @@ architecture; do not copy code into this tree.
 
 ---
 
+## 6f. ENABLE_WIFI also gates two things that are not WiFi
+
+Disabling `ENABLE_WIFI` compiles out more than the WiFi. Two unrelated features live
+inside the same `ifdef` blocks in `top.v`:
+
+- **The boot logo.** `logo_req`, its slot 0-3 decode, its flash address mapping at
+  `0x7C000` and its read strobes are all inside the WiFi guards. With WiFi off the menu's
+  `RDSLT` check for the `LG` magic reads nothing and the logo is skipped. Not a concern
+  here -- the logo is optional and the v1.9 pack ships that slot blank anyway.
+- **I/O port `&HF2`.** `f2_req_r`, `f2_req_w` and the `f2_port` register are inside the
+  guards too, so the port stops responding. Nothing in this fork is known to use it, but
+  it is a behavioural change rather than a cosmetic one, and worth knowing if some
+  software misbehaves after the WiFi removal.
+
+Neither is a WiFi feature; they are grouped there in upstream's source. Ungrouping them
+is straightforward but touches five sites, so it has been left alone deliberately.
+
+---
+
 ## 7. Upstream documentation errors
 
 Recorded because two of them cost real time, and because they are a reason to verify
