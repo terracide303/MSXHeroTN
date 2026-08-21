@@ -67,6 +67,59 @@ The browser starts before the OS, so you pick a game before there is an MSX to r
 
 ---
 
+## Why this fork exists
+
+Upstream MSXnano runs on a bare Tang Nano 20K and uses the board's **on-board BL616** chip as
+its USB host. That works, but it constrains the machine in ways that are easy to miss until you
+are living with one.
+
+### There is no on-screen overlay
+
+This is the big one. Upstream runs FPGA-Companion on the BL616 purely as a keyboard and gamepad
+host — the core never draws the overlay. `mcu_osd_din` is tied to zero and nothing consumes
+`mcu_osd_strobe`, so the companion's menu has nowhere to go.
+
+Settings instead live in a small screen inside the **boot browser**, drawn by the MSX itself.
+And that is the problem: a screen drawn by the Z80 needs the MSX to stop being an MSX. It
+cannot appear over a running game, because the game owns the video chip.
+
+In practice:
+
+- **You cannot change anything while playing.** Want scanlines off, or stereo on, or the second
+  SCC+ enabled? Reset back to the browser, change it, reload the game. Every time.
+- **There is no volume control at all.** Not quietly, not anywhere — it simply is not a setting.
+  Your only volume knob is the television.
+- **Turbo is a stolen keyboard key.** `F11` is intercepted before the MSX sees it, so the core
+  takes a key away from the machine to work around having no menu.
+- **There is no reset or cold boot in software.** You reach for the button on the board.
+- **The settings screen is in Spanish**, as is the rest of the boot menu.
+
+This fork composites the overlay in the FPGA, between the video chip and the HDMI encoder.
+Because it never asks the MSX for permission, `F12` works anywhere — mid-game, mid-load, in the
+browser — and turbo, volume, video and audio settings, reset and cold boot are all reachable
+without losing what you are doing. `F11` goes back to being an ordinary key that belongs to the
+MSX.
+
+### The BL616 has its own problems
+
+- **On many recent boards the keyboard simply does not work.** Tang Nano 20Ks made since about
+  February 2024 — marked `3921` or `3923` — have the BL616's secure boot in a different state
+  and often cannot run the companion firmware at all. Upstream's own README documents this and
+  recommends buying an **external M0S Dock** to work around it.
+- **Flashing it costs you the programmer.** The BL616 ships as the board's FTDI-compatible
+  debugger, `20K's FRIEND`. Put companion firmware on it and `openFPGALoader` has nothing left
+  to talk to, on any host, until you restore the factory image.
+- **One USB-C, no USB-A.** The single connector has to carry power *and* the keyboard, which in
+  practice means an OTG adapter and a powered hub backfeeding the board.
+
+The shield removes all of that. It brings its own RP2040 with a proper USB host port, so the
+keyboard plugs straight in, the Tang's USB-C does nothing but power, and the on-board BL616 is
+left untouched — this fork never flashes it. It also carries a **DB9 joystick port** and **MIDI
+sockets**, connectors upstream constrains no pins for, so on that shield they sit dead.
+
+Against a powered hub plus an OTG adapter — two mains outlets and a tangle of adapters — the
+shield is not the expensive option it first appears.
+
 ## What you need
 
 | Part | Notes |
