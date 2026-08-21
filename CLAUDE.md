@@ -40,6 +40,27 @@ here and in `docs/FINDINGS.md` precisely so they are not re-litigated.
 something is ready, so make results easy to find: a clear commit subject and the numbers in
 `docs/UTILISATION.md` rather than only in the session transcript.
 
+## Build this next: `db4ac25`
+
+Settings persistence, plus two OSD entries that were connected to nothing. No new source
+files, so `build_files.tcl` and the `.gprj` are unchanged — it is edits to `top.v`,
+`sys_ctrl.v`, `fpga_companion.v` and the menu XML (with `msxnano_xml.hex` already
+regenerated).
+
+It has **never been compiled** — there is no Verilog toolchain on the Mac side, so this build
+is the first thing that will parse it. Specifically worth reporting:
+
+- **`clock_54m` and CLS.** The change is small (a 23-bit counter compare against a register
+  instead of a constant, one 8-bit mux leg, a handful of flip-flops), but timing here is
+  congestion-dominated and has swung several MHz on changes this size before.
+- **Anything Gowin says about `config_save_byte`** — a continuous assignment placed just
+  above `flash_write_din`, referencing `volume_ff`/`db9_port_ff`/`autofire_ff` which are
+  declared near the top of the module.
+- **The `af_limit` case statement**, which is a clocked `case` on a 2-bit select inside the
+  existing autofire counter block in the `clk_54m` domain.
+
+If it does not parse, the fix is almost certainly mechanical — say what the error was.
+
 ## What to build
 
 Open `fpga/Z80_goauld.gprj` in the Gowin IDE and run synthesis + place & route. Target is a
@@ -59,10 +80,10 @@ bitstream (built from `<sha>`)"*. The Mac side flashes from there with `openFPGA
 - `fpga/src/usb/msxnano_xml.hex` is loaded by `$readmemh` from `sys_ctrl.v`, with the path
   relative to the synthesis working directory. Regenerate it with
   `fpga/src/usb/make_menu_rom.sh` if `msxnano.xml` changes; never edit it by hand.
-- **`clock_54m` misses its constraint** — 53.798 MHz against 54.000. It predates this fork,
-  it is why turbo cannot be switched live, and it is the first suspect for
-  anything timing-sensitive. If a change makes it worse, say so; CLS is at 88% and the design
-  is close to its routing limit.
+- **`clock_54m` closes, but only just** — 55.626 MHz against 54.000 as of `12444a6`. It
+  missed for a run of builds before that (see below), and it is still the first suspect for
+  anything timing-sensitive: CLS is at 87% and the design is close to its routing limit.
+  If a change makes it worse, say so rather than working around it.
 - Report the utilisation and timing after each build so `docs/UTILISATION.md` stays current.
 
 ## If clock_54m misses timing
