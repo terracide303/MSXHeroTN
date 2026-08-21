@@ -361,11 +361,15 @@ shortening — a menu redesign, not a drop-in.
 No font is committed here: Fonts_MiSTer has no licence and its files are traced from arcade
 character ROMs, so supply your own as with the BIOS pack.
 
-*[Phase 2]* **9. WiFi — three routes, and the obvious one was overlooked.** Upstream wires an
-**ESP-01S** to pins 27/28, pre-flashed with its own UNAPI firmware. Those two pins are the
-shield's DB9 Fire 1 and Down lines here, which is why WiFi was dropped from this fork.
+*[Phase 2]* **9. WiFi — decided: it comes back, via J3.** Upstream wires an **ESP-01S** to pins
+27/28, pre-flashed with its own UNAPI firmware. Those two pins are the shield's DB9 Fire 1 and
+Down lines here, which is why WiFi was dropped from this fork — but dropping it was always
+meant to be temporary, and there is somewhere else to put the module.
 
-### Route A: keep the ESP-01S, move it to J3 (simplest, and previously missed)
+**This is now a planned feature, not a research question.** Route A below is the plan; routes
+B and C stay recorded as alternatives worth understanding, not as competing proposals.
+
+### Route A — THE PLAN: keep the ESP-01S, move it to J3
 
 The shield breaks out **J3, an expansion header carrying FPGA pins 31, 49, 73, 74, 75 and
 77**. All six are unassigned in `tang9k.cst` — nothing in this core claims any of them. An

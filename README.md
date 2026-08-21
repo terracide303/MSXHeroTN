@@ -413,7 +413,8 @@ many things the Z80 can newly read from, not by its size.
 | **USB mouse** | small | `hid.v` already has it; `fpga_companion.v` has the line commented out |
 | **`.CAS` cassette** | medium | `MSX1_MiSTer/rtl/tape.sv` is reusable (GPL v2+) |
 | **Persist SRAM saves** | medium | Fix `flash_rw.v`'s `write_terminate` first |
-| **WiFi without the ESP-01S** | research | Depends on `at_wifi.c`'s AT dialect and whether the Pico is a W |
+| **WiFi, back via the shield's J3 header** | small | **Planned.** `uart_lite`/`wifi_lite` were deleted, not rewritten — restoring them plus two `IO_LOC` lines. Pins 31/49/73/74/75/77 are free |
+| **WiFi without the ESP-01S at all** | research | Alternative, not the plan. Depends on `at_wifi.c`'s AT dialect and whether the Pico is a W |
 | **Drawn OSD bar + 8×8 font** | small, parked | Costs a companion firmware fork |
 | **Backports from MSXimus** | small–medium | Audio remaster, 2 MB ASCII16, master volume, CRT borders |
 | **Configurable mapper engine** | large | Carnivore2+'s register-driven approach, arrived at independently |
