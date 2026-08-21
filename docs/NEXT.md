@@ -38,9 +38,33 @@ Two `cp #53` handlers at lines 451 and 2054, plus the settings screen itself. No
 bar is width-constrained: `"R/D/A=Filter ESC=Boot S=Save F12=Setup TAB=Part H=Help  "` is padded
 to a fixed width and must stay that width when `S=Save` comes out.
 
-Worth doing before A3, because deleting the settings screen frees Z80 space that A3 needs.
+Worth doing before A4, because deleting the settings screen frees Z80 space that A4 needs.
 
-### A3. Remove the 115-file limit
+### A3. Reset should relaunch the game, not the browser
+
+On a real MSX with a cartridge inserted, the reset button restarts the game. Here it lands in
+the browser, because the browser *is* the boot ROM and runs before the OS on every reset.
+
+That makes Reset do Cold Boot's job while Cold Boot does nothing distinct. The pair should be:
+
+| | Behaviour |
+|---|---|
+| **Reset** | restart what is running — straight back into the game |
+| **Cold Boot** | drop the cartridge, land in the browser to pick something else |
+
+**This half needs no FPGA build.** The menu can do what the MSX's own slot scan does: look in
+the megaram for a valid cartridge header, and if one is there, boot it immediately rather than
+drawing the browser. Pure Z80.
+
+It interlocks with B3 — once Cold Boot invalidates that header, it lands in the browser
+naturally, because the menu looks and finds nothing.
+
+**Test rather than assume:** SDRAM contents are not guaranteed zero at power-on, so garbage
+could in principle look like a header. The MSX's own slot scan already takes that risk, so it
+is not new, but a magic signature written by the loader would be sturdier than trusting two
+bytes. Worth deciding before writing the check.
+
+### A4. Remove the 115-file limit
 
 The browser silently lists only the first 115 entries of any directory — no warning, they simply
 are not there. The listing lives in a fixed array in MSX RAM, 80 bytes per record:
@@ -49,8 +73,8 @@ are not there. The listing lives in a fixed array in MSX RAM, 80 bytes per recor
 MAX_ENT  equ  115    ; 115*80 = 9200 bytes -> C300..E6F0
 ```
 
-Fixing it means paging the listing rather than holding all of it, which is more involved than A1
-or A2 but still Z80-only. The space freed by A2 helps.
+Fixing it means paging the listing rather than holding all of it, which is more involved than
+the items above but still Z80-only. The space freed by A2 helps.
 
 ---
 
@@ -107,6 +131,8 @@ So the two should be:
 |---|---|
 | **Reset** | reboot with the cartridge still inserted — what happens today |
 | **Cold Boot** | reboot as if nothing were plugged in, and re-apply boot-turbo |
+
+This is the other half of A3, and the two should be designed together.
 
 For the cartridge half, the machine only needs to stop finding a header where one used to be:
 either clear `config1_ff[1]` so the megaram is not mapped for that boot, or invalidate the
