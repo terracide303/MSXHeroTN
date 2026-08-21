@@ -1,4 +1,4 @@
-# MSXnano-MiSTle
+# MSXHeroTN
 
 An MSX2+ core for the **Tang Nano 20K** running on the **MiSTeryShield20k RPi Pico USB** shield.
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  MSXnano-MiSTle - FPGA-Companion OSD menu definition.
+  MSXHeroTN - FPGA-Companion OSD menu definition.
 
   DRAFT. Not wired up yet. This file describes the overlay menu that
   FPGA-Companion renders when F12 is pressed. Two things are still missing

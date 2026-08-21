@@ -3,7 +3,7 @@
 3D-printable enclosure for the MSXnano (Tang Nano 20K based MSX2+).
 
 > **Does not fit this fork as-is.** These parts are upstream's, designed around a bare Tang
-> Nano 20K. MSXnano-MiSTle stacks a MiSTeryShield20k on top of the board, which changes the
+> Nano 20K. MSXHeroTN stacks a MiSTeryShield20k on top of the board, which changes the
 > height and moves every external connector — USB, DB9 and MIDI are all on the shield, not
 > the Tang. The STLs are kept here unchanged for reference and for anyone building the
 > upstream configuration; a shield-aware enclosure has not been designed.

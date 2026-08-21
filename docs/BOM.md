@@ -1,6 +1,6 @@
 # Bill of Materials
 
-Parts needed to build an **MSXnano-MiSTle** — MSX2+ on a Tang Nano 20K carried by a
+Parts needed to build an **MSXHeroTN** — MSX2+ on a Tang Nano 20K carried by a
 MiSTeryShield20k RPi Pico USB shield.
 
 > The core runs on hardware. See the [main README](../README.md) for what does and does not
