@@ -24,12 +24,12 @@
   with mapper auto-detection, which the companion's selector cannot match.
   Loading stays in the core; this menu is for settings and reset.
 -->
-<config name="MSXnano-MiSTle" version="0">
+<config name="MSXHero" version="0">
 
   <actions>
     <!-- run as soon as this file is parsed; keep the machine in reset -->
     <action name="init">
-      <load file="msxnano.ini"/>
+      <load file="msxhero.ini"/>
       <set id="R" value="1"/>
     </action>
 
@@ -39,7 +39,7 @@
     </action>
 
     <action name="save">
-      <save file="msxnano.ini"/>
+      <save file="msxhero.ini"/>
     </action>
 
     <action name="reset">
@@ -66,7 +66,7 @@
     </action>
   </actions>
 
-  <menu label="MSXnano">
+  <menu label="MSXHero">
 
     <menu label="System">
       <!-- No action="reset": the core does not act on the OSD reset (see
