@@ -12,10 +12,10 @@ time — in the browser or mid-game — for settings.
 [`compiled/`](compiled/) and the Raspberry Pi Pico firmware in [`firmware/`](firmware/). No
 toolchain, no compiler, no build step — copy two files onto two chips and fill an SD card.
 
-This is a fork of [Papipapito/MSXnano](https://github.com/Papipapito/MSXnano), retargeted to
-run on the **MiSTeryShield20k RPi Pico USB** — an open-hardware shield from the
-[MiSTle](https://github.com/MiSTle-Dev) project — so that the shield's own hardware is wired
-to something instead of sitting inert.
+It is a fork of [MSXnano](https://github.com/Papipapito/MSXnano), retargeted to run on the
+**MiSTeryShield20k RPi Pico USB** — an open-hardware shield from the
+[MiSTle](https://github.com/MiSTle-Dev) project — so that the shield's own hardware is wired to
+something instead of sitting inert.
 
 ---
 
@@ -69,17 +69,18 @@ The browser starts before the OS, so you pick a game before there is an MSX to r
 
 ## Why this fork exists
 
-Upstream MSXnano runs on a bare Tang Nano 20K and uses the board's **on-board BL616** chip as
-its USB host. That works, but it constrains the machine in ways that are easy to miss until you
-are living with one.
+[MSXnano](https://github.com/Papipapito/MSXnano), which this forks, is a fine core and the
+reason this one exists at all. It runs on a bare Tang Nano 20K and uses a chip on the
+board itself as its USB host. That works, but it constrains the machine in ways that are easy
+to miss until you are living with one.
 
-### Upstream has no on-screen overlay. This fork does.
+### The original MSXnano has no settings overlay. This one does.
 
 That is the headline difference, and the one you notice every day.
 
-The companion chip upstream uses is perfectly capable of drawing a settings menu — it is the same firmware this fork uses, and it offers one. Upstream just never connects
-it to the picture. The menu is generated and then thrown away, because nothing in the core is
-listening for it.
+The helper chip that handles the keyboard is perfectly capable of drawing a settings menu — it
+runs the same firmware here, and it offers one. The original simply never connects that menu to
+the picture, so it is drawn and then thrown away, with nothing listening for it.
 
 So settings live somewhere else: a small screen inside the **boot browser**, drawn by the MSX
 itself.
@@ -88,8 +89,8 @@ That is the part that bites. A screen drawn by the MSX can only exist when the M
 being an MSX — it needs the video chip, and once a game has started, the game owns the video
 chip. The settings screen and your game cannot both be on screen, ever.
 
-**This fork fixes all of the following.** Each one is what you get with upstream; each one
-works here, because the overlay is drawn by the FPGA rather than by the MSX.
+**All of the following are fixed here.** Each is how the original behaves; each one works on
+this fork, because the overlay is drawn by the FPGA rather than by the MSX.
 
 - **You cannot change anything while playing.** Want scanlines off, or stereo on, or the second
   SCC+ enabled? Reset back to the browser, change it, reload the game. Every time.
@@ -113,8 +114,9 @@ The shield brings its own RP2040 with a proper USB host port, so the keyboard pl
 and the Tang's USB-C does nothing but power. The on-board BL616 is left untouched — this fork
 never flashes it.
 
-It also carries a **DB9 joystick port** and **MIDI sockets**, connectors upstream constrains no
-pins for, so on that shield they sit dead. Wiring them up is what this fork is for.
+It also carries a **DB9 joystick port** and **MIDI sockets**. The original core never assigns
+any FPGA pins to those, so on this shield they sit dead — wiring them up is what this fork is
+for.
 
 ## What you need
 
@@ -132,8 +134,8 @@ Plus the usual cables — USB-C for power and HDMI for the display.
 Nothing else needs downloading. The bitstream and the Pico firmware are both in this
 repository, ready to flash.
 
-The full list, with the reasoning and the places upstream's own BOM is wrong, is in
-[docs/BOM.md](docs/BOM.md). It also covers building this **without the shield**, on a
+The full list, with the reasoning and the places the original project's own parts list is
+wrong, is in [docs/BOM.md](docs/BOM.md). It also covers building this **without the shield**, on a
 breadboard with a bare Pico, and what you give up by doing that.
 
 ### Controllers
@@ -187,8 +189,8 @@ getting it to see the board is often the sticking point: Windows binds its own F
 the Tang's programmer, and openFPGALoader needs a WinUSB-class driver instead — usually swapped
 with [Zadig](https://zadig.akeo.ie/). That is the common cause rather than something we have
 confirmed here. **Gowin Programmer**, the vendor tool, works natively on Windows and is what
-upstream's instructions assume; use `exFlash C Bin Erase, Program thru GAO-Bridge` for the BIOS
-pack.
+the original project's instructions assume; use `exFlash C Bin Erase, Program thru GAO-Bridge`
+for the BIOS pack.
 
 ### 2. Flash the Pico
 
@@ -196,8 +198,8 @@ Hold BOOTSEL, plug it into a computer, and drag **[`firmware/fpga_companion.uf2`
 onto the `RPI-RP2` drive that appears. That is the whole procedure.
 
 It is stock [FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion/tree/main/src/rp2040),
-unmodified, kept here because upstream does not publish a Pico binary in every release — the
-latest ships none at all. Provenance and licence are in
+unmodified, kept here because FPGA-Companion does not publish a Pico binary in every release —
+the latest ships none at all. Provenance and licence are in
 [`firmware/README.md`](firmware/README.md).
 
 > Do **not** flash companion firmware onto the Tang's own BL616 chip. It replaces the
@@ -276,7 +278,7 @@ The engineering detail lives in `docs/`, and it is written to be read rather tha
 
 - **[docs/FINDINGS.md](docs/FINDINGS.md)** — everything established about the hardware, with
   the evidence for each claim: the shield's wiring, the Tang's board revisions, the companion's
-  SPI protocol, and a table of upstream's documentation errors.
+  SPI protocol, and a table of errors found in the original project's documentation.
 - **[docs/UTILISATION.md](docs/UTILISATION.md)** — resource and timing figures for every build,
   including the failures and what each one taught.
 - **[docs/BOM.md](docs/BOM.md)** — the parts list.
@@ -286,16 +288,18 @@ full the chip is, the short answer is 88%, and that has shaped most of the decis
 
 ---
 
-## What came from upstream
+## What came from the original
 
 The Z80, the V9958 video chip with HDMI output, dual PSG, SCC and SCC+, OPLL, the SD card with
-Nextor 2.1.4 and the file browser are all MSXnano's, unchanged.
+Nextor 2.1.4 and the file browser are all [MSXnano](https://github.com/Papipapito/MSXnano)'s,
+unchanged. This fork changes how the machine is wired up and how you talk to it, not what it
+is.
 
 ---
 
 ## Credits and licence
 
-**GPLv3**, inherited from upstream. Fork maintained by
+**GPLv3**, inherited from MSXnano. Fork maintained by
 [terracide303](https://github.com/terracide303).
 
 Development on this fork is done with AI assistance — **Claude** (Anthropic), via
