@@ -4,6 +4,42 @@ This repo is developed across two machines: a Mac (editing, flashing, research) 
 with **Gowin EDA**, which is the only place it can be synthesized — Gowin has no macOS build.
 If you are the instance on the PC, this file is for you.
 
+## Division of labour
+
+This project runs across two machines and two Claude sessions. They cannot talk to each
+other; the repository is the only channel, so the split is by **file ownership** and each
+side stays out of the other's files.
+
+**This machine (the PC) builds. It does not author the design.**
+
+Owns, and may commit freely:
+
+- `compiled/` — bitstreams, and `compiled/failed/` for ones that miss timing
+- `compiled/BUILD_NOTES.md` — observations from the build
+- `docs/UTILISATION.md` — resource and timing results
+
+Does **not** edit:
+
+- `fpga/` — RTL, constraints, `.sdc`, `.tcl`, the menu XML
+- `README.md`, `docs/FINDINGS.md`, `docs/ROADMAP.md`, `docs/BOM.md`
+- this file
+
+**If a build is blocked by something in the source** — a missing file, a constraint
+referring to a signal that no longer exists, a syntax error — the useful thing is usually
+to fix it and keep going rather than stall for a round trip. That is fine, with two
+conditions: keep the change as small as it can be, and say so **prominently** in the commit
+subject, not buried in the body. `0cf00b7` is the right pattern: a one-line `.sdc` fix,
+clearly named, because PnR could not otherwise produce a bitstream at all.
+
+What not to do is fix a *design* problem — restructure logic, relax a constraint, disable a
+feature to make timing close. Those are decisions with consequences the other side is
+tracking. Report and stop instead; the reasoning behind several of them is already recorded
+here and in `docs/FINDINGS.md` precisely so they are not re-litigated.
+
+**Neither side is notified when the other pushes.** Both rely on the user to say when
+something is ready, so make results easy to find: a clear commit subject and the numbers in
+`docs/UTILISATION.md` rather than only in the session transcript.
+
 ## What to build
 
 Open `fpga/Z80_goauld.gprj` in the Gowin IDE and run synthesis + place & route. Target is a
