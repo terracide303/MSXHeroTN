@@ -67,6 +67,44 @@ this fork does not use the on-board BL616 at all.
 
 ---
 
+## What it looks like
+
+The boot menu is an SD file browser that runs before the OS. `F12` opens the FPGA-Companion
+overlay on top of whatever is running, so machine settings are reachable from a game as well
+as from the browser.
+
+![The OSD root menu over the file browser](docs/img/osd-root.jpg)
+
+*The overlay over the browser. `MSXHero TN 1.0` and the key legend belong to the boot menu;
+the panel is the companion's OSD. Reset and Cold Boot work because `fpga_companion` is reset
+from PLL lock rather than from the core reset — see [docs/FINDINGS.md](docs/FINDINGS.md).*
+
+![System settings](docs/img/osd-system.jpg)
+
+*Turbo switches the CPU to 5.37 MHz by resetting into it; changing cadence while running
+hangs the machine. Video std and Keyboard are decoded but not yet acted on.*
+
+![Audio settings](docs/img/osd-audio.jpg)
+
+*Volume is drawn as an ASCII bar in the entry labels — FPGA-Companion renders `<range>` as a
+plain number and has no bar widget, and a drawn one would mean forking its firmware.
+Attenuation is an arithmetic shift on a signed sample; a logical shift here turns the
+negative half of the waveform into loud distortion.*
+
+![Video settings](docs/img/osd-video.jpg)
+
+*Scanlines and aspect write the same config registers the on-MSX `S` screen uses, on change,
+so whichever was touched last wins and both menus keep working. Aspect only sets the HDMI AVI
+InfoFrame — the display decides whether to pillarbox or stretch, and many ignore it.*
+
+![Input settings](docs/img/osd-input.jpg)
+
+*The shield's DB9 joystick, and which MSX port it answers on. It is mixed into the same PSG
+lines as the USB gamepad, so either can drive a game.*
+
+
+---
+
 ## Why this fork exists
 
 Upstream MSXnano targets a bare Tang Nano 20K and drives its USB keyboard through the
