@@ -81,7 +81,24 @@ module needs power from elsewhere — four jumper wires instead of two.
 Also worth confirming whether the Pico on the shield is a **Pico W**. The photo in the README
 suggests it is, which would open a second route that needs no module at all.
 
-### B3. USB mouse
+### B3. Make Cold Boot mean something
+
+**Reset and Cold Boot are currently identical.** The core asserts reset on `~(|system_reset)` —
+non-zero — and the overlay sends 1 for Reset and 3 for Cold Boot. Both are non-zero, so both
+pull the same line for the same 10 ms. The distinction the protocol offers is thrown away.
+
+It should matter in at least one visible way. `boot_done` is set the first time the CPU leaves
+reset and never cleared, deliberately surviving warm resets, and boot-turbo is only applied
+when it is 0. So **choosing Cold Boot does not start the machine in turbo** — only cutting the
+power does. The XML's own comment on `cold_reset` claims otherwise.
+
+The fix is small: have `system_reset[1]` clear `boot_done`, so a cold boot re-seeds turbo from
+flash the way a power-on does. Whether cold boot should also clear RAM is a separate question
+and probably wants answering at the same time.
+
+Small, but it is RTL, so it belongs in this group rather than in A.
+
+### B4. USB mouse
 
 The roadmap calls this small because the Pico already decodes mice and the line in
 `fpga_companion.v` is only commented out. **Verify that before believing it** — the missing
