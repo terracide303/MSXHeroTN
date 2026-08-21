@@ -5,59 +5,36 @@ top-level `CLAUDE.md` (build instructions for this machine).
 
 ## Current bitstream
 
-`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `fb6bea0`
+`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `ca77609`
 (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88). Synthesis and
 place & route both completed with no errors.
 
-**Two newer builds were attempted and are NOT here.** Both missed `clock_54m`
-timing on the same CPU-to-memory-controller paths, so the bitstream in this
-folder is still `fb6bea0`.
+**`clock_54m` timing closes again, for the first time since `fb6bea0`.** Fmax
+55.626 MHz against the 54.000 MHz constraint, zero negative slack anywhere,
+all six clock domains pass. The fix is `12444a6` (`e48a96f`), which
+restructured the CPU read mux (`cpu_din`) from a single 29-level priority
+chain into a five-group tree, 11 levels deep, verified equivalent to the
+original priority ordering across 400,000 truth-table combinations. CLS also
+eased to 8982/10368 (87%, down from 88%). Two earlier attempts to close this
+same domain (`28c916d`, `0cf00b7`) failed and are archived at
+`compiled/failed/` with `docs/UTILISATION.md` carrying the full history if
+useful — this build supersedes both.
 
-- `28c916d` (OSD centring offsets, signed-volume fix, more OSD settings wired
-  through): Fmax 50.425 MHz vs 54.000 MHz, worst regression so far.
-- `0cf00b7` (`28c916d` + `3dddae4` "compile out the unreachable WiFi", aimed
-  specifically at freeing CLS to fix the regression above, + a same-day fix to
-  two dangling `Z80_goauld.sdc` constraints left over from that WiFi removal —
-  without the fix PnR errors out and produces no bitstream at all): Fmax
-  53.217 MHz vs 54.000 MHz. Much closer — TNS down from -3.452 ns/13 endpoints
-  to -0.464 ns/5 — but still failing, so the WiFi removal wasn't quite enough
-  on its own.
+The commit itself flagged one build-time risk worth confirming landed clean:
+the new mux's group wires forward-reference signals declared later in
+`top.v` (`sd_busreq_w` at line 2754, `config_req` at line 2153) from
+continuous assignments rather than the old procedural-block style. Gowin
+accepted it without complaint — no errors, no new warnings beyond the usual
+two long-standing ones (`PINFILTER`/`NL0002` module-swept-in-optimizing
+messages, and the `TA1132` clock-not-created warning on
+`fpga_companion_inst/mcu/n4_24`).
 
-Both are kept at `compiled/failed/msxnano-mistle_tangnano20k_<sha>.fs` with
-details in `compiled/failed/README.md` and `docs/UTILISATION.md`, for
-reference only. `clock_54m` still needs more headroom before the next attempt.
-
-## Things worth knowing before/while testing on hardware
-
-- **`clock_54m` timing violation is fixed.** Previous build (from `5da94ae`)
-  missed its 54.000 MHz constraint at 53.798 MHz actual. This build hits
-  58.929 MHz. Commit `2c35769` moved the F11 turbo-toggle edge detection out
-  of the `clk_54m` domain (turbo is now an OSD setting instead) — that alone
-  appears to have closed timing on the domain that was failing. Worth
-  confirming turbo still works correctly via the OSD once F12 is testable,
-  since that path is new.
-- **Status magic fix (`e033f53`)**: sysctrl's CMD 0 response changed from
-  `0x7c,0x42,0x10` to `0x5c,0x42,0x00` to match what FPGA-Companion's
-  `sys_status_is_valid()` actually checks for. Per the commit, without this
-  `sys_wait4fpga()` never succeeds and `osd_init()` never runs — so this may
-  be what actually gets the OSD (F12) working at all. Worth testing F12 first
-  on this build.
-- **The menu ROM mechanism changed again**: back to `$readmemh` loading
-  `src/usb/msxnano_xml.hex` (a `reg [7:0] msxnano_xml[1024]` array Gowin
-  infers as BSRAM), replacing the generated-case-statement `menu_rom.vh` from
-  the previous build. Their commit says the case statement cost LUTs the
-  design (88% CLS) couldn't spare. The risk flagged earlier — `$readmemh`
-  resolving against the synthesis working directory and silently zero-filling
-  the ROM if the path doesn't resolve — is still live for this mechanism, but
-  this build's log shows no missing-file warnings, `msxnano_xml` was
-  successfully extracted as RAM, and I always build via `gw_sh.exe build.tcl`
-  from the `fpga/` directory, which is where `src/usb/msxnano_xml.hex`
-  resolves correctly from. Still worth confirming the OSD menu text actually
-  renders correctly on hardware rather than assuming from the log alone.
-- Only the two long-standing PnR warnings show up (`PINFILTER`/module-swept-in-
-  optimizing NL0002 messages, and the `TA1132` clock-not-created warning on
-  `fpga_companion_inst/mcu/n4_24`) — nothing new introduced by this round of
-  changes.
+Priority logic in `cpu_din`'s mux was restructured but is claimed
+behaviorally identical by the commit's own verification (not independently
+re-verified here beyond a clean build) — worth keeping an eye on CPU read
+correctness (memory reads, I/O port reads, ROM/RAM select) on hardware given
+how central this mux is, even though nothing in the build log suggests a
+problem.
 
 ## Flashing
 

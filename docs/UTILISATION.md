@@ -1,38 +1,60 @@
 # Utilisation (Gowin place & route, GW2AR-18C QFN88)
 
-Built from commit `fb6bea0` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
+Built from commit `ca77609` on the Windows/Gowin machine (Gowin EDA 1.9.11.03,
 `build.tcl`, `set_option -place_option 2 -route_option 2`).
 
 ## Resource usage
 
 | Resource | Usage | Utilization |
 |---|---|---|
-| Logic (LUT/ALU/ROM16) | 14732/20736 (12260 LUT, 2070 ALU) | 72% |
-| Register | 7525/15915 | 48% |
-| CLS | 9048/10368 | 88% |
+| Logic (LUT/ALU/ROM16) | 14526/20736 (12049 LUT, 2075 ALU) | 71% |
+| Register | 7427/15915 | 47% |
+| CLS | 8982/10368 | 87% |
 | I/O Port | 43/66 | 66% |
 | IOLOGIC | 6/121 | 5% |
-| BSRAM | 17/46 | 37% |
+| BSRAM | 15/46 | 33% |
 | DSP | 2.5/24 | 11% |
 
-CLS at 88% is still the tightest resource — routing congestion there is why `build.tcl`
-already raises place/route effort to level 2.
+CLS eased slightly from 88% to 87% with this build — see "clock_54m closes again"
+below for why. It's still the tightest resource, which is why `build.tcl` keeps
+place/route effort at level 2.
 
 ## Max frequency summary
 
 | Clock | Constraint | Actual Fmax | Logic level | Status |
 |---|---|---|---|---|
-| clock_audio | 3.600 MHz | 388.670 MHz | 2 | pass |
-| clock_27m | 27.000 MHz | 62.897 MHz | 15 | pass |
-| clock_54m | 54.000 MHz | 58.929 MHz | 16 | pass |
-| clock_108m | 108.000 MHz | 133.840 MHz | 3 | pass |
-| clock_108i | 108.000 MHz | 133.840 MHz | 3 | pass |
-| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 200.912 MHz | 2 | pass |
+| clock_audio | 3.600 MHz | 380.214 MHz | 3 | pass |
+| clock_27m | 27.000 MHz | 64.997 MHz | 16 | pass |
+| clock_54m | 54.000 MHz | 55.626 MHz | 16 | pass |
+| clock_108m | 108.000 MHz | 193.216 MHz | 6 | pass |
+| clock_108i | 108.000 MHz | 193.216 MHz | 6 | pass |
+| fpga_companion_inst/mcu/n4_24 | 100.000 MHz | 185.455 MHz | 2 | pass |
 
-All clocks now pass, including `clock_54m`, which failed its 54.000 MHz constraint in
-the previous build (53.798 MHz actual). Commit `2c35769` moved the F11 turbo-toggle
+All clocks pass, zero negative slack anywhere. See "clock_54m closes again" below —
+this is the build that fixes the saga documented through the rest of this file.
+
+## clock_54m closes again (commit `ca77609`, currently flashable)
+
+`clock_54m` had closed once before (`fb6bea0`, 58.929 MHz — see below), then missed
+across two more builds and a place/route sweep and a synthesis-option sweep that turned
+out not to test anything (both documented below). The fix that actually worked:
+`12444a6` (`e48a96f`) restructured the CPU read mux (`cpu_din` — the endpoint of two of
+the failing paths) from a single 29-level priority chain into a tree: five contiguous
+groups resolved in parallel, then resolved against each other, 11 levels deep instead of
+26. Priority is preserved exactly by construction and was verified against the original
+chain across 400,000 combinations of condition truth values, zero mismatches.
+
+Fmax is now 55.626 MHz against the 54.000 MHz constraint — a real pass, not a near-miss.
+CLS eased from 88% to 87%. This bitstream is the one in `compiled/`; the two failed
+attempts below stay in `compiled/failed/` for reference.
+
+## Original closure (commit `fb6bea0`, since regressed and now fixed above)
+
+All clocks passed, including `clock_54m`, which failed its 54.000 MHz constraint in
+the build before this one (53.798 MHz actual). Commit `2c35769` moved the F11 turbo-toggle
 edge detection out of the `clk_54m` domain — the one domain that was missing timing —
-and that alone appears to have closed it (58.929 MHz actual now, well over 54 MHz).
+and that alone appeared to close it (58.929 MHz actual, well over 54 MHz). It later
+regressed (see below) until the `cpu_din` tree restructure above fixed it for good.
 
 ## Later attempt that regressed (not flashed)
 
@@ -42,8 +64,8 @@ endpoints, all on CPU-to-memory-controller paths (`cpu1/RD` -> `mem1/sdram_addr`
 `sdram_seq`, `cpu1/u0/IStatus` -> `cpu_din`). CLS crept from 9048/10368 to 9124/10368
 and registers from 7525 to 7535, which is the likely cause given CLS is already the
 tightest resource at 88%. That bitstream is kept at
-`compiled/failed/msxnano-mistle_tangnano20k_28c916d.fs` for reference, not flashed. The
-table above still reflects the current flashable build (`fb6bea0`).
+`compiled/failed/msxnano-mistle_tangnano20k_28c916d.fs` for reference, not flashed.
+(Since fixed — see "clock_54m closes again" near the top of this document.)
 
 ## Second attempt: WiFi compiled out (still not flashed)
 
@@ -87,12 +109,11 @@ costs about 1 MHz regardless of place effort, and dropping both to 0 is far wors
 | 1 / 1 | 52.237 MHz | -2.220 ns | 14 | 88% |
 | 0 / 0 | 47.792 MHz | -22.206 ns | 33 | 89% |
 
-PnR effort isn't the lever here — nothing beats current settings. Per `CLAUDE.md`,
-the next step under consideration is trimming `swioports.vhd` while preserving its
-`$40-$4F` readback exactly, which is a decision to raise with the user rather than
-take unilaterally. No new bitstream came out of this sweep (same source as
-`0cf00b7`); the table at the top of this document still reflects the current
-flashable build (`fb6bea0`).
+PnR effort isn't the lever here — nothing beats current settings. `CLAUDE.md` at the
+time raised trimming `swioports.vhd` as a possible next step, then withdrew it after
+tracing what it feeds (see below) — the fix that actually worked was the `cpu_din`
+tree restructure documented near the top of this file. No new bitstream came out of
+this sweep.
 
 ## Synthesis-option sweep (`iob`/`retime`) — inconclusive, not a real test
 
