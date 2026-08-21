@@ -168,7 +168,8 @@ mostly does not:
 | PlayStation 4 / 5 | no |
 
 Player 1 is the first XInput device enumerated, player 2 the second, which needs a hub. The
-DB9 stick and a USB pad are mixed onto the same MSX port, so either can drive a game.
+DB9 stick and a USB pad are mixed onto the same MSX port, so either can drive a game — **and
+either can drive the file browser**, so you never need the keyboard to pick and start something.
 
 Note that the Tang Nano 20K has **no USB-A socket**. The keyboard plugs into the *shield*. On
 a bare Tang you would need a powered hub and an OTG adapter; the shield is what removes that.
@@ -250,6 +251,13 @@ rename it**, because the browser matches the three extension letters literally.
 
 **In the browser:** arrows and RETURN navigate and launch, BS goes back, `R`/`D`/`A` filter by
 type, TAB switches partition, `H` opens help, and ESC boots straight to MSX-DOS.
+
+**`/` searches by name** — type part of a filename and it jumps there. Useful well before you
+hit the file limit.
+
+**The joystick works here too.** Up and down move, left and right page, **fire 1 launches** and
+**fire 2 goes back**, with auto-repeat if you hold a direction. So you can pick and start a game
+without reaching for the keyboard at all — a DB9 stick or a USB pad, either one.
 
 **`F12`** opens the settings overlay, in the browser or in a game.
 
