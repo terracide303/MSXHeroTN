@@ -4,36 +4,21 @@ The detail behind the two phases summarised in the [README](../README.md). Phase
 working port; Phase 2 is everything else. Each item records what is known, what is decided,
 and what was deliberately rejected, so the same ground is not covered twice.
 
-## Which board gets which feature
+## What is scarce on this chip
 
-There are now two MSXHero machines: this one on the Tang Nano 20K, and
-[MSXHero](https://github.com/terracide303/MSXHero) on the Lattice ECP5-45F. They share the
-F12 OSD — the menu XML is deliberately named `MSXHero` with no board suffix — and they will
-increasingly share RTL.
+This is a Tang Nano 20K project. The GW2AR-18 is at **88% CLS** with `clock_54m` closing at
+54.306 MHz against a 54.000 constraint — a real pass, but not much of one.
 
-They do not share headroom. This core sits at **87% CLS on a GW2AR-18** with `clock_54m`
-closing at 55.626 MHz against a 54.000 constraint. The ECP5 build has room to spare.
-
-So the working rule, as of 2026-08-21:
-
-- **Anything expensive gets proven on the ECP5 first**, then ported back here if it fits.
-- **The Tang gets the cheap half of a feature** when a feature can be split, rather than
-  waiting for the whole thing.
-
-Two cases decided under this rule so far:
-
-| Feature | Tang | ECP5 |
-|---|---|---|
-| MIDI | the ports: YM2148 UART, OPM stubbed | the synth: full SFG-05 with JT51 |
-| Settings | into the FPGA's own flash, six-byte block | the companion's SD `.ini`, once the SD target exists |
-
-Two things to understand before assuming "87% full" means "nothing more fits". There are
-roughly 1300 CLS free, which is not nothing. And **size is a poor predictor of what hurts
+Two things to understand before assuming "88% full" means "nothing more fits". There are
+roughly 1200 CLS free, which is not nothing. And **size is a poor predictor of what hurts
 here**: deleting 693 lines of WiFi freed 24 CLS, while restructuring a single read mux freed
-127 and moved Fmax by 0.7 MHz. The scarce resource is not area, it is the `cpu_din` read mux
-and placement congestion around it — **every new device the Z80 can read from adds a leg to
-the tree that was restructured to close timing in the first place.** Judge a proposal by how
-many read sources it adds, not by its line count.
+127 and moved Fmax by 0.7 MHz. Later, a change that came in *under* the passing build's CLS and
+touched nothing in the failing clock domain still missed timing badly.
+
+The scarce resource is not area. It is **the `cpu_din` read mux and the placement congestion
+around it** — every new device the Z80 can read from adds a leg to a structure that had to be
+rebuilt as a tree to close timing at all. Judge a proposal by how many read sources it adds,
+not by its line count, and change one thing per build so a regression has one suspect.
 
 *[Phase 1]* **1. DB9 joystick** — **done, and verified on hardware.**
 All four directions and both fire buttons work. Still unverified: that autofire on the USB
@@ -111,7 +96,7 @@ initialise the cartridge.
 
 ### Decided 2026-08-21: split it across the two boards
 
-**The Tang gets the MIDI ports. The ECP5 gets the synth.**
+**Build the MIDI ports. Treat the FM synth as a separate question.**
 
 *On the Tang* — implement the YM2148 half only: the two registers at `0x3FF5`/`0x3FF6`, a
 31250-baud UART on pins 71 and 72, and the SFG slot decode. The OPM registers at
@@ -120,10 +105,11 @@ make no sound. This is genuinely affordable — a UART is a fraction of the 24 C
 deleting 693 lines of WiFi recovered — and it is what you need to drive external gear from an
 MSX sequencer, which is the common use for MSX MIDI in the first place.
 
-*On the ECP5* — the full SFG-05 with **JT51** behind the OPM registers, on a device that can
-afford an eight-channel four-operator synth. jotego maintains JT51 and this tree already
-vendors his jtopl, so the source is from a project already present. If it fits and works
-there, revisit whether it fits here.
+*The synth* — **JT51** behind the OPM registers, giving the SFG's own FM voices. jotego
+maintains JT51 and this tree already vendors his jtopl, so the source comes from a project
+already present. It is bigger than the OPLL that is in here now, on a chip at 88% CLS with
+0.3 MHz of timing margin, so the honest expectation is that it does not fit — but that is a
+synthesis run to settle, not an argument. Run it before deciding either way.
 
 **The open question, and it is the real risk:** whether MSX software will talk to a MIDI port
 with no working FM chip behind it. The SFG ROM's BASIC extensions certainly expect the synth;
@@ -393,7 +379,7 @@ Cost: the 24 CLS that removing those 693 lines recovered, **plus a leg on the `c
 mux**, which is the resource that actually hurts (see "Which board gets which feature"). At
 the time of writing this core has just missed `clock_54m` by 0.194 ns on that very mux, so
 this waits until there is comfortable margin — and by our own rule it should be proven on the
-ECP5 first.
+board itself.
 
 Unverified, and someone needs to look at the board: **whether J3 carries 3V3 and ground**, and
 whether the Tang's regulator tolerates the ESP's transmit current peaks. If J3 is signal-only,

@@ -86,7 +86,7 @@ here. Do them **one at a time**, so a timing regression has one suspect.
 ### B1. MIDI ports
 
 Two registers and a 31250-baud UART on pins 71 and 72, which are free. The FM chip is *not* part
-of this — that goes to the ECP5 (C2).
+of this — see C2 for why the synth is a separate question.
 
 **Answer this in openMSX before writing any Verilog:** does the SFG BIOS probe the OPM during
 initialisation and refuse to install when the reads look wrong? If it does, the stubbed FM chip
@@ -152,10 +152,12 @@ uncommenting a line.
 
 ---
 
-## Group C — prove on the ECP5 first
+## Group C — big, and each needs a decision before it needs a developer
 
-The ECP5 build has headroom; this one is at 88% CLS with `clock_54m` closing by 0.3 MHz. Both
-machines share the F12 overlay, so anything proven there ports back.
+Not "later" as a polite no. These are all worth having; they are just large enough that
+starting one without deciding it is worth the risk would be a mistake. This core is at 88% CLS
+with `clock_54m` closing by 0.3 MHz, and every one of these adds significantly more than the
+Group B items.
 
 ### C1. Settings on the SD card, via the Pico
 
@@ -168,8 +170,12 @@ the reference.
 
 ### C2. The SFG-05's FM synth
 
-JT51 behind the OPM registers. An eight-channel four-operator synth does not belong on a device
-at 88%.
+JT51 behind the OPM registers. Bigger than the OPLL already in the design, and this chip is at
+88% CLS with 0.3 MHz of timing margin — so the honest position is that it probably does not
+fit, and finding out costs a synthesis run rather than an argument.
+
+Worth doing that run before assuming either way. If it does not fit, B1 still gives you working
+MIDI ports for driving external gear, which is what most MSX MIDI software wants anyway.
 
 ### C3. `.CAS` cassette support
 
