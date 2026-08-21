@@ -4,6 +4,37 @@ The detail behind the two phases summarised in the [README](../README.md). Phase
 working port; Phase 2 is everything else. Each item records what is known, what is decided,
 and what was deliberately rejected, so the same ground is not covered twice.
 
+## Which board gets which feature
+
+There are now two MSXHero machines: this one on the Tang Nano 20K, and
+[MSXHero](https://github.com/terracide303/MSXHero) on the Lattice ECP5-45F. They share the
+F12 OSD — the menu XML is deliberately named `MSXHero` with no board suffix — and they will
+increasingly share RTL.
+
+They do not share headroom. This core sits at **87% CLS on a GW2AR-18** with `clock_54m`
+closing at 55.626 MHz against a 54.000 constraint. The ECP5 build has room to spare.
+
+So the working rule, as of 2026-08-21:
+
+- **Anything expensive gets proven on the ECP5 first**, then ported back here if it fits.
+- **The Tang gets the cheap half of a feature** when a feature can be split, rather than
+  waiting for the whole thing.
+
+Two cases decided under this rule so far:
+
+| Feature | Tang | ECP5 |
+|---|---|---|
+| MIDI | the ports: YM2148 UART, OPM stubbed | the synth: full SFG-05 with JT51 |
+| Settings | into the FPGA's own flash, six-byte block | the companion's SD `.ini`, once the SD target exists |
+
+Two things to understand before assuming "87% full" means "nothing more fits". There are
+roughly 1300 CLS free, which is not nothing. And **size is a poor predictor of what hurts
+here**: deleting 693 lines of WiFi freed 24 CLS, while restructuring a single read mux freed
+127 and moved Fmax by 0.7 MHz. The scarce resource is not area, it is the `cpu_din` read mux
+and placement congestion around it — **every new device the Z80 can read from adds a leg to
+the tree that was restructured to close timing in the first place.** Judge a proposal by how
+many read sources it adds, not by its line count.
+
 *[Phase 1]* **1. DB9 joystick** — **done, and verified on hardware.**
 All four directions and both fire buttons work. Still unverified: that autofire on the USB
 pad's buttons 3/4 still behaves now the DB9 is AND-ed into the same lines.
@@ -78,10 +109,31 @@ initialise the cartridge.
 3. **Slot arbitration.** The SFG and the second SCC+ would compete for the same free primary,
    so they need to be mutually exclusive in the settings menu.
 
-A narrower first step is possible: implement only the YM2148 registers at `0x3FF5`/`0x3FF6`
-and leave the OPM out. Software doing plain MIDI output could work, but anything using the
-SFG ROM's BASIC extensions will expect the synth to exist. This is also the cheap way to find
-out whether the full SFG will fit before investing in JT51.
+### Decided 2026-08-21: split it across the two boards
+
+**The Tang gets the MIDI ports. The ECP5 gets the synth.**
+
+*On the Tang* — implement the YM2148 half only: the two registers at `0x3FF5`/`0x3FF6`, a
+31250-baud UART on pins 71 and 72, and the SFG slot decode. The OPM registers at
+`0x3FF0`/`0x3FF1` are decoded but stubbed: they accept writes, return a plausible status, and
+make no sound. This is genuinely affordable — a UART is a fraction of the 24 CLS that
+deleting 693 lines of WiFi recovered — and it is what you need to drive external gear from an
+MSX sequencer, which is the common use for MSX MIDI in the first place.
+
+*On the ECP5* — the full SFG-05 with **JT51** behind the OPM registers, on a device that can
+afford an eight-channel four-operator synth. jotego maintains JT51 and this tree already
+vendors his jtopl, so the source is from a project already present. If it fits and works
+there, revisit whether it fits here.
+
+**The open question, and it is the real risk:** whether MSX software will talk to a MIDI port
+with no working FM chip behind it. The SFG ROM's BASIC extensions certainly expect the synth;
+what is unknown is whether the BIOS *probes* the OPM during initialisation and refuses to
+install itself when the reads look wrong. If it does, the stub has to be convincing enough to
+pass that probe — timer status bits and the busy flag being the likely candidates. Establish
+this in openMSX before writing any RTL: patch out the OPM and see whether the SFG still
+installs and whether MIDI OUT still works.
+
+That test costs nothing and decides whether the cheap half is worth building at all.
 
 Reference implementation to work from: openMSX's
 [`MSXYamahaSFG.cc`](https://github.com/openMSX/openMSX/blob/master/src/sound/MSXYamahaSFG.cc)

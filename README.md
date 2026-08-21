@@ -343,9 +343,24 @@ everything else.** Nothing from Phase 2 starts before Phase 1 boots.
 
 ### Phase 2 — the extras
 
+**Which board gets what.** There are two MSXHero machines now — this one and
+[MSXHero](https://github.com/terracide303/MSXHero) on the ECP5-45F — and they share the F12
+OSD. They do not share headroom: this core is at 87% CLS with `clock_54m` closing at 55.626
+against 54.000, while the ECP5 has room. So anything expensive is proven on the ECP5 first
+and ported back if it fits, and where a feature splits, the Tang takes the cheap half rather
+than waiting for the whole thing. MIDI is the first case: the ports here, the synth there.
+
+Note that "87% full" is not the same as "nothing more fits" — there are about 1300 CLS free,
+and size predicts very little. Deleting 693 lines of WiFi freed 24 CLS; restructuring one
+read mux freed 127. What actually costs here is **adding another leg to the `cpu_din` read
+mux**, which is the structure that had to be rebuilt to close timing. Judge a feature by how
+many things the Z80 can newly read from, not by its size.
+
+
 | Item | Size | Notes |
 |---|---|---|
-| **MIDI as a Yamaha SFG-05** | large | Loadable cartridge mode. Needs a slot, the SFG ROM, and probably an OPM |
+| **MIDI ports, as the SFG-05's UART half** | small | Two registers, a 31250-baud UART on pins 71/72, OPM decoded but stubbed. Drives external gear |
+| **The SFG-05's FM synth (JT51)** | large | **On the ECP5, not here** — an 8-channel 4-op synth does not belong on a device at 87% |
 | **USB mouse** | small | `hid.v` already has it; `fpga_companion.v` has the line commented out |
 | **`.CAS` cassette** | medium | `MSX1_MiSTer/rtl/tape.sv` is reusable (GPL v2+) |
 | **Persist SRAM saves** | medium | Fix `flash_rw.v`'s `write_terminate` first |
