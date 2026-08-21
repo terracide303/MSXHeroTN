@@ -29,12 +29,16 @@ Everything here has been confirmed by hand on a real board, not by reading the c
 | Turbo — 5.37 MHz, the real Panasonic WSX speed | yes |
 | Scanlines, aspect, stereo, second SCC+, volume | yes |
 | Reset and Cold Boot from the overlay | yes |
-| **Remembering your settings** | **not yet** |
+| Remembering your settings | yes — volume, joystick port, and the rest |
 | MIDI | not yet — the sockets are there, the wiring isn't |
 | WiFi | not yet — planned, and the pins for it exist |
 
-**Settings are lost at power-off.** Volume and joystick port go back to defaults every time.
-That is the one feature still being finished, and it is in progress on the `dev` branch.
+Settings survive a power cycle. They are written into the FPGA's own flash rather than onto
+the SD card, so the card stays purely for games.
+
+One quirk worth knowing: after a power cycle the machine *uses* your saved settings, but the
+overlay still *displays* the defaults until you touch each entry. The core has no way to tell
+the overlay what it loaded. It looks like a bug and isn't one.
 
 **MIDI and WiFi are both planned rather than abandoned.** Upstream MSXnano supports WiFi
 through an ESP-01S module, and this fork dropped it because the module's pins became the

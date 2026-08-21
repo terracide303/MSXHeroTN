@@ -3,46 +3,45 @@
 Read this alongside `docs/UTILISATION.md` (full resource/timing report) and the
 top-level `CLAUDE.md` (build instructions for this machine).
 
-## Current bitstream
+## Branch note
 
-`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `6389ac0`
-(Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88). Synthesis and
-place & route both completed with no errors.
+This repo now splits `main` (only advances once a build is verified on
+hardware) from `dev` (where build-machine work happens). `85729ad` — the
+SDRAM-sequencer fix below — **was verified on hardware**, is tagged
+`known-good-85729ad`-equivalent (check `git tag` for the exact name) and
+pinned in `compiled/known-good/`, which this machine never writes to. `main`
+now points at it. The bitstream below is built from `dev`, one commit past
+that, and is **not yet verified on hardware**.
 
-**Three newer builds were attempted and are NOT here** — all missed `clock_54m`,
-so the bitstream in this folder is still `6389ac0`.
+## Current bitstream (on `dev`, not yet hardware-verified)
 
-- `0b3f629` (first compile of `db4ac25` — settings persistence to flash,
-  `system_turbo_boot`/`system_autofire` wired up): compiled cleanly (no
-  warnings on `config_save_byte` or `af_limit`, the two things flagged as
-  worth watching) but Gowin's "Max Frequency Summary" showed 54.367 MHz —
-  looks like a pass, but "Total Negative Slack Summary" showed -0.555 ns
-  across 6 Setup endpoints. **The two reports can disagree; TNS is the
-  authoritative one.**
-- `aa52343` (rewrote OSD autofire from a 23-bit comparator to a
-  comparator-free free-running counter, aimed at recovering the miss above):
-  CLS landed exactly where predicted (9028/10368, below the 9054 target), but
-  timing got **worse**, not better — Fmax 50.717 MHz (a real fail this time,
-  not a look-alike), TNS -5.172 ns across 17 endpoints, now including the
-  `cpu1/RD` -> `mem1/sdram_*` path family from the original `28c916d`
-  regression as well as the recurring `IStatus` -> `cpu_din` one.
-- `c2fcec4` (reverted both autofire attempts, byte-for-byte back to `6389ac0`'s
-  autofire block — the only remaining delta is persistence: 12 flip-flops in
-  `clk_27m`, one mux leg on `flash_write_din`, two signal renames, **nothing
-  touching `clk_54m`**): **still fails.** Fmax 51.309 MHz, TNS -1.583 ns
-  across 7 endpoints, CLS 9008/10368 (87%) — lower than both the last-passing
-  build (9054) and `aa52343` (9028), which also failed.
+`msxnano-mistle_tangnano20k.fs` in this folder is built from commit `25f80b8`
+on `dev` (Gowin EDA 1.9.11.03, `fpga/build.tcl`, target GW2AR-18C QFN88).
+Synthesis and place & route both completed with no errors.
 
-**Worth surfacing plainly:** CLS has now been lower than the last-passing build's
-in two consecutive attempts, and both still failed `clock_54m` — one of them
-(`c2fcec4`) with a change that touches nothing in the failing clock domain at
-all. Neither resource count nor "does the change touch clk_54m" predicts the
-outcome here; something else is driving the placer's behaviour on this specific
-netlist. All three kept at `compiled/failed/msxnano-mistle_tangnano20k_<sha>.fs`
-with full details in `compiled/failed/README.md` and `docs/UTILISATION.md`.
-Reported rather than trimmed further, per `CLAUDE.md` and the file-ownership
-convention — this needs the design side's judgement now, not another
-build-side attempt.
+Fixes a real bug found when `85729ad` was tested on hardware: **the machine
+booted muted and stayed muted after saving.** `config_sig[5]` (volume) is
+latched in the same cycle `config_init` reads it while seeding settings from
+flash, one cycle before that byte is actually valid — so every boot read a
+stale `8'd0` and seeded volume to zero, silently, since the old validity
+test (bit 7 clear) accepted the stale zero as legitimate. Scanlines (byte 2)
+landed earlier and were unaffected, which is why they already persisted
+correctly. Fixed by seeding one cycle later and tightening the marker to
+`[7:6] == 01`, rejecting both an erased `0xFF` and a stale `0x00`.
+
+**`clock_54m` still passes, but the margin thinned noticeably: Fmax 54.306 MHz
+against 54.000 MHz (was 56.588 MHz in `85729ad`), zero negative slack
+confirmed.** The commit describes this as a `clk_27m`-only change "nowhere
+near the paths that were failing," and explicitly asked for the margin to be
+reported if it moved — it did move, by a meaningful amount, from a change
+that shouldn't have touched the critical domain. Worth flagging plainly
+rather than assuming it's noise, per the commit's own request. All other
+clocks pass comfortably; CLS 9069/10368 (88%).
+
+**Worth confirming on hardware specifically**: volume now persists correctly
+across power cycles (previously silently reset to mute on every boot), and
+nothing else regressed. Once confirmed, this is the build to fast-forward
+`main` to and tag.
 
 **`clock_54m` passes with a healthy margin again: Fmax 56.973 MHz against the
 54.000 MHz constraint**, zero negative slack, all six clocks pass. CLS ticked
