@@ -295,12 +295,23 @@ byte written as `0xFF` and never read. The on-MSX `S` menu's Save has always use
 sixth byte is now ours:
 
 ```
-[7] 0 = written by us   [6] spare   [5:4] autofire   [3] DB9 port   [2:0] volume
+[7:6] 01 = written by us   [5:4] reserved   [3] DB9 port   [2:0] volume
 ```
 
-Bit 7 clear is the marker, so a board that has never saved reads `0xFF`, fails the test and
-falls back to defaults. At `config_init` the block is read back and the values seeded; from
-then on they follow the OSD.
+The marker is a two-bit pattern rather than a single bit because it has to reject two
+different "not ours" values. An erased byte reads `0xFF`; a byte that has not been *fetched
+yet* reads `0x00`. Both must fall back to defaults.
+
+That second case is a genuine trap and cost a hardware round trip. `config_sig[5]` is latched
+in the very cycle `last_bytes_cnt` leaves 1 — and `config_init` is asserted *while* it equals
+1 — so for the whole of that window byte 5 still holds its previous value, `8'd0` out of
+reset. Bytes 2 to 4 are safe there because they land earlier, which is why scanlines
+persisted correctly while volume did not. With "bit 7 clear" as the test, `0x00` read as
+valid and seeded volume to zero: the machine booted **muted**, and stayed muted after saving,
+because every boot re-read the same stale zero.
+
+So the seeding happens one cycle after `config_init` drops, which is the first moment byte 5
+is real. From then on the values follow the OSD.
 
 That "follow the OSD" part is change-triggered rather than continuous, and the reason matters.
 At start-up the companion pushes every value from the XML. If the core simply took whatever

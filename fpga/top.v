@@ -2228,25 +2228,38 @@ memory_ctrl mem1 (
                 config1_ff <= CONFIG1_DEFAULT;
                 config2_ff <= CONFIG2_DEFAULT;
                 config_turbo_boot_ff <= 0;      // rescate S2: boot turbo off
-                volume_ff   <= 3'd4;            // S2 rescue: OSD settings to defaults too
-                db9_port_ff <= 1'b0;
             end
             else begin
                 config1_ff <= config_sig[2];
                 config2_ff <= config_sig[3];
                 config_turbo_boot_ff <= (config_sig[4] == 8'h54) ? 1'b1 : 1'b0;
-                // Byte 5 of the flash block, which upstream wrote as 0xFF and
-                // never read. Bit 7 clear marks it as ours: an erased or
-                // pre-existing 0xFF therefore falls through to the defaults,
-                // so a board that has never saved still boots sanely.
-                if (config_sig[5][7] == 1'b0) begin
-                    volume_ff   <= config_sig[5][2:0];
-                    db9_port_ff <= config_sig[5][3];
-                end
-                else begin
-                    volume_ff   <= 3'd4;
-                    db9_port_ff <= 1'b0;
-                end
+            end
+        end
+        // Byte 5 of the flash block, which upstream wrote as 0xFF and never read.
+        //
+        // It CANNOT be read inside the config_init window above. config_init is
+        // asserted while last_bytes_cnt == 1, and config_sig[5] is latched in the
+        // very cycle that counter leaves 1 -- so throughout that window byte 5
+        // still holds its previous value, which out of reset3_n is 8'd0. Bytes 2
+        // to 4 are safe there because they land earlier; the note on boot-turbo
+        // above says as much about byte 4 landing at last_bytes_cnt == 2.
+        //
+        // Reading it one cycle after config_init drops is the first moment it is
+        // valid. Getting this wrong seeded volume from 8'd0 and the machine came
+        // up muted -- and stayed muted after saving, because every boot re-read
+        // the same stale zero.
+        //
+        // The marker is [7:6] == 01 rather than "bit 7 clear" for the same
+        // reason: it must reject BOTH an erased 0xFF and a stale 0x00, so that a
+        // byte we have not written can never be mistaken for one we have.
+        if (config_init_delay && !config_init) begin
+            if (s2 == 1 || config_sig[5][7:6] != 2'b01) begin
+                volume_ff   <= 3'd4;    // never saved, erased, or S2 rescue
+                db9_port_ff <= 1'b0;
+            end
+            else begin
+                volume_ff   <= config_sig[5][2:0];
+                db9_port_ff <= config_sig[5][3];
             end
         end
         // escritura del puerto #45 (menu): mismo bloque que la carga init para un
@@ -2413,8 +2426,12 @@ memory_ctrl mem1 (
     wire flash_busy;
     // Flash block byte 5. Bit 7 is the "written by us" marker and must stay 0;
     // an erased byte reads 0xFF and is rejected by config_init above.
-    //   [7] 0 = valid   [6:4] reserved (autofire, parked)   [3] DB9 port   [2:0] volume
-    wire [7:0] config_save_byte = { 4'b0000, db9_port_ff, volume_ff };
+    //   [7:6] 01 = written by us   [5:4] reserved (autofire, parked)
+    //   [3] DB9 port   [2:0] volume
+    // 01 and not a single bit, so that an erased 0xFF and a stale-read 0x00 are
+    // both rejected -- see the seeding code, where reading 0x00 as valid made
+    // the machine boot muted.
+    wire [7:0] config_save_byte = { 2'b01, 2'b00, db9_port_ff, volume_ff };
 
     wire [7:0] flash_write_din;
     wire flash_write_busy;
