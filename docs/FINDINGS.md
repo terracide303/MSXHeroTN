@@ -563,3 +563,31 @@ upstream's hardware claims against the tree rather than trusting them.
 | BIOS pack "not distributed here" | It ships in `bin/` and as a release asset |
 | `SPI.md` tile-address description | Contradicted by `osd_u8g2.c`; trust the code |
 | README: "Turbo mode toggled by F11 (full speed, ~116% / 4.13 MHz)" | Pre-v1.9. That turbo was the per-M1 wait state being released, so 4.13 MHz was an effective figure, not a clock. v1.9 replaced it with a real **5.369318 MHz** Panasonic-WSX cadence (`top.v` "v1.9 Panasonic-WSX turbo"), driven from the MSX's own port `&H41` as the T9769 does, with the M1 wait *still applied* — so ~150% of a stock MSX with authentic timing, not 116% with the brake off |
+
+---
+
+## 8. CPU clock frequencies, measured from the dividers
+
+Worked out from `top.v` rather than from any documentation, because the figures quoted around
+this core disagree with each other.
+
+| | Frequency | Source |
+|---|---|---|
+| Real MSX Z80 | **3.579545 MHz** | the NTSC colour subcarrier; every MSX runs at this |
+| This core, normal | **3.600000 MHz** | 108 MHz ÷ 30 (`div30_cnt == 5'd14`) |
+| This core, turbo | **5.369318 MHz** | 108 ÷ 20 = 5.4 MHz, then trimmed — see below |
+| Panasonic FS-A1WSX turbo | **5.369318 MHz** | exactly 1.5 × standard |
+
+**Turbo is trimmed to 0.1 ppm of the real thing.** A plain ÷20 gives 5.400 MHz, 0.57% fast, so
+the core swallows one clock period in every 176 (`pana_per_cnt == 8'd175`, `pana_skip_now`,
+`pana_skip_pend`). 5.4 × 175/176 = 5.369318 MHz. Somebody took considerable care over that.
+
+**Normal speed is not trimmed, and runs 0.57% fast.** 3.600000 against 3.579545. Inherited from
+MSXnano, not introduced here. It is far too small to hear — music plays fractionally sharp and
+nothing else — but it is worth knowing before someone measures the machine and wonders. The
+same ÷176 trick would fix it if it ever mattered.
+
+**"4.13 MHz" was never a clock.** Upstream's README quotes it for the pre-v1.9 turbo, which
+released the per-M1 wait state rather than changing frequency: about 16% more work per second,
+so 3.579545 × 1.16 ≈ 4.15 MHz *equivalent throughput*. Nothing in the machine ever ran at that
+rate, which is why the figure looks unlike any real MSX frequency.
