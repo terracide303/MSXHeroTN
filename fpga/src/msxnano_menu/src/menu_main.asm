@@ -285,7 +285,10 @@ ARR_PTR		equ	#C027			; 2 bytes: array write pointer (scan)
 BR_OLD		equ	#C029			; 1 byte: previously-selected index (partial repaint)
 BR_OLDTOP	equ	#C02A			; 1 byte: BR_TOP before ensure_visible (scroll detect)
 ENT_ARRAY	equ	#C300			; entry array: ENT_SIZE bytes each (type,cluster,name)
-ENT_SIZE	equ	80				; record: type(1)+cluster(2)+size(4)+name(73 ASCIIZ)
+ENT_SIZE	equ	80				; record: type(1) cluster(4) size(4) name(NAME_MAX+1)
+ENT_NAME	equ	9				; name offset. NOT 7 -- the cluster is 4 bytes, not 2,
+									; because FAT32 keeps its high word in the dir entry.
+									; The old comment here said 2 and cost a wrong sort.
 ; ENT_ARRAY spans C300..E6F0 (115*80). E6F0..E800 is free; PART_TBL starts at E800.
 SORT_IDX	equ	#E6F0			; MAX_ENT bytes: display order -> physical entry index
 SORT_KEY	equ	#E76A			; 1 byte: insertion-sort key being placed
@@ -2067,22 +2070,13 @@ browse:
 	jp   z, .br_search
 	cp   #09						; TAB -> next partition (multi-partition cards)
 	jp   z, .br_nextpart
-	cp   #53						; 'S' -> Settings (Ajustes)
-	jp   z, config_menu_entry
-	cp   #73						; 's'
-	jp   z, config_menu_entry
-	cp   #57						; 'W' -> WiFi config (ESP ROM menu)
-	jp   z, main_action_wifi
-	cp   #77						; 'w'
-	jp   z, main_action_wifi
-	cp   #55						; 'U' -> test UNAPI (File-Hunter fase 0)
-	jp   z, main_action_unapi_test
-	cp   #75						; 'u'
-	jp   z, main_action_unapi_test
-	cp   #46						; 'F' -> File-Hunter (buscar y listar online)
-	jp   z, fh_browse
-	cp   #66						; 'f'
-	jp   z, fh_browse
+	; S, W, U and F are gone from the browser.
+	;   S  saved settings to flash -- the F12 overlay does that now, and
+	;      Compatible Mode, the one setting that screen had which the overlay
+	;      lacks, was removed upstream in v1.9.
+	;   W  WiFi config, U  UNAPI test, F  File-Hunter online search: all three
+	;      need the ESP-01S, which this fork compiles out. They were live keys
+	;      leading nowhere.
 	cp   #48						; 'H' -> help overlay
 	jp   z, .br_help
 	cp   #68						; 'h'
@@ -2184,7 +2178,11 @@ browse:
 .br_left:
 	ld   a, (BR_SEL)
 	cp   VISIBLE
-	jp   c, .br_key					; already in first column
+	jp   c, browse_back				; first page already: left leaves the folder.
+									; This keypress previously did nothing, and
+									; browse_back is safe at the root (redraws).
+									; Gives the joystick a way out of a folder
+									; without needing a second fire button.
 	ld   (BR_OLD), a
 	sub  VISIBLE
 	ld   (BR_SEL), a
@@ -3437,7 +3435,7 @@ upcase:
 
 ; cmp_entries: A = physical index 1, B = physical index 2.
 ; CY set if entry 1 sorts AFTER entry 2. Directories first, then name,
-; case-insensitively. Name is at offset 7 (type 1 + cluster 2 + size 4).
+; case-insensitively. Name is at ENT_NAME.
 ; Destroys AF, BC, DE, HL -- the caller preserves what it needs.
 ; NOTE: ent_addr_raw itself destroys DE and B, which is why record 1 goes on
 ; the stack rather than into DE across the second call.
@@ -3468,11 +3466,11 @@ cmp_entries:
 	jr   c, .ce_before				; directory sorts before file
 	jr   .ce_after
 .ce_name:
-	ld   bc, 7
+	ld   bc, ENT_NAME
 	add  hl, bc						; HL = name 2
 	ex   de, hl						; DE = name 2, HL = record 1
 	add  hl, bc						; HL = name 1
-	ld   b, 73						; ASCIIZ, so the terminator ends it first
+	ld   b, NAME_MAX+1				; ASCIIZ, so the terminator ends it first
 .ce_loop:
 	ld   a, (de)
 	call upcase
@@ -4815,7 +4813,7 @@ tabDStr:
 tabAStr:
 	.db "[A]LL",0
 footerStr:
-	.db "R/D/A=Filter ESC=Boot S=Save F12=Setup TAB=Part H=Help  ",0
+	.db "R/D/A=Filter ESC=Boot /=Find F12=Setup TAB=Part H=Help  ",0
 helpTitleStr:
 	.db "MSXHeroTN HELP",0
 ; ============================== DATOS (>= A010) ==============================
@@ -4833,13 +4831,13 @@ help1Str:
 help2Str:
 	.db "RETURN / joy fire 1   : open folder or launch ROM",0
 help3Str:
-	.db "BACKSPACE / joy fire 2: parent folder",0
+	.db "BACKSPACE / Left / fire 2: leave folder",0
 help4Str:
 	.db "TAB                   : change partition",0
 help5Str:
 	.db "ESC                   : boot the system (MSX-DOS)",0
 help6Str:
-	.db "S                     : Save settings to flash",0
+	.db "/                     : search for a name",0
 help7Str:
 	.db "F12                   : Setup overlay (OSD)     ",0
 help8Str:
