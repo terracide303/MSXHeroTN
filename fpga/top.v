@@ -9,7 +9,16 @@
 //`define ENABLE_WAIT_ADAPTIVE //wait required
 `define ENABLE_M1_WAIT //STANDALONE: 1 wait-state per M1 opcode fetch (the real-MSX brake). Comment out to disable.
 //`define SWAP23
-`define ENABLE_WIFI
+// ENABLE_WIFI is off on this fork. The ESP-01S UART pins (27/28) are the
+// shield's DB9 Fire 1 and Down lines, so there is physically nothing for the
+// WiFi logic to talk to -- but synthesis cannot prune it, because wifi_lite
+// still drives the Z80 bus at I/O 0x06/0x07 and wifi_req still decodes the
+// UNAPI ROM slot. Compiling it out frees that logic, the 27-bit esp_boot
+// counter, and folds esp_boot_ok to a constant.
+//
+// This matters here: CLS sits at 88% and clock_54m closes or misses depending
+// on how the placer lands. Reaching WiFi another way is a roadmap item.
+//`define ENABLE_WIFI
 
 module top
 #(
@@ -115,8 +124,13 @@ module top
     reg osd_scc2_d   = 1'b0;
 
     wire ws2812_led;
-    wire uart_tx;
-    wire uart_rx = 1'b1;   // idle high
+`ifdef ENABLE_WIFI
+    wire uart_tx;                  // driven by wifi_lite
+    wire uart_rx = 1'b1;           // no pin: idle high
+`else
+    wire uart_tx = 1'b1;           // no WiFi logic to drive it; idle high
+    wire uart_rx = 1'b1;
+`endif
 
 
 initial begin
