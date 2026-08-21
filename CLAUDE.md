@@ -15,6 +15,10 @@ side stays out of the other's files.
 Owns, and may commit freely:
 
 - `compiled/` — bitstreams, and `compiled/failed/` for ones that miss timing
+  - **except `compiled/known-good/`**, which holds the last bitstream verified on real
+    hardware and is never overwritten, cleaned or updated by a build. It is the fallback
+    the user reverts to when something goes wrong. A newer verified build gets a new file
+    and a new tag alongside it; the old one stays.
 - `compiled/BUILD_NOTES.md` — observations from the build
 - `docs/UTILISATION.md` — resource and timing results
 
