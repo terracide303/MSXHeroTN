@@ -25,6 +25,31 @@ When a `dev` build is confirmed working on the board, `main` fast-forwards to it
 `known-good-<sha>` tag is cut, and the bitstream is pinned into `compiled/known-good/`
 alongside the previous one — never replacing it.
 
+## Promoting dev to main — do NOT use `git merge`
+
+When a `dev` build is confirmed working on the board, `main` is updated by **taking dev's
+tree**, not by merging into it.
+
+Merging is actively dangerous here. `main` was reverted to the last verified RTL in `117b809`,
+which touched seven files under `fpga/`; `dev` has moved only some of them since. Git resolves
+the untouched ones in main's favour without a conflict, so a merge can produce a `top.v` from
+dev alongside a `sys_ctrl.v` from the reverted state — code referencing `system_save` against a
+module that does not declare it. That either fails to compile or, worse, quietly builds
+something nobody designed.
+
+The procedure:
+
+```sh
+git checkout main
+git checkout dev -- .            # take dev's tree wholesale
+git checkout HEAD -- README.md   # but keep main's user-facing README
+git commit
+```
+
+Then update the one line in main's README that says settings are not remembered yet, cut a
+`known-good-<sha>` tag, and copy the bitstream into `compiled/known-good/` **alongside** the
+existing one — never over it.
+
 ## Division of labour
 
 This project runs across two machines and two Claude sessions. They cannot talk to each
