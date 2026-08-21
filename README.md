@@ -43,9 +43,14 @@ FatFS, which reaches the SD card via the FPGA's SD target — and `mcu_sdc_din` 
 here, so the companion cannot see the card at all. Settings apply immediately but are lost at
 power-off. This is the outstanding Phase 1 item.
 
-**Turbo is applied via reset, not live.** Switching CPU cadence while running hung the
-machine. The Turbo menu entry therefore carries `action="reset"`, which is reliable. The
-F11 shortcut is gone: keys belong to the MSX, machine settings belong in the overlay.
+**The OSD has no Reset button.** Two attempts to wire it broke the machine — a boot loop,
+then no picture at all — because `sysctrl` sits inside `fpga_companion` and is reset by the
+core reset, so it fights itself. The buttons were removed rather than left dead. See
+[docs/FINDINGS.md](docs/FINDINGS.md).
+
+**Turbo takes effect on the next power cycle**, not immediately: switching CPU cadence while
+running hangs the machine, and with no working OSD reset there is nothing to apply it
+cleanly. The F11 shortcut is gone either way — keys belong to the MSX.
 
 ---
 

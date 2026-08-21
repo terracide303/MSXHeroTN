@@ -517,15 +517,25 @@ is straightforward but touches five sites, so it has been left alone deliberatel
 
 ## 6g. Two traps in this core's own structure
 
-**A reset that erases its own cause.** `sysctrl` holds the OSD's config values and lives
-inside `fpga_companion`, which is reset by `~bus_reset_n`. Wiring `system_reset` straight
-into `bus_reset_n` therefore boot-loops the machine: asserting reset clears the register
-that was asserting it, reset releases, and it happens again. The companion's own startup
-guarantees you hit it — its `init` action sets `R=1` and `ready` sets `R=0`.
+**The OSD cannot drive the core reset.** `sysctrl` holds the OSD's config values and lives
+inside `fpga_companion`, which is reset by `~bus_reset_n`. Anything it drives into that net
+fights itself, and both obvious approaches fail on hardware:
 
-The fix is the pattern already in `top.v`: run the level through the `monostable` one-shot,
-as `config_reset` does, so the pulse outlives the register that triggered it. Anything else
-driven from `sysctrl` into a reset or clock-enable path needs the same treatment.
+- **Level directly into `bus_reset_n`** — boot loop. Asserting reset clears the register that
+  was asserting it, so reset releases and it happens again. The companion's startup
+  guarantees it: its `init` action sets `R=1`, `ready` sets `R=0`.
+- **Through a `monostable` one-shot**, as `config_reset` does — no picture at all. The
+  companion re-runs `init` after each reset, so `R=1` returns and retriggers the pulse
+  indefinitely, holding the machine down permanently.
+
+The OSD reset is therefore **not wired**, and the Reset and Cold Boot buttons were removed
+from the menu rather than left as dead controls. Making it work needs `sysctrl` held out of
+the core reset domain — a power-on reset of its own — which is a bigger change than the
+button is worth.
+
+The general rule: **anything driven from `sysctrl` into a reset or clock-enable path has this
+problem.** Settings that merely select behaviour are fine; settings that reset or gate the
+logic feeding them are not.
 
 **A 29-deep priority mux on the CPU read path.** `cpu_din` selected among ~29 sources as a
 serial priority chain, and it was the endpoint of two paths missing timing. Restructuring it
