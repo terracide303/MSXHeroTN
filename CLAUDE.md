@@ -25,6 +25,31 @@ When a `dev` build is confirmed working on the board, `main` fast-forwards to it
 `known-good-<sha>` tag is cut, and the bitstream is pinned into `compiled/known-good/`
 alongside the previous one — never replacing it.
 
+## Promoting dev to main — do NOT use `git merge`
+
+When a `dev` build is confirmed working on the board, `main` is updated by **taking dev's
+tree**, not by merging into it.
+
+Merging is actively dangerous here. `main` was reverted to the last verified RTL in `117b809`,
+which touched seven files under `fpga/`; `dev` has moved only some of them since. Git resolves
+the untouched ones in main's favour without a conflict, so a merge can produce a `top.v` from
+dev alongside a `sys_ctrl.v` from the reverted state — code referencing `system_save` against a
+module that does not declare it. That either fails to compile or, worse, quietly builds
+something nobody designed.
+
+The procedure:
+
+```sh
+git checkout main
+git checkout dev -- .            # take dev's tree wholesale
+git checkout HEAD -- README.md   # but keep main's user-facing README
+git commit
+```
+
+Then update the one line in main's README that says settings are not remembered yet, cut a
+`known-good-<sha>` tag, and copy the bitstream into `compiled/known-good/` **alongside** the
+existing one — never over it.
+
 ## Division of labour
 
 This project runs across two machines and two Claude sessions. They cannot talk to each
@@ -65,43 +90,25 @@ here and in `docs/FINDINGS.md` precisely so they are not re-litigated.
 something is ready, so make results easy to find: a clear commit subject and the numbers in
 `docs/UTILISATION.md` rather than only in the session transcript.
 
-## Build this next: `ram_req`/`ram_read`/`ram_write` flattened
+## Build this next: stale-read fix for the saved settings byte
 
-Three failures, and the third ruled out the obvious explanations:
+`85729ad` **closed timing and works on hardware** — 56.588 MHz, zero negative slack, and the
+machine boots, runs games and saves scanlines. The `ram_req` flattening was the right fix;
+nothing about timing needs revisiting.
 
-| Build | CLS | clock_54m | TNS / endpoints |
-|---|---|---|---|
-| last good (`6389ac0`) | 9054 | 55.626 MHz | closes |
-| `0b3f629` | 9102 | fails (54.367 Fmax) | -0.555 ns / 6 |
-| `aa52343` | 9028 | 50.717 MHz | -5.172 ns / 17 |
-| `c2fcec4` | **9008** | 51.309 MHz | -1.583 ns / 7 |
+One bug found on hardware: the machine boots **muted**, and stays muted after saving.
 
-`c2fcec4` had the lowest CLS of any build, touched nothing in `clk_54m`, and still
-failed. Thank you for saying so plainly rather than trimming further — it is what
-pointed at the actual cause.
+`config_sig[5]` is latched in the cycle `last_bytes_cnt` leaves 1, and `config_init` is
+asserted *while* it equals 1 — so byte 5 is stale for that entire window, reading `8'd0` out
+of reset. The old test treated bit 7 clear as "valid", `0x00` passed it, and volume was seeded
+to zero on every boot. Bytes 2 to 4 land earlier, which is why scanlines persisted fine.
 
-**The real critical path was never addressed.** Across every miss this project has had,
-the worst endpoints belong to `cpu1/RD -> mem1/sdram_*`. `e48a96f` fixed the *other*
-family by restructuring `cpu_din`, and it worked — in `c2fcec4` that path is down to
--0.032 ns while `sdram_seq/CE` is at -0.486 ns. The memory-request path had the same
-defect and had never been touched.
+Fixed two ways: seed one cycle after `config_init` drops, and change the marker to `[7:6] ==
+01` so that both an erased `0xFF` and a stale `0x00` are rejected.
 
-`ram_req`, `ram_read` and `ram_write` were serial `?:` chains up to nine deep feeding
-`memory_ctrl` — which is instantiated as `.clk_27m(clk_54m)`, so it is on the fast
-clock despite the port name. In `ram_req` every branch read `(x == 1) ? x :`, returning
-its own condition, so there was no priority to preserve and the whole tail was an OR
-written the long way. `ram_read`'s nine branches all returned the *same* value. All
-terms are one bit wide (checked), so rewriting them as ORs is exact — verified
-exhaustively across all 544 input combinations of the compiled configuration, zero
-mismatches.
-
-Expect the depth on those paths to drop the way `cpu_din`'s did (26 levels to 11).
-
-Settings persistence rides along unchanged. It is not the cause — `c2fcec4` proved
-that — and re-testing it in isolation would cost a round trip to learn nothing.
-
-If this still misses, stop and report; do not trim. The fallback is now explicit:
-tag `known-good-6389ac0` and `compiled/known-good/`, which no build may overwrite.
+Small change, entirely in `clk_27m`, nothing near the paths that were failing. Timing should
+be unaffected — but report it as usual, and if it has moved, say so, because that would mean
+the placement sensitivity is worse than we think.
 
 ## What to build
 
