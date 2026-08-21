@@ -4813,7 +4813,7 @@ tabDStr:
 tabAStr:
 	.db "[A]LL",0
 footerStr:
-	.db "L/R=Page  BS/Left=Back  /=Find  ESC=Boot  F12=Setup  H=Help       ",0
+	.db "BS/Left=Back  Right=Page  /=Find  ESC=Boot  F12=Setup  H=Help     ",0
 helpTitleStr:
 	.db "MSXHeroTN HELP",0
 ; ============================== DATOS (>= A010) ==============================
@@ -4827,11 +4827,11 @@ helpTitleStr:
 	ds   #A000-$
 	.org #A010
 help1Str:
-	.db "Up/Down or joystick   : move (Left/Right = page)",0
+	.db "Up/Down or joystick   : move the selection",0
 help2Str:
 	.db "RETURN / joy fire 1   : open folder or launch ROM",0
 help3Str:
-	.db "BACKSPACE/Left/fire 2 : leave folder (Left pages first)",0
+	.db "Left / BACKSPACE      : back a page, then out of the folder",0
 help4Str:
 	.db "TAB                   : change partition",0
 help5Str:
