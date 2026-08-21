@@ -65,9 +65,12 @@ upstream in v1.9, so nothing is lost. Removing the settings screen also frees Z8
 Note the status bar is width-padded: `"R/D/A=Filter ESC=Boot S=Save F12=Setup TAB=Part H=Help  "`
 must stay its exact width as entries come and go.
 
-### A3. Drive the browser with a joystick — **already implemented, needs testing**
+### A3. Drive the browser with a joystick — **done. Verified on hardware.**
 
-**Do not build this.** It exists. Found while starting work on it:
+Nothing to build: it was already there, and it works. Confirmed on the board 2026-08-21 with
+the shield's DB9 stick.
+
+Found while starting work on it:
 
 `browse_getkey` polls the joystick alongside the keyboard, via `poll_joy` and `read_joy_code`
 (around line 2810). It uses the BIOS `GTSTCK`/`GTTRIG` on **port 1**, edge-detected against
@@ -83,9 +86,9 @@ must stay its exact width as entries come and go.
 It should already work with the shield's DB9 stick, which defaults to MSX port 1, and with a
 USB pad, since both feed the same PSG lines.
 
-**So the task is to test it, not to write it.** If it works, this item closes for free. If it
-does not, how it fails narrows the cause immediately: nothing at all points at the port or the
-PSG mixing, wrong directions at the `GTSTCK` decode, constant firing at the edge detection.
+**What is left is telling people.** Neither the status bar nor the README mentions it — a
+working feature that nobody would discover. Documented in the README now; the status bar is
+A2's job, and it has to give up characters elsewhere to fit.
 
 Worth remembering as a general lesson — this menu is 6,000 lines of someone else's Z80 and it
 does more than the status bar advertises. Read before building.
