@@ -44,33 +44,43 @@ here and in `docs/FINDINGS.md` precisely so they are not re-litigated.
 something is ready, so make results easy to find: a clear commit subject and the numbers in
 `docs/UTILISATION.md` rather than only in the session transcript.
 
-## Build this next: persistence alone, `clk_54m` untouched
+## Build this next: `ram_req`/`ram_read`/`ram_write` flattened
 
-Two failed builds, and the second is the informative one:
+Three failures, and the third ruled out the obvious explanations:
 
 | Build | CLS | clock_54m | TNS / endpoints |
 |---|---|---|---|
 | last good (`6389ac0`) | 9054 | 55.626 MHz | closes |
-| `0b3f629` | 9102 | 54.367 Fmax, actually fails | -0.555 ns / 6 |
-| `aa52343` | **9028** | 50.717 MHz | **-5.172 ns / 17** |
+| `0b3f629` | 9102 | fails (54.367 Fmax) | -0.555 ns / 6 |
+| `aa52343` | 9028 | 50.717 MHz | -5.172 ns / 17 |
+| `c2fcec4` | **9008** | 51.309 MHz | -1.583 ns / 7 |
 
-`aa52343` came in *below* the last good build's CLS and was still far worse. So resource
-count is not the governing variable here — placement is — and the conclusion drawn is that
-anything landing in `clk_54m` is expensive regardless of how small it looks.
+`c2fcec4` had the lowest CLS of any build, touched nothing in `clk_54m`, and still
+failed. Thank you for saying so plainly rather than trimming further — it is what
+pointed at the actual cause.
 
-**Both attempts at a selectable autofire rate have therefore been reverted**, and the block
-is byte-for-byte what shipped in the last build that closed. The OSD's Autofire entry is
-removed from the menu rather than left showing a control that does nothing.
+**The real critical path was never addressed.** Across every miss this project has had,
+the worst endpoints belong to `cpu1/RD -> mem1/sdram_*`. `e48a96f` fixed the *other*
+family by restructuring `cpu_din`, and it worked — in `c2fcec4` that path is down to
+-0.032 ns while `sdram_seq/CE` is at -0.486 ns. The memory-request path had the same
+defect and had never been touched.
 
-What remains is settings persistence, and the delta against `6389ac0` is now:
+`ram_req`, `ram_read` and `ram_write` were serial `?:` chains up to nine deep feeding
+`memory_ctrl` — which is instantiated as `.clk_27m(clk_54m)`, so it is on the fast
+clock despite the port name. In `ram_req` every branch read `(x == 1) ? x :`, returning
+its own condition, so there was no priority to preserve and the whole tail was an OR
+written the long way. `ram_read`'s nine branches all returned the *same* value. All
+terms are one bit wide (checked), so rewriting them as ORs is exact — verified
+exhaustively across all 544 input combinations of the compiled configuration, zero
+mismatches.
 
-- 12 flip-flops in `clk_27m` (the seeded values and their change detectors)
-- one extra leg on `flash_write_din`, which is a small mux and not `cpu_din`
-- two signal renames (`system_volume` -> `volume_ff`, `system_db9_port` -> `db9_port_ff`)
-  that change where a value comes from, not the structure around it
+Expect the depth on those paths to drop the way `cpu_din`'s did (26 levels to 11).
 
-**Nothing touches `clk_54m`.** If this still misses, the problem is not this change and the
-design side needs to know that specifically — say so and stop.
+Settings persistence rides along unchanged. It is not the cause — `c2fcec4` proved
+that — and re-testing it in isolation would cost a round trip to learn nothing.
+
+If this still misses, stop and report; do not trim. The fallback is now explicit:
+tag `known-good-6389ac0` and `compiled/known-good/`, which no build may overwrite.
 
 ## What to build
 

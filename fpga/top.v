@@ -1633,46 +1633,38 @@ assign keyboard_addr = ppi_port_c[3:0];
                 `endif
                         23'h7fffff; 
     
-    assign ram_read = (~flash_idle) ? 0 : 
-                `ifdef ENABLE_MAPPER
-                      (mapper_read == 1) ? ~bus_rd_n :
-                `endif
-                      (bios_req == 1) ? ~bus_rd_n :
-                      (subrom_logo_req == 1) ? ~bus_rd_n :
-                `ifdef ENABLE_SDCARD
-                      (megarom_req == 1) ? ~bus_rd_n :
-                `endif
-                      (megaram_req == 1) ? ~bus_rd_n :
-                      (kanji_driver_req == 1) ? ~bus_rd_n :
-                      (kanji_data_ram_req == 1) ? ~bus_rd_n :
-                `ifdef ENABLE_WIFI
-                      (wifi_req == 1) ? ~bus_rd_n :
-                      (logo_req == 1) ? ~bus_rd_n :
-                `endif
-                      0;
+    // Was a serial ?: chain of nine tests that all return the SAME value, so it
+    // was only ever asking "did anything request a read". Written as an OR the
+    // synthesiser can build a balanced tree instead of a nine-deep mux, which
+    // matters because this feeds memory_ctrl -- instantiated on clk_54m despite
+    // its port being named clk_27m -- and cpu1/RD -> mem1/sdram_* has been the
+    // worst failing path in every timing miss this project has had.
+    wire ram_any_read = `ifdef ENABLE_MAPPER  mapper_read       | `endif
+                        `ifdef ENABLE_SDCARD  megarom_req       | `endif
+                        `ifdef ENABLE_WIFI    wifi_req | logo_req | `endif
+                        bios_req | subrom_logo_req | megaram_req |
+                        kanji_driver_req | kanji_data_ram_req;
+    assign ram_read = (~flash_idle) ? 1'b0 : (ram_any_read & ~bus_rd_n);
     
-    assign ram_write = (~flash_idle) ? rom_write : 
-                `ifdef ENABLE_MAPPER
-                      (mapper_write == 1 ) ? ~bus_wr_n :
-                `endif
-                      (megaram_wrt == 1) ? ~bus_wr_n :
-                      0; 
+    // Same shape, same reasoning as ram_read above.
+    wire ram_any_write = `ifdef ENABLE_MAPPER mapper_write | `endif
+                         megaram_wrt;
+    assign ram_write = (~flash_idle) ? rom_write : (ram_any_write & ~bus_wr_n);
 
-    assign ram_req = (~flash_idle) ? rom_write : 
-                     (mapper_req == 1) ? mapper_req:
-                     (bios_req == 1) ? bios_req:
-                     (subrom_logo_req == 1) ? subrom_logo_req:
-                `ifdef ENABLE_SDCARD
-                     (megarom_req == 1) ? megarom_req:
-                `endif
-                     (megaram_req == 1) ? megaram_req:
-                     (kanji_driver_req == 1) ? kanji_driver_req:
-                     (kanji_data_ram_req == 1) ? kanji_data_ram_req:
-                `ifdef ENABLE_WIFI
-                     (wifi_req == 1) ? wifi_req:
-                     (logo_req == 1) ? logo_req:
-                `endif
-                      0;
+    // Every branch of the old chain read (x == 1) ? x : ... -- each one returning
+    // its own condition -- so there was never any priority to preserve and the
+    // whole tail is simply an OR. All terms are one bit wide (checked), which
+    // makes this transformation exact, not an approximation.
+    //
+    // This is the same fix that e48a96f applied to cpu_din, on the other path
+    // family that keeps failing. ram_req drives sdram_seq's clock enable, and
+    // cpu1/RD_s0/Q -> mem1/sdram_seq_*/CE was the worst endpoint in c2fcec4
+    // (-0.486 ns) while the restructured cpu_din was down to -0.032 ns.
+    wire ram_any_req = `ifdef ENABLE_SDCARD megarom_req        | `endif
+                       `ifdef ENABLE_WIFI   wifi_req | logo_req | `endif
+                       mapper_req | bios_req | subrom_logo_req | megaram_req |
+                       kanji_driver_req | kanji_data_ram_req;
+    assign ram_req = (~flash_idle) ? rom_write : ram_any_req;
 
     assign ram_din = (~flash_idle) ? { rom_dout, rom_dout }  : { cpu_dout, cpu_dout };
 
