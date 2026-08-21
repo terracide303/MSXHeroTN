@@ -158,10 +158,13 @@ automatically when CS pulls `m0s[2]` low.
 
 ### The on-board BL616 path is gone
 
-The shield routes its **DB9 fire-2 line to pin 75**, which upstream uses for `spi_dir`, the
-direction line of the on-board BL616 SPI link. Since the shield always brings its own RP2040
-companion, that BL616 path is unusable here regardless — so pin 75 is reassigned and
-`spi_dir` is dropped.
+The shield always brings its own RP2040 companion, so the on-board BL616 SPI link is
+unusable here regardless of pins — `spi_dir` is dropped along with the rest of it.
+
+*(An earlier version of this section claimed pin 75 carried the shield's DB9 fire-2 line and
+that this forced the change. That was wrong, and it came from the same mis-reading that first
+put the joystick on the wrong pins: `P75` is one of six lines on **J3, an expansion header**,
+not on the DE9. Pin 75 is free. The BL616 path is still gone, just not for that reason.)*
 
 Consequences, and they are real:
 

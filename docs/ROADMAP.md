@@ -361,9 +361,45 @@ shortening — a menu redesign, not a drop-in.
 No font is committed here: Fonts_MiSTer has no licence and its files are traced from arcade
 character ROMs, so supply your own as with the BIOS pack.
 
-*[Phase 2]* **9. WiFi — research, not yet a decision.** Today WiFi needs an **ESP-01S** wired to pins
-27/28, pre-flashed with its own UNAPI firmware. There may be a way to drop that module
-entirely, but enough is unknown that it needs investigating before it becomes a plan.
+*[Phase 2]* **9. WiFi — three routes, and the obvious one was overlooked.** Upstream wires an
+**ESP-01S** to pins 27/28, pre-flashed with its own UNAPI firmware. Those two pins are the
+shield's DB9 Fire 1 and Down lines here, which is why WiFi was dropped from this fork.
+
+### Route A: keep the ESP-01S, move it to J3 (simplest, and previously missed)
+
+The shield breaks out **J3, an expansion header carrying FPGA pins 31, 49, 73, 74, 75 and
+77**. All six are unassigned in `tang9k.cst` — nothing in this core claims any of them. An
+ESP-01S needs two.
+
+This was written off in the BOM as "nowhere to attach an ESP-01S", which was simply wrong: it
+followed from the same mis-reading of the shield's `P73 P74 P75 P77 P31 P49` nets that first
+put the joystick on the wrong pins. Those nets are J3, not the DE9.
+
+Why this is the cheapest of the three:
+
+- The RTL already exists and is upstream-proven against the real `esp8266e.rom` UNAPI ROM.
+  `uart_lite` and `wifi_lite` were deleted here in `70de6ae`, not rewritten — restoring them
+  is a revert plus two `IO_LOC` lines.
+- No FPGA-Companion fork, so the "do not fork the companion" decision stands untouched.
+- No Pico W required.
+- It brings back two things the `` `ENABLE_WIFI`` removal silently took with it: the boot
+  logo and I/O port `&HF2`.
+
+Cost: the 24 CLS that removing those 693 lines recovered, **plus a leg on the `cpu_din` read
+mux**, which is the resource that actually hurts (see "Which board gets which feature"). At
+the time of writing this core has just missed `clock_54m` by 0.194 ns on that very mux, so
+this waits until there is comfortable margin — and by our own rule it should be proven on the
+ECP5 first.
+
+Unverified, and someone needs to look at the board: **whether J3 carries 3V3 and ground**, and
+whether the Tang's regulator tolerates the ESP's transmit current peaks. If J3 is signal-only,
+power can be taken from elsewhere on the shield, which makes it four jumper wires rather than
+two.
+
+### Routes B and C: drop the module
+
+There may be a way to remove the ESP-01S entirely, but enough is unknown that it needs
+investigating before it becomes a plan.
 
 **What we know:**
 

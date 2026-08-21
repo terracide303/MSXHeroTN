@@ -35,11 +35,19 @@ the keyboard at once.
 | 10 | 1 | **USB gamepad** | XInput (Xbox-style) recommended. Works alongside the DB9 stick on the same MSX port. |
 | 11 | 1 | **USB hub** | Only if you want two USB gamepads. Player 2 is the second XInput device enumerated. |
 
-## WiFi _(optional — MSX UNAPI)_
+## WiFi _(optional — MSX UNAPI, not yet wired)_
 
 | # | Qty | Component | Notes |
 |---|-----|-----------|-------|
-| — | — | **Not available on this fork.** | Pins 27 and 28 are the shield's DB9 Fire 1 and Down lines, so there is nowhere to attach an ESP-01S. The UNAPI ROM is still in the BIOS pack but has no serial port to talk to. |
+| 12 | 1 | **ESP-01S** | Not wired up yet, but there is somewhere to put it — see below. |
+
+Upstream attaches the ESP-01S to pins **27 and 28**, and those are the shield's DB9 Fire 1 and
+Down lines, so that exact wiring is impossible here. That is not the same as having nowhere to
+put it: the shield breaks out **J3, an expansion header carrying FPGA pins 31, 49, 73, 74, 75
+and 77**, and all six are unassigned in `tang9k.cst`. An ESP-01S needs two of them.
+
+What has not been checked is whether J3 also carries 3V3 and ground, and whether the Tang's
+regulator is happy with the ESP's transmit peaks — see the [roadmap](ROADMAP.md).
 
 Reaching WiFi another way — through the companion rather than a separate module — is
 recorded as a research item in the [roadmap](ROADMAP.md).
