@@ -78,8 +78,10 @@ set_false_path -from [get_clocks {clock_108m}] -to [get_pins {vdp4/u_v9958/U_SPR
 set_false_path -from [get_clocks {clock_108m}] -to [get_pins {vdp4/u_v9958/U_SPRITE/FF_Y_TEST*/D}]
 //uwifi muestrea senales del bus Z80 (IORQ/WR, estables ~280ns) a 27MHz: la
 //relacion de medio periodo 54F->27R es pesimista para senales cuasi-estaticas
-set_false_path -from [get_clocks {clock_54m}] -to [get_pins {uwifi/wait_o*/CE}]
-set_false_path -from [get_clocks {clock_54m}] -to [get_pins {uwifi/my_tx_state*/CE}]
+//uwifi only exists when `ENABLE_WIFI is defined in top.v; PnR errors on these
+//otherwise since the pins don't exist in the netlist. Re-enable alongside it.
+//set_false_path -from [get_clocks {clock_54m}] -to [get_pins {uwifi/wait_o*/CE}]
+//set_false_path -from [get_clocks {clock_54m}] -to [get_pins {uwifi/my_tx_state*/CE}]
 set_false_path -from [get_clocks {clock_108m}] -to [get_pins {vdp4/u_v9958/U_SPRITE/FF_Y_TEST_LISTUP_ADDR_*/D}]
 set_false_path -from [get_clocks {clock_108m}] -to [get_pins {vdp4/u_v9958/U_SPRITE/FF_Y_TEST_LISTUP_ADDR_*/CE}]
 
