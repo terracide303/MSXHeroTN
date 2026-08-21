@@ -25,20 +25,6 @@ When a `dev` build is confirmed working on the board, `main` fast-forwards to it
 `known-good-<sha>` tag is cut, and the bitstream is pinned into `compiled/known-good/`
 alongside the previous one — never replacing it.
 
-## Keeping dev's shared docs current
-
-`docs/BOM.md`, `docs/FINDINGS.md`, `CLAUDE.md`, `firmware/` and `compiled/README.md` are the
-same on both branches and are edited on `main`. When they change there, pull them across:
-
-```sh
-git checkout dev
-git checkout main -- docs/BOM.md docs/FINDINGS.md CLAUDE.md firmware compiled/README.md
-```
-
-Skipping this is not cosmetic. Promotion takes dev's tree wholesale, so a stale doc on `dev`
-would silently overwrite the newer one on `main`. `dev` keeps its own `README.md` and
-`docs/ROADMAP.md`; those two are deliberately different.
-
 ## Promoting dev to main — do NOT use `git merge`
 
 When a `dev` build is confirmed working on the board, `main` is updated by **taking dev's
@@ -51,18 +37,25 @@ dev alongside a `sys_ctrl.v` from the reverted state — code referencing `syste
 module that does not declare it. That either fails to compile or, worse, quietly builds
 something nobody designed.
 
-The procedure:
+**Do not take dev's tree wholesale either.** That was the procedure when the branches held the
+same files; they no longer do. `main` deliberately has no `case/`, no `tools/`, no
+`compiled/failed/`, no `compiled/known-good/`, no `docs/ROADMAP.md` and no `docs/NEXT.md`, and
+`git checkout dev -- .` would drag all of them back.
+
+Promote **only the files the release actually changed**, checked with:
 
 ```sh
 git checkout main
-git checkout dev -- .            # take dev's tree wholesale
-git checkout HEAD -- README.md   # but keep main's user-facing README
-git commit
+git diff --stat main dev
+git checkout dev -- <the files that changed>
 ```
 
-Then update the one line in main's README that says settings are not remembered yet, cut a
-`known-good-<sha>` tag, and copy the bitstream into `compiled/known-good/` **alongside** the
-existing one — never over it.
+Check the direction of every shared document before copying: `docs/FINDINGS.md` has been newer
+on `main` than on `dev` more than once, because research happens here.
+
+Then update the version in `README.md` and `compiled/README.md`, cut the release tag and a
+`known-good-<sha>` tag, and — if the bitstream changed — copy it into `compiled/known-good/` on
+`dev` **alongside** the existing ones, never over them.
 
 ## Division of labour
 
@@ -85,7 +78,7 @@ Owns, and may commit freely:
 Does **not** edit:
 
 - `fpga/` — RTL, constraints, `.sdc`, `.tcl`, the menu XML
-- `README.md`, `docs/FINDINGS.md`, `docs/BOM.md`, `docs/ROADMAP.md`, `firmware/`
+- `README.md`, `docs/FINDINGS.md`, `docs/BOM.md`, and `docs/ROADMAP.md` on `dev`
 - this file
 
 **If a build is blocked by something in the source** — a missing file, a constraint

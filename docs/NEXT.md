@@ -1,5 +1,12 @@
 # What we are doing next
 
+> **1.1 shipped on `main`** — sorted listing, hidden housekeeping files, Left leaves a folder,
+> a footer that documents the keys, and the dead `S`/`W`/`U`/`F` keys removed. All verified on
+> hardware. The core is unchanged from 1.0, so it was a BIOS-pack reflash only.
+>
+> What remains from group A: remembering the browser position after a reset, and the 115-file
+> limit.
+
 Ordered by cost, not by appeal. The cheap items are genuinely cheap and the expensive ones are
 genuinely expensive, and that gap is wider on this project than on most — see the note at the
 bottom.
