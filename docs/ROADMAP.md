@@ -518,9 +518,11 @@ Console 60K. **Read the audit first**: `AUDIT_PRE_PORT_60K.md` records that this
 assigned, so PAGE PROGRAM always writes all 256 bytes. That bug is benign today and is not
 benign here — it must be fixed before anything relies on that writer.
 
-*[Phase 2]* **13. Swap to an MIT-licensed V9958** — not started.
+*[Phase 2]* **13. Swap to an MIT-licensed V9958** — not started, and **deliberately parked**.
 
-This is a **licence fix** that happens to also be a component swap. The core's video path is
+**Nothing about this is a quality problem.** The picture the current core produces is excellent
+and there is no reason to touch it for its own sake. This is a **licence fix** that happens to
+also be a component swap, and the licence issue has no effect on how the machine behaves. The core's video path is
 `tn_vdp_v3_v9958/`, which contains Ohnaka's `vdp_vga.vhd` — one of the two files behind the
 GPL-3.0 inconsistency recorded in [FINDINGS](FINDINGS.md), since it forbids commercial
 use without written permission.
@@ -533,6 +535,16 @@ Not a small change: the current VDP also carries the HDMI encoder, scanlines, as
 signalling and the OSD compositor added by this fork, so all of that has to be re-attached or
 replaced. `FPGA_MSXtR` has its own `hdmi_tx` and `i2s_audio`, also MIT, which may be the
 cleaner path than grafting.
+
+**Why it is parked.** The cost is high — re-attaching or replacing the HDMI encoder, scanlines,
+aspect signalling and the OSD compositor, all on the path that currently works well — and the
+benefit is zero for anyone building one of these for themselves. It only matters if someone
+wants to *sell* an assembled machine, or ship it somewhere that audits licences. And it would
+not even finish the job: `fpga/src/ocm/` carries the same non-commercial clause and would
+still be there afterwards.
+
+Worth having written down so nobody is surprised later. Not worth doing on a working core
+without a concrete reason.
 
 Its `labo/` tree — twenty-odd self-contained Gowin projects, each isolating one problem
 (`CPU_000`–`006`, `VDP_000`–`009`) — is a good model for trying this in isolation rather than
