@@ -40,10 +40,14 @@ chased and, more usefully, what did not work.
 
 ### Known issues
 
-**Settings do not persist.** The menu's Save writes `msxnano.ini` through the companion's
+**Settings do not persist.** The menu's Save writes `msxhero.ini` through the companion's
 FatFS, which reaches the SD card via the FPGA's SD target — and `mcu_sdc_din` is tied to zero
 here, so the companion cannot see the card at all. Settings apply immediately but are lost at
 power-off. This is the outstanding Phase 1 item.
+
+When it does work, note that the filename is board-neutral like the menu itself: a card moved
+between this build and the ECP5 one would carry its settings across, which is convenient if
+the two machines agree on the ids and confusing if they diverge.
 
 **Turbo is applied by resetting into the new speed**, not switched live — changing CPU
 cadence while running hangs the machine. The F11 shortcut is gone: keys belong to the MSX,
@@ -75,9 +79,10 @@ as from the browser.
 
 ![The OSD root menu over the file browser](docs/img/osd-root.jpg)
 
-*The overlay over the browser. `MSXHero TN 1.0` and the key legend belong to the boot menu;
-the panel is the companion's OSD. Reset and Cold Boot work because `fpga_companion` is reset
-from PLL lock rather than from the core reset — see [docs/FINDINGS.md](docs/FINDINGS.md).*
+*The overlay over the browser. `MSXHero TN 1.0` and the key legend belong to the boot menu,
+which is board-specific; the overlay is named plain `MSXHero` because the same menu definition
+is meant to serve the ECP5 build too. Reset and Cold Boot work because `fpga_companion` is
+reset from PLL lock rather than from the core reset — see [docs/FINDINGS.md](docs/FINDINGS.md).*
 
 ![System settings](docs/img/osd-system.jpg)
 
@@ -223,9 +228,11 @@ cannot drift out of step with the core it configures. Regenerate it with
 `osd_u8g2.v` is vendored unchanged from MiSTeryNano (GPLv3), which is the reference
 implementation of this protocol.
 
-The menu is titled **MSXHero TN** and carries System (turbo, boot turbo, video standard,
-keyboard layout), Input (DB9 port, autofire), Video (scanlines, aspect), Audio (stereo,
-second SCC+, volume), and Reset and Cold Boot at the bottom.
+The menu is titled **MSXHero**, with no board suffix, because the same definition is intended
+to serve the ECP5 build as well as this one. It carries System (turbo, boot turbo, video
+standard, keyboard layout), Input (DB9 port, autofire), Video (scanlines, aspect), Audio
+(stereo, second SCC+, volume), and Reset and Cold Boot at the bottom. Board-specific naming
+lives in the boot menu instead, which titles itself `MSXHero TN 1.0`.
 
 It is centred using offsets derived from the **VDP's** timing rather than the HDMI encoder's —
 the OSD measures `VideoHS_n`, which the VDP generates, and the two have separate counters.

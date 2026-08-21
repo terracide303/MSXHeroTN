@@ -1,30 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  MSXHeroTN - FPGA-Companion OSD menu definition.
+  MSXHero - FPGA-Companion OSD menu definition.
 
-  DRAFT. Not wired up yet. This file describes the overlay menu that
-  FPGA-Companion renders when F12 is pressed. Two things are still missing
-  before it does anything:
+  This is the overlay FPGA-Companion renders when F12 is pressed. It is served
+  from the core over SPI: sysctrl CMD 8 streams the gzipped form of this file
+  from msxnano_xml.hex, so no copy is needed on the SD card and no fork of the
+  companion firmware is needed either - its menu is entirely described here.
 
-    1. The core must render the OSD. FPGA-Companion sends a 128x64 mono
-       framebuffer over SPI, but fpga_companion.v currently ties mcu_osd_din
-       to zero and nothing consumes mcu_osd_strobe.
-    2. The core must act on the ids below. They arrive via sysctrl CMD 4
-       ("config values set by user via OSD"); today MSXnano sets these
-       through its own S menu writing I/O ports instead, so the CMD 4 path
-       needs connecting to the same config registers.
+  Regenerate msxnano_xml.hex with make_menu_rom.sh after editing this. Never
+  edit the .hex by hand.
 
-  Supply route: either drop this on the SD card as msxnano.xml, or serve it
-  from the core over SPI by implementing sysctrl CMD 8 ("read menu config"),
-  which upstream left as an empty block. No FPGA-Companion fork is needed
-  either way - the firmware is core-agnostic and reads its whole menu from
-  this file.
+  The name is "MSXHero" without a board suffix on purpose. The same menu is
+  meant to serve the ECP5 build as well as this Tang Nano one, and the config
+  name is what the companion shows as the OSD title and what names the settings
+  file. Board-specific naming lives in the boot menu instead, which titles
+  itself "MSXHero TN 1.0".
 
   Deliberately NOT included: file selectors. The core has its own SD browser
   with mapper auto-detection, which the companion's selector cannot match.
   Loading stays in the core; this menu is for settings and reset.
 -->
-<config name="MSXHero TN" version="0">
+<config name="MSXHero" version="0">
 
   <actions>
     <!-- run as soon as this file is parsed; keep the machine in reset -->
@@ -66,7 +62,7 @@
     </action>
   </actions>
 
-  <menu label="MSXHero TN">
+  <menu label="MSXHero">
 
     <menu label="System">
       <!-- Applied by resetting into the new speed: switching CPU cadence while
