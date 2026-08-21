@@ -75,13 +75,17 @@ are living with one.
 
 ### There is no on-screen overlay
 
-This is the big one. Upstream runs FPGA-Companion on the BL616 purely as a keyboard and gamepad
-host — the core never draws the overlay. `mcu_osd_din` is tied to zero and nothing consumes
-`mcu_osd_strobe`, so the companion's menu has nowhere to go.
+This is the big one. The companion chip upstream uses is perfectly capable of drawing a settings
+menu — it is the same firmware this fork uses, and it offers one. Upstream just never connects
+it to the picture. The menu is generated and then thrown away, because nothing in the core is
+listening for it.
 
-Settings instead live in a small screen inside the **boot browser**, drawn by the MSX itself.
-And that is the problem: a screen drawn by the Z80 needs the MSX to stop being an MSX. It
-cannot appear over a running game, because the game owns the video chip.
+So settings live somewhere else: a small screen inside the **boot browser**, drawn by the MSX
+itself.
+
+That is the part that bites. A screen drawn by the MSX can only exist when the MSX is not busy
+being an MSX — it needs the video chip, and once a game has started, the game owns the video
+chip. The settings screen and your game cannot both be on screen, ever.
 
 In practice:
 
