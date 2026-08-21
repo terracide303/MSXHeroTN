@@ -3098,7 +3098,7 @@ draw_browser:
 	; --- header row 1: title + build (left), live clock (right) ---
 	ld   hl, #0101					; X=1, Y=1
 	call POSIT
-	ld   hl, hdrTitleStr			; "MSXHero TN 1.0"
+	ld   hl, hdrTitleStr			; "MSXHeroTN 1.1"
 	call print_string
 	call draw_tabs					; row 2: filter tabs (active inverse)
 	ld   a, 22
@@ -4643,7 +4643,7 @@ tagRomStr:
 tagDskStr:
 	.db "[DSK] ",0
 hdrTitleStr:
-	.db "MSXHero TN 1.1",0
+	.db "MSXHeroTN 1.1",0
 tabRStr:
 	.db "[R]OM",0
 tabDStr:
@@ -4653,7 +4653,7 @@ tabAStr:
 footerStr:
 	.db "R/D/A=Filter ESC=Boot S=Save F12=Setup TAB=Part H=Help  ",0
 helpTitleStr:
-	.db "MSXHero TN HELP",0
+	.db "MSXHeroTN HELP",0
 ; ============================== DATOS (>= A010) ==============================
 ; El codigo debe quedar por debajo de #A000; cadenas y tablas viven a partir de
 ; #A010, dejando #A000-#A00F como hueco para el registro NEXTOR_EMU_DATA que
@@ -4736,7 +4736,7 @@ noSdStr2:
 	.db "RETURN=Boot MSX   F12=Setup          ",0
 
 menuTitleStr:
-	.db "MSXHero TN - Save",0
+	.db "MSXHeroTN - Save",0
 slot1GhostStr:
 	.db "Second SCC",0			; config1 bit2 (former ghost SCC): SCC+ nr.2 in the free slot
 enableScanlinesStr:
