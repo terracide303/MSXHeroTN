@@ -8,6 +8,8 @@
 > **If you want a machine that works, use [`main`](../../tree/main).** It only moves when a
 > build has been confirmed running on real hardware, and its README is written for building
 > one rather than developing it.
+>
+> **What is being worked on next: [docs/NEXT.md](docs/NEXT.md).**
 
 # MSXHeroTN
 
