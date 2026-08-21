@@ -1,6 +1,6 @@
 ![MSXHeroTN](docs/img/banner.png)
 
-# MSXHeroTN 1.0
+# MSXHeroTN 1.1
 
 **An MSX2+ home computer, in an FPGA, on a Tang Nano 20K.**
 
@@ -20,10 +20,30 @@ something instead of sitting inert.
 
 ---
 
-## Release 1.0
+## Release 1.1
 
-The first finished release. Everything in this table has been confirmed by hand on a real
-board — not by reading the code, and not merely by compiling.
+Everything in this table has been confirmed by hand on a real board — not by reading the code,
+and not merely by compiling.
+
+### New in 1.1
+
+A release about the file browser. The core itself is unchanged from 1.0, so **this one only
+needs the BIOS pack reflashed**, not the FPGA.
+
+- **The listing is sorted.** Alphabetically, ignoring capitals, folders first. It never was
+  before — entries appeared in raw filesystem order, which is the order they happened to be
+  written, so a card looked shuffled.
+- **Housekeeping files are hidden.** `.Trashes`, `.fseventsd`, `._`-files and
+  `System Volume Information` no longer appear. Every card formatted on a Mac or PC carries
+  them, and they were taking up slots against the file limit.
+- **Left leaves a folder.** Left pages back through the list, and once there is no page left to
+  go back to, it exits the folder — so a one-button joystick can get out. `BACKSPACE` still
+  works too.
+- **The footer says what the keys do.** Paging and going back were never on screen at all, which
+  is a poor way to learn that they exist.
+- **Dead keys removed.** `S`, `W`, `U` and `F` are gone. `S` saved settings, which the `F12`
+  overlay does now; the other three needed WiFi hardware this fork does not have, so they were
+  live keys leading nowhere.
 
 | | |
 |---|---|
@@ -249,8 +269,12 @@ Power up, and you should be looking at the browser.
 Only those two. A `.mx2` file is byte-identical to a `.rom` but stays **invisible until you
 rename it**, because the browser matches the three extension letters literally.
 
-**In the browser:** arrows and RETURN navigate and launch, BS goes back, `R`/`D`/`A` filter by
-type, TAB switches partition, `H` opens help, and ESC boots straight to MSX-DOS.
+**In the browser:** up and down move, **left and right page**, RETURN launches, and `BACKSPACE`
+or **left at the top of the list** leaves a folder. `R`/`D`/`A` filter by type, TAB switches
+partition, `H` opens help, and ESC boots straight to MSX-DOS.
+
+The listing is sorted alphabetically with folders first, and files the operating system hides —
+`.Trashes` and friends — are not shown.
 
 **`/` searches by name** — type part of a filename and it jumps there. Useful well before you
 hit the file limit.

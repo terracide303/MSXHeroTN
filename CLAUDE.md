@@ -37,18 +37,25 @@ dev alongside a `sys_ctrl.v` from the reverted state — code referencing `syste
 module that does not declare it. That either fails to compile or, worse, quietly builds
 something nobody designed.
 
-The procedure:
+**Do not take dev's tree wholesale either.** That was the procedure when the branches held the
+same files; they no longer do. `main` deliberately has no `case/`, no `tools/`, no
+`compiled/failed/`, no `compiled/known-good/`, no `docs/ROADMAP.md` and no `docs/NEXT.md`, and
+`git checkout dev -- .` would drag all of them back.
+
+Promote **only the files the release actually changed**, checked with:
 
 ```sh
 git checkout main
-git checkout dev -- .            # take dev's tree wholesale
-git checkout HEAD -- README.md   # but keep main's user-facing README
-git commit
+git diff --stat main dev
+git checkout dev -- <the files that changed>
 ```
 
-Then update the one line in main's README that says settings are not remembered yet, cut a
-`known-good-<sha>` tag, and copy the bitstream into `compiled/known-good/` **alongside** the
-existing one — never over it.
+Check the direction of every shared document before copying: `docs/FINDINGS.md` has been newer
+on `main` than on `dev` more than once, because research happens here.
+
+Then update the version in `README.md` and `compiled/README.md`, cut the release tag and a
+`known-good-<sha>` tag, and — if the bitstream changed — copy it into `compiled/known-good/` on
+`dev` **alongside** the existing ones, never over them.
 
 ## Division of labour
 
