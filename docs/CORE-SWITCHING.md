@@ -146,6 +146,56 @@ a validation step.
 
 ---
 
+## Card layout
+
+Cores live in their own folder, one directory each, with a manifest saying what goes where:
+
+```
+/CORES/
+    NANOMIG/
+        NANOMIG.BIN      the packed bitstream
+        KICK13.ROM       whatever else that core needs in flash
+        CORE.MAP         what to write, and to which address
+    MSXHERO/
+        MSXHERO.BIN
+        GOAULD.BIN       the MSX BIOS pack
+        CORE.MAP
+```
+
+`CORE.MAP` is deliberately trivial to parse from Z80 — a filename, whitespace, a hex address,
+one per line:
+
+```
+# NanoMig
+NANOMIG.BIN  000000
+KICK13.ROM   200000
+```
+
+**This solves the flash-map problem.** Earlier this document warned that two cores wanting the
+same flash region would collide silently. They still overlap — but now each core *declares* its
+regions, so the loader knows the full set before it erases anything, can check they do not
+overrun each other, and can report what it is about to do.
+
+**And it makes returning symmetric.** MSXHeroTN becomes just another entry in `/CORES`, with its
+own bitstream and its BIOS pack at `0x200000`. Switching to NanoMig overwrites that BIOS pack;
+switching back rewrites it. The loader needs no special case for "home" — there isn't one.
+
+Worth knowing the cost: a switch is then ~886 KB of bitstream plus whatever data the core
+declares. For MSXHeroTN that is another 512 KB, so about 1.4 MB per switch.
+
+### Keeping /CORES out of the file browser
+
+It has no business in a list of games. Two ways, and the first already works:
+
+**Set the DOS hidden attribute on the folder.** As of 1.1 the browser skips entries marked
+hidden or system, so it disappears immediately, while staying visible on a Mac or PC. Zero code.
+
+**Or match the name.** More robust, since it does not depend on whoever prepared the card
+remembering to set an attribute — a literal check for a top-level directory named `CORES` in
+the scan is a handful of Z80 instructions. Worth doing if this feature ships properly.
+
+---
+
 ## Staged plan
 
 Each stage is independently testable, and the risky one is deliberately last.
