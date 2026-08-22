@@ -12,33 +12,31 @@ one of them.
 
 ## What MSXHeroTN has to do
 
-Instantiate two modules and add one OSD entry. That is all, and deliberately so — the same three
-steps apply to every MiSTle core regardless of what it emulates.
+One block and one menu entry:
 
 | | |
 |---|---|
-| `sdc_mcu.v` | answers the MCU's SD commands, giving the Pico block access to the card |
-| the flash writer | lets the MCU write the boot image |
-| an OSD entry | **Exit Core** |
+| A flash-write block | accepts bytes over SPI from the Pico, writes them to the boot image |
+| One line of menu XML | **Exit Core** |
 
-**The Z80 is not involved**, and that is the point. An earlier draft had the boot menu read the
-file, because it already parses FAT — but the Amiga core would then need the same thing in
-68000, the C64 in 6502, and so on. The Pico is the one thing every MiSTle core has in common, so
-the Pico does the reading.
+**No SD access is needed**, which is the part worth noticing. The Pico streams the loader's
+bitstream from its own flash, so this core never opens a file, never parses FAT, and never
+competes with Nextor for the card. The Z80 is not involved either.
 
-That also sidesteps a problem here: the boot menu is within 251 bytes of filling its 16 KB page,
-so adding file-reading code to it was going to mean deleting something first.
+That keeps the risky things out of it entirely. The worst this block can do is write a bad boot
+image, which is recoverable over USB-C; it cannot touch your disk images.
 
-## Arbitration
+CoreSwitch then comes up and does everything else.
 
-The MCU becomes a second user of the SD card alongside Nextor, which is the case where mistakes
-cost somebody their disk images rather than a setting.
+## Settings on the SD card — separate, and wanted anyway
 
-For this operation it is avoidable: **leaving the core means the MSX is finished.** Hold it in
-reset before the MCU touches the card and there is no second master. `sdc.c` also polls the busy
-status and waits, so the firmware already expects to share.
+Independently of core switching, this core should move its settings from FPGA flash to the SD
+card, the way other MiSTle cores do. That *does* need SD access for the Pico, and it *does* mean
+sharing the card with Nextor, so it is its own piece of work with its own risks.
 
-From the user's side that is one menu entry and a blink.
+It would also fix a known wart: settings currently load from flash, but the overlay still shows
+its defaults afterwards, because the core has no way to tell the overlay what it restored. If
+the Pico owns the settings file, that inconsistency disappears.
 
 ## Already done
 
