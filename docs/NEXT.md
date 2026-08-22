@@ -223,13 +223,15 @@ uncommenting a line.
 
 ---
 
-## Core switching — its own plan
+## Core switching — moved out
 
-Loading a different core from SD, chosen from the overlay. Researched in
-**[CORE-SWITCHING.md](CORE-SWITCHING.md)** rather than summarised here, because the interesting
-part is *why MiSTle has not done it on this board*: their implementation writes SRAM over JTAG,
-which is volatile and therefore safe, and this shield has no JTAG. The only route available here
-writes flash, and the GW2AR has no DUAL BOOT to fall back on — so a failed write needs a PC.
+The mechanism now lives in its own repository,
+**[CoreSwitch](https://github.com/terracide303/CoreSwitch)**, because it is a MiSTle-family
+problem rather than an MSX one.
+
+What stays here is small and documented in **[LEAVING-THIS-CORE.md](LEAVING-THIS-CORE.md)**:
+copy `/CORES/LOADER.BIN` to flash address 0 and reboot, reached from `F12` → Select Core via a
+spare config bit and a reset. It is pointless until CoreSwitch exists, so it waits on that.
 
 ## Group C — big, and each needs a decision before it needs a developer
 
