@@ -114,12 +114,75 @@ as effectively. Validate the bitstream header before erasing anything.
 
 ---
 
-## Open questions
+## The flash image — answered
+
+A `.fs` file is **ASCII, one character per bit**: `//` comment lines, then data lines of `0`
+and `1`. Our bitstream is 2110 lines of 3440 characters plus a few short ones — 907,418 bits.
+The flash image is those bits packed 8 to a byte, MSB first, comments discarded. Nothing else
+happens to it.
+
+That gives **907,418 bytes, 886 KB**, which sits inside the `0x000000`–`0x0E0000` span
+openFPGALoader erases with 10,086 bytes to spare — the difference being erase-block rounding.
+
+`tools/coreswitch/fs2bin.py` does the conversion and is the tool that prepares cores for the
+SD card. **Store cores packed, not as `.fs`:** eight times smaller to read, and the FPGA never
+has to parse ASCII while rewriting its own boot flash.
+
+### This also makes the wrong-file risk checkable
+
+The packed image begins with 22 bytes of `0xFF`, then:
+
+```
+a5 c3 06 00 00 00 00 00 08 1b 10 00 ...
+```
+
+`A5 C3` is Gowin's bitstream preamble, and **`08 1B` is the GW2AR-18 IDCODE** — the same value
+`gowin.h` defines as `IDCODE_GW2AR18`. Both sit at fixed offsets, readable before a single byte
+is erased.
+
+So the loader can refuse a file that is not a bitstream, or is a bitstream for a different
+device, without taking any risk at all. That was listed above as an accepted danger; it is now
+a validation step.
+
+---
+
+## Staged plan
+
+Each stage is independently testable, and the risky one is deliberately last.
+
+**Stage 0 — the converter.** Done: `tools/coreswitch/fs2bin.py`, verified against the shipping
+bitstream.
+
+**Stage 1 — read a core from SD and verify it, writing nothing.** Find `core.bin` in the
+browser, stream it, check the magic and IDCODE, checksum it, report. No erase, no flash, no
+risk. Proves the read path and the validation end to end.
+
+**Stage 2 — bulk flash write, to a safe address.** `flash_rw.v` writes six bytes today; it needs
+64 KB block erase (`CMD_BLOCK_ERASE`, already defined) and a continuous page-program loop.
+Test it against an *unused* region — never address 0 — then read back and compare. Measures the
+real write time and proves the writer before it can do damage.
+
+**Stage 3 — the reconfiguration trigger.** Simplest first: write nothing, just confirm that
+power-cycling picks up whatever is at address 0. Then, optionally, a sysctrl command so the core
+can ask the Pico to pulse `RECONFIG_N`. Note `PIN_nCFG` is defined in FPGA-Companion only for
+`MISTLE_BOARD` 4 and 6, so board 5 needs it adding.
+
+**Stage 4 — write address 0 for real.** Only after 1–3 pass. Validate, erase, write, **read back
+and compare**, and only then reconfigure. If the comparison fails, say so and do not reboot —
+the old core is gone either way, but the user learns it from a message rather than a black
+screen.
+
+**Stage 5 — the loader core.** A minimal design: SD reader, flash writer, a list on screen.
+Only worth building once 1–4 work, because it is the same machinery with a smaller UI.
+
+---
+
+## Still unknown
 
 - Can a design drive `RECONFIG_N` itself on this board? It is a dedicated configuration pin and
-  on this shield it routes to the Pico, not to an FPGA IO — so probably not, but worth
-  confirming before assuming the Pico is required.
-- What is the flash chip's size and erase granularity? That sets the write time and whether
-  several cores could be cached rather than fetched from SD each time.
-- Does `openFPGALoader`'s raw `.bin` match what the FPGA expects at address 0 byte for byte, or
-  is there a header transformation? `gowin.c` parses an `.fs` header; the flash image may differ.
+  here it routes to the Pico, not to an FPGA IO — so probably not, but worth confirming before
+  assuming the Pico is required.
+- The flash chip's size and erase granularity. That sets write time, and whether several cores
+  could be cached in flash rather than fetched from SD each time.
+- Whether `UserCode`/`CheckSum` from the `.fs` header appear in the packed image in a form worth
+  checking as well as the IDCODE.
