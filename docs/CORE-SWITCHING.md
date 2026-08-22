@@ -196,6 +196,44 @@ the scan is a handful of Z80 instructions. Worth doing if this feature ships pro
 
 ---
 
+## The rule: nothing is erased until everything is proven
+
+**No flash operation begins until every file named in `CORE.MAP` has been found, read all the
+way through, and validated.** Not "found" — *read*. A file can exist in the directory and still
+be truncated, fragmented across an unreadable sector, or a `.fs` somebody forgot to convert.
+The only way to know it will be there when it is needed is to have already read it.
+
+This is the difference between an aborted switch and a board that needs a PC. It is not
+optional and it is not an optimisation to skip later.
+
+The pre-flight pass checks:
+
+- every file in the manifest exists and opens
+- every file reads to its end without an SD error
+- the bitstream carries `A5 C3` and the right IDCODE for this device
+- no declared region overruns the start of the next one
+- nothing lands outside the flash chip
+
+Only if all of it passes does anything get erased.
+
+### Buffer it in SDRAM, and the problem mostly disappears
+
+The Tang has **8 MB of SDRAM**, and during a core switch the MSX is not using any of it. A
+whole payload is around 1.4 MB.
+
+So the pre-flight pass can *keep* what it reads. Load every file into SDRAM, validate there,
+and write to flash from memory rather than from the card. That gives three things:
+
+- the card is only read once, not twice
+- the write no longer depends on the SD card at all — a card pulled mid-write, a bad sector on
+  the second read, a flaky contact: none of them can strand the board
+- the risky window shrinks to just the flash write itself
+
+It also means the failure mode changes shape. A problem found during loading costs nothing at
+all, because not a byte has been erased.
+
+---
+
 ## Staged plan
 
 Each stage is independently testable, and the risky one is deliberately last.
@@ -203,9 +241,9 @@ Each stage is independently testable, and the risky one is deliberately last.
 **Stage 0 — the converter.** Done: `tools/coreswitch/fs2bin.py`, verified against the shipping
 bitstream.
 
-**Stage 1 — read a core from SD and verify it, writing nothing.** Find `core.bin` in the
-browser, stream it, check the magic and IDCODE, checksum it, report. No erase, no flash, no
-risk. Proves the read path and the validation end to end.
+**Stage 1 — the pre-flight pass, writing nothing.** Parse `CORE.MAP`, read every file it names
+into SDRAM, validate magic, IDCODE and the region layout, and report. No erase, no flash, no
+risk. This is most of the feature, and it is the half that cannot brick anything.
 
 **Stage 2 — bulk flash write, to a safe address.** `flash_rw.v` writes six bytes today; it needs
 64 KB block erase (`CMD_BLOCK_ERASE`, already defined) and a continuous page-program loop.
