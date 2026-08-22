@@ -12,26 +12,31 @@ one of them.
 
 ## What MSXHeroTN has to do
 
-Almost nothing, which is the point of the split. To be escapable, a core copies one fixed file
-to flash and reboots:
+Instantiate two modules and add one OSD entry. That is all, and deliberately so — the same three
+steps apply to every MiSTle core regardless of what it emulates.
 
-1. Read `/CORES/LOADER.BIN` from the SD card
-2. Verify it — `A5 C3` preamble, IDCODE `08 1B` for the GW2AR-18
-3. Write it to flash address 0
-4. Reconfigure
+| | |
+|---|---|
+| `sdc_mcu.v` | answers the MCU's SD commands, giving the Pico block access to the card |
+| the flash writer | lets the MCU write the boot image |
+| an OSD entry | **Exit Core** |
 
-CoreSwitch then comes up and handles everything else: listing cores, reading manifests,
-validating, writing, rebooting. This core never sees a list and never parses a manifest.
+**The Z80 is not involved**, and that is the point. An earlier draft had the boot menu read the
+file, because it already parses FAT — but the Amiga core would then need the same thing in
+68000, the C64 in 6502, and so on. The Pico is the one thing every MiSTle core has in common, so
+the Pico does the reading.
 
-## How it is reached
+That also sidesteps a problem here: the boot menu is within 251 bytes of filling its 16 KB page,
+so adding file-reading code to it was going to mean deleting something first.
 
-`F12` → **Select Core**.
+## Arbitration
 
-The overlay cannot act directly. It only sends config values to the core, and the work needs the
-SD card and FAT parsing, which live in the boot menu — not running during a game. So the entry
-sets a spare config bit and resets; the menu sees the bit at start-up and does the flashing
-before drawing anything. **`config2` bit 3 is free**, where Compatible Mode lived until v1.9
-removed it.
+The MCU becomes a second user of the SD card alongside Nextor, which is the case where mistakes
+cost somebody their disk images rather than a setting.
+
+For this operation it is avoidable: **leaving the core means the MSX is finished.** Hold it in
+reset before the MCU touches the card and there is no second master. `sdc.c` also polls the busy
+status and waits, so the firmware already expects to share.
 
 From the user's side that is one menu entry and a blink.
 
