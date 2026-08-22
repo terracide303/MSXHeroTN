@@ -1041,6 +1041,12 @@ scan_current:
 	and  #10
 	jr   z, .scr_file
 	ld   c, 0						; type 0 = directory
+	ld   a, (DIR_SP)
+	or   a
+	jr   nz, .scr_store				; only hidden at the root, so a CORES folder
+									; nested somewhere else still browses normally
+	call ix_is_cores
+	jp   z, .scr_drop				; /CORES holds FPGA cores, not games
 	jr   .scr_store
 .scr_file:
 	call ix_is_rom
@@ -3592,6 +3598,29 @@ draw_counter:
 	call print_dec16
 	ld   a, ' '
 	call CHPUT
+	ret
+
+; ix_is_cores: Z if the 8.3 name at ix is exactly "CORES" with no extension.
+; Short names are uppercase and space padded, so this needs no case folding.
+; ix+5 must be a space, or CORESX would match too.
+ix_is_cores:
+	ld   a, (ix+0)
+	cp   'C'
+	ret  nz
+	ld   a, (ix+1)
+	cp   'O'
+	ret  nz
+	ld   a, (ix+2)
+	cp   'R'
+	ret  nz
+	ld   a, (ix+3)
+	cp   'E'
+	ret  nz
+	ld   a, (ix+4)
+	cp   'S'
+	ret  nz
+	ld   a, (ix+5)
+	cp   ' '
 	ret
 
 ; ix_is_rom: Z set if the entry's extension (ix+8..10) is "ROM" (upper-case).

@@ -53,13 +53,31 @@ to pulse one pin. Even that has a zero-firmware fallback — tell the user to po
 
 ## The design
 
-Two hops, because the thing being replaced cannot replace itself mid-write.
+Two hops, because the thing being replaced cannot replace itself mid-write. The important part
+is how little the first hop has to do.
 
-1. In MSXHeroTN, `F12` → **Core switching**. The core reads a small `loader.bin` from SD,
-   writes it to flash address 0, and triggers reconfiguration.
-2. The **loader** comes up: a minimal design that lists `.bin` files from the card, writes the
-   chosen one to address 0, and triggers reconfiguration again.
+1. `F12` → **Select Core**. MSXHeroTN writes **one fixed file** — `/CORES/LOADER.BIN` — to flash
+   address 0 and reconfigures. No list, no manifest, no choices.
+2. The **loader** comes up. *It* lists what is in `/CORES`, reads the chosen core's manifest,
+   validates everything, writes it, and reconfigures again.
 3. The chosen core runs.
+
+**Everything complicated lives in the loader**, and the loader is a small purpose-built design
+that does nothing else. MSXHeroTN needs only "copy a known file to address 0, then reboot" —
+and every other core that wants to be escapable needs only the same thing, which is why it is
+a realistic ask across a family of cores.
+
+### Routing the OSD entry
+
+The overlay cannot do this directly: it only sends config values to the core, and the work needs
+the SD card and FAT parsing, which live in the boot menu — not running during a game.
+
+So `Select Core` sets a spare config bit and resets. The boot menu sees the bit at start-up and
+does the flashing before drawing anything. `config2` bit 3 is free; it is where Compatible Mode
+lived before v1.9 removed it.
+
+From the user's side that is still one menu entry: choose it, the machine blinks, the loader
+appears.
 
 The loader lives **on the SD card**, not permanently in flash, so it costs no flash space and is
 updated by copying a file.
@@ -68,12 +86,12 @@ updated by copying a file.
 
 **To be loaded: nothing.** Any stock bitstream works unmodified.
 
-**To be left: the switcher.** Once a core is at address 0, only that core can replace it —
-`RECONFIG_N` just reboots address 0. A stock third-party core is therefore a one-way trip,
-recoverable only by reflashing over USB-C.
+**To be left: one fixed-file write.** Once a core is at address 0, only that core can replace it
+— `RECONFIG_N` just reboots address 0. So a core that wants to be escapable needs to copy
+`/CORES/LOADER.BIN` to address 0 and reboot. That is the whole requirement: no browser, no
+manifest parsing, no UI beyond one menu entry.
 
-For cores maintained in-house that is a small, identical addition: read a fixed file, write
-flash, ask for reconfiguration. It does not need a browser or a UI.
+A stock third-party core without it is a one-way trip, recoverable by reflashing over USB-C.
 
 ---
 
@@ -240,6 +258,10 @@ Each stage is independently testable, and the risky one is deliberately last.
 
 **Stage 0 — the converter.** Done: `tools/coreswitch/fs2bin.py`, verified against the shipping
 bitstream.
+
+Note that stages 1 and 2 below describe the **loader's** work. MSXHeroTN's own side is only
+stage 4 with a fixed filename, which is why it is worth building the loader first and treating
+the OSD entry as the last piece rather than the first.
 
 **Stage 1 — the pre-flight pass, writing nothing.** Parse `CORE.MAP`, read every file it names
 into SDRAM, validate magic, IDCODE and the region layout, and report. No erase, no flash, no
