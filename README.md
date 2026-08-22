@@ -28,7 +28,7 @@ reading the code, and not merely by compiling.
 | | |
 |---|---|
 | Boots, browses the SD card, runs games | yes |
-| DB9 joystick | yes — all directions, both fire buttons |
+| DB9 joystick | yes — directions and fire. See below on second buttons |
 | USB keyboard and gamepad | yes, through the shield |
 | HDMI video and audio | yes |
 | `F12` settings overlay | yes |
@@ -173,8 +173,18 @@ breadboard with a bare Pico, and what you give up by doing that.
 
 ### Controllers
 
-A **DB9 joystick** — the Atari/MSX kind — plugs straight into the shield and works, including
-both fire buttons. You choose which MSX port it answers on from the overlay.
+A **DB9 joystick** — the Atari/MSX kind — plugs straight into the shield and works. You choose
+which MSX port it answers on from the overlay.
+
+**On second buttons.** The shield's DE9 follows the Atari/Amiga convention, with button 2 on
+pin 9 — it was designed for Atari ST and Amiga cores. MSX joysticks put their second button on
+pin 7 instead, which the shield uses for +5V, so an MSX-pinout stick can deliver directions and
+fire 1 but not fire 2. In practice this costs little, since most MSX sticks only have one
+button. Fire 2 does work on an Atari, Amiga, Commodore or Mega Drive controller, and on any USB
+gamepad, which does not use this connector.
+
+If you have a two-button *MSX* stick, it is worth not pressing button 2: it switches pin 7 to
+ground, and the shield holds pin 7 at +5V.
 
 **USB controllers** go through the shield's USB port. XInput devices work; anything else
 mostly does not:

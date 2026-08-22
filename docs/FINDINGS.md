@@ -55,12 +55,34 @@ the button press did not take.
 
 Both were hit on this project, and neither is obvious.
 
-**The shield blocks JTAG.** With the MiSTeryShield20k attached, the FTDI device still
-enumerates as `20K's FRIEND` and both `tty.usbserial-*` ports appear, but openFPGALoader fails
-with `unable to open ftdi device: -6 (ftdi_usb_reset failed)`. Out of the shield it works
-every time. FPGA-Companion can drive JTAG itself (`jtag.c`, `gowin.c`) and the shield wires
-`RECONFIGN` to the Tang (J7 pad 10), so something there contends for those lines. **Take the
-board out of the shield to flash it.**
+**The shield blocks JTAG — and it is not JTAG contention.** With the MiSTeryShield20k
+attached, the FTDI device still enumerates as `20K's FRIEND` and both `tty.usbserial-*` ports
+appear, but openFPGALoader fails with `unable to open ftdi device: -6 (ftdi_usb_reset failed)`.
+Out of the shield it works every time. **Take the board out of the shield to flash it.**
+
+An earlier version of this entry guessed that FPGA-Companion's own JTAG support (`jtag.c`,
+`gowin.c`) was fighting the FTDI for those lines. **That was wrong.** The shield's complete net
+list, read from `MiSTeryShield20kRPiPicoUSB.kicad_pcb` in
+[MiSTle-Dev/Boards](https://github.com/MiSTle-Dev/Boards), is:
+
+```
+CSN  IRQ  MISO  MOSI  SCK  RECONFGN  PI_UART_RX  PI_UART_TX  UART_TX
+UP  DOWN  LEFT  RIGHT  BTN1  BTN2   MIDI_RX  MIDI_TX
+P31  P49  P73  P74  P75  P77        +3.3V  +5V  GND
+USB hub (U4, own crystal): UP_D+/-, USB1..USB4_D+/-
+```
+
+**There is no TCK, TMS, TDI or TDO on this shield at all.** The Pico cannot reach the FPGA's
+JTAG here whatever firmware it runs — note that FPGA-Companion's `MSP20K` target
+(`MISTLE_BOARD=5`, "MiSTeryShieldPicoTN20k") *does* define JTAG on GP12–GP15 and compiles in
+`jtag.c`/`gowin.c`, but on this board those pins go nowhere.
+
+What is wired, and what actually explains the failure, is **`RECONFGN`** — the FPGA's
+reconfigure line, driven by the Pico. Asserting it makes the FPGA reload its bitstream from
+flash, which will wreck a JTAG session in progress from the USB-C side. One line, not a bus.
+
+Also worth knowing from that net list: the shield carries a **four-port USB hub**, so a
+pendrive can share the port with the keyboard without extra hardware.
 
 **Flashing FPGA-Companion onto the on-board BL616 removes the JTAG bridge.** The Tang's
 factory debugger firmware presents as an FTDI FT2232 device — that is the only thing
@@ -125,6 +147,42 @@ the header to FPGA pins **25–31**:
 | 3 | 26 | Right |
 | 4 | 29 | Left |
 | 5 | 30 | Fire 2 |
+
+### The DE9 is wired for Atari/Amiga, not for MSX
+
+From `MiSTeryShield20kRPiPicoUSB.kicad_pcb`, connector **J1** in full:
+
+```
+1 UP    2 DOWN   3 LEFT   4 RIGHT   5 (not connected)
+6 BTN1  7 +5V    8 GND    9 BTN2
+```
+
+That is the Atari/Amiga/Commodore convention, which is what you would expect from a shield
+designed for MiSTeryNano and NanoMig. **An MSX joystick is not wired that way:**
+
+| Pin | MSX | This shield |
+|---|---|---|
+| 5 | **+5V** | not connected |
+| 6 | Trigger A | BTN1 — agrees |
+| 7 | **Trigger B** | **+5V** |
+| 8 | Strobe | GND |
+| 9 | **GND** | **BTN2** |
+
+**So an MSX joystick's second button cannot reach the FPGA on this shield.** Trigger B sits on
+pin 7, which is tied to +5V here; there is no wire, and no core change can create one. Worse,
+an MSX stick grounds pin 9, where the shield reads BTN2 — so fire 2 may read as permanently
+pressed.
+
+**Caution, unverified:** an MSX stick's button 2 switches pin 7 to ground, and pin 7 is +5V
+here. Pressing it may short the supply through the stick's own switch. Whether anything limits
+that current has not been checked in the schematic.
+
+Fire 2 therefore works on an **Atari/Amiga/Commodore** stick or a **Sega Mega Drive** pad,
+where button 2 is on pin 9 as the shield expects — and on a USB gamepad, which does not go
+through this connector at all. On an MSX-pinout stick, expect directions and fire 1 only.
+
+Note this is a **hardware fact, not a core bug**: the pin assignment below matches NanoMig's
+exactly, including fire 2 on pin 30.
 
 This is NanoMig's `js0[]` group — "generic IO pins used for DB9 port 1" — and its decode is
 `db9_joy0 = {!js0[5],!js0[0],!js0[2],!js0[1],!js0[4],!js0[3]}`. **Verified working on

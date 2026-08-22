@@ -31,7 +31,7 @@ the keyboard at once.
 
 | # | Qty | Component | Notes |
 |---|-----|-----------|-------|
-| 9 | 1 | **DB9 joystick** | Atari/MSX-style digital stick into the shield's DE9 port. Works — verified on hardware. |
+| 9 | 1 | **DB9 joystick** | Digital stick into the shield's DE9. Verified working. The port follows the **Atari/Amiga** pinout, so a second button only works on an Atari, Amiga, Commodore or Mega Drive controller — an MSX-pinout stick has its button 2 on pin 7, which is +5V here. Most MSX sticks are single-button anyway. |
 | 10 | 1 | **USB gamepad** | XInput (Xbox-style) recommended. Works alongside the DB9 stick on the same MSX port. |
 | 11 | 1 | **USB hub** | Only if you want two USB gamepads. Player 2 is the second XInput device enumerated. |
 
