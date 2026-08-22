@@ -223,6 +223,14 @@ uncommenting a line.
 
 ---
 
+## Core switching — its own plan
+
+Loading a different core from SD, chosen from the overlay. Researched in
+**[CORE-SWITCHING.md](CORE-SWITCHING.md)** rather than summarised here, because the interesting
+part is *why MiSTle has not done it on this board*: their implementation writes SRAM over JTAG,
+which is volatile and therefore safe, and this shield has no JTAG. The only route available here
+writes flash, and the GW2AR has no DUAL BOOT to fall back on — so a failed write needs a PC.
+
 ## Group C — big, and each needs a decision before it needs a developer
 
 Not "later" as a polite no. These are all worth having; they are just large enough that
