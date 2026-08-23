@@ -77,9 +77,25 @@ JTAG here whatever firmware it runs — note that FPGA-Companion's `MSP20K` targ
 (`MISTLE_BOARD=5`, "MiSTeryShieldPicoTN20k") *does* define JTAG on GP12–GP15 and compiles in
 `jtag.c`/`gowin.c`, but on this board those pins go nowhere.
 
-What is wired, and what actually explains the failure, is **`RECONFGN`** — the FPGA's
-reconfigure line, driven by the Pico. Asserting it makes the FPGA reload its bitstream from
-flash, which will wreck a JTAG session in progress from the USB-C side. One line, not a bus.
+What is wired is **`RECONFGN`**, driven by the Pico. One line, not a bus.
+
+**Correction, 2026-08-23.** This entry used to say *"Asserting it makes the FPGA reload its
+bitstream from flash"*. **That was never verified — it was inferred from the name of the net —
+and testing showed it is not true.** Holding the line low for three seconds does nothing to the
+Tang at all.
+
+The line is Pico **GPIO 20**, established twice independently: the shield PCB's netlist puts
+`RECONFGN` on J9 pad 15, and the schematic shows a wire from the Pico symbol's GP20 pin straight
+to the `RECONFGN` label. It reaches the Tang at J7 pin 10. The firmware side was proven working
+by blinking the shield's LEDs from the same loop that drove the pin.
+
+Note also that the shield's own Tang symbol lists 40 pins, **every one an ordinary FPGA I/O or
+power** — there is no reconfiguration input among them.
+
+So `RECONFGN` does not explain the JTAG failure either, and that remains unexplained. What is
+certain is the observation itself: **take the board out of the shield to flash it.**
+
+Full write-up in CoreSwitch's `docs/DESIGN.md`, stage 3.
 
 Also worth knowing from that net list: the shield carries a **four-port USB hub**, so a
 pendrive can share the port with the keyboard without extra hardware.
