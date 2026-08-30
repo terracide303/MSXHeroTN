@@ -388,6 +388,29 @@ random variable and instead added eleven setup violations **on the exact path
 under investigation** — making a hardware reading off it worthless. That build
 was correctly never flashed.
 
+## 16b. Count the errors with a pattern that cannot miss them
+
+**`grep -c 'class="error"'` on a Gowin report returned 0 on a build carrying 31
+errors**, because that tool writes `class = "error"` with spaces around the
+equals sign. The build was very nearly logged as clean.
+
+```sh
+grep -cE 'class *= *"error"' report.html     # tolerant of spacing
+```
+
+**This is the same trap one layer down from the one already recorded.**
+`pcehero.sdc`'s header warns that the Total Negative Slack summary hides
+cross-domain paths, so you must read the detail tables. Here the detail tables
+were read — and the pattern used to count them silently matched nothing.
+
+**A grep that returns 0 has two causes: nothing is wrong, or the pattern is
+wrong.** That is rule 11 applied to your own tooling. When a check reports
+clean on something you expected to be dirty, verify the pattern matches
+*something* before believing the zero.
+
+And when you find a counting bug, **re-run the corrected check over the builds
+you already signed off**. Those verdicts rest on the broken pattern too.
+
 ## 17. Tier your confidence, and say which tier you are on
 
 Not all "ruled out" is equal:
