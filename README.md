@@ -2,6 +2,8 @@
 
 # MSXHeroTN 1.1
 
+[![Buy me a beer](https://img.shields.io/badge/Buy%20me%20a%20beer-%F0%9F%8D%BA-FFDD00?style=flat)](https://buymeacoffee.com/terracide)
+
 **An MSX2+ home computer, in an FPGA, on a Tang Nano 20K.**
 
 It boots to its own file browser, runs your ROMs off an SD card, takes a real joystick, and
